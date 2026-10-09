@@ -1,4 +1,4 @@
-import { prisma } from '../db'
+import { prisma, type Tx } from '../db'
 import { uniqueSlug } from '../slug'
 import type { UpsertContactInput } from '../validation'
 import { followUpEdges } from './edges'
@@ -158,7 +158,7 @@ function scalarFields(input: UpsertContactInput) {
     personalContext: input.personalContext ?? null,
     notes: input.notes ?? null,
     interests: input.interests,
-    customFields: input.customFields as any,
+    customFields: input.customFields,
   }
 }
 
@@ -168,7 +168,7 @@ function scalarFields(input: UpsertContactInput) {
  * post attributes on their own.
  */
 async function replaceAttributes(
-  tx: any,
+  tx: Tx,
   contactId: string,
   rows: UpsertContactInput['attributes'],
 ) {
@@ -188,8 +188,8 @@ async function replaceAttributes(
 
 export async function createContact(owner: string, input: UpsertContactInput) {
   return prisma.$transaction(async (tx) => {
-    const slug = await uniqueSlug('contact', owner, input.displayName, tx as any)
-    const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+    const slug = await uniqueSlug('contact', owner, input.displayName, tx)
+    const tagIds = await resolveTagIds(tx, owner, input.tags)
     const contact = await tx.contact.create({
       data: {
         owner,
@@ -210,7 +210,7 @@ export async function createContact(owner: string, input: UpsertContactInput) {
 export async function updateContact(owner: string, id: string, input: UpsertContactInput) {
   return prisma.$transaction(async (tx) => {
     await tx.contact.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
-    const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+    const tagIds = await resolveTagIds(tx, owner, input.tags)
 
     // Repeatable sections are replaced wholesale; the form always posts the
     // complete list, so diffing rows would add complexity without benefit.

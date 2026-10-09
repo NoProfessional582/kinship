@@ -24,14 +24,14 @@ const EXTENSIONS = [
   }),
   TaskList,
   TaskItem.configure({ nested: true }),
-  ContactMention.configure({ render: undefined as any }),
-  EntityRef.configure({ render: undefined as any }),
+  ContactMention.configure({ render: undefined }),
+  EntityRef.configure({ render: undefined }),
 ]
 
 export function renderEntryHtml(doc: ProseNode | null | undefined): string {
   if (!doc || typeof doc !== 'object') return ''
   try {
-    return generateHTML(doc as any, EXTENSIONS)
+    return generateHTML(doc, EXTENSIONS)
   } catch {
     // A malformed document must never take the feed down with it.
     return ''

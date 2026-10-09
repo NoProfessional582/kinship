@@ -1,4 +1,4 @@
-import { prisma } from '../db'
+import { prisma, type Tx } from '../db'
 import { uniqueSlug } from '../slug'
 import { positionBetween, positionForIndex } from '../fractional-index'
 import type { UpsertTaskInput } from '../validation'
@@ -36,7 +36,7 @@ export const taskDetail = {
  * place means a card can never show a status that contradicts the column it is
  * sitting in — which is what made the old separate Status field so confusing.
  */
-async function statusForColumn(tx: any, owner: string, columnId: string): Promise<TaskStatus> {
+async function statusForColumn(tx: Tx, owner: string, columnId: string): Promise<TaskStatus> {
   const column = await tx.boardColumn.findFirstOrThrow({
     where: { id: columnId, owner },
     select: { status: true },
@@ -44,7 +44,7 @@ async function statusForColumn(tx: any, owner: string, columnId: string): Promis
   return column.status as TaskStatus
 }
 
-async function validateLinks(tx: any, owner: string, input: UpsertTaskInput) {
+async function validateLinks(tx: Tx, owner: string, input: UpsertTaskInput) {
   if (input.projectId)
     await tx.project.findFirstOrThrow({
       where: { id: input.projectId, owner },
@@ -73,7 +73,7 @@ const completionFor = (status: TaskStatus, existing?: Date | null) =>
 export async function getBoard(owner: string, projectId: string | null) {
   if (projectId)
     await prisma.project.findFirstOrThrow({ where: { id: projectId, owner }, select: { id: true } })
-  const columns = await ensureColumns(prisma as any, owner)
+  const columns = await ensureColumns(prisma, owner)
   const tasks = await prisma.task.findMany({
     where: {
       owner,
@@ -98,10 +98,10 @@ export async function getTask(owner: string, idOrSlug: string) {
 export async function createTask(owner: string, input: UpsertTaskInput) {
   return prisma.$transaction(async (tx) => {
     await validateLinks(tx, owner, input)
-    const slug = await uniqueSlug('task', owner, input.title, tx as any)
-    const columnId = input.columnId ?? (await defaultColumnId(tx as any, owner))
-    const position = await appendPosition(tx as any, owner, columnId)
-    const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+    const slug = await uniqueSlug('task', owner, input.title, tx)
+    const columnId = input.columnId ?? (await defaultColumnId(tx, owner))
+    const position = await appendPosition(tx, owner, columnId)
+    const tagIds = await resolveTagIds(tx, owner, input.tags)
     const status = await statusForColumn(tx, owner, columnId)
 
     return tx.task.create({
@@ -133,7 +133,7 @@ export async function updateTask(owner: string, id: string, input: UpsertTaskInp
   return prisma.$transaction(async (tx) => {
     await tx.task.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     await validateLinks(tx, owner, input)
-    const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+    const tagIds = await resolveTagIds(tx, owner, input.tags)
     await tx.taskAssignee.deleteMany({ where: { taskId: id } })
     await tx.taskTag.deleteMany({ where: { taskId: id } })
 
@@ -150,7 +150,7 @@ export async function updateTask(owner: string, id: string, input: UpsertTaskInp
     // order non-deterministic and fires a full renormalize on the next drag.
     // `undefined` leaves the column unchanged when the task has not moved.
     const position =
-      columnId === existing.columnId ? undefined : await appendPosition(tx as any, owner, columnId)
+      columnId === existing.columnId ? undefined : await appendPosition(tx, owner, columnId)
 
     return tx.task.update({
       where: { id },
@@ -265,7 +265,7 @@ export async function moveTask(
     })
   })
 
-  await prisma.$transaction(async (tx) => renormalizeColumn(tx as any, owner, columnId))
+  await prisma.$transaction(async (tx) => renormalizeColumn(tx, owner, columnId))
   return result
 }
 

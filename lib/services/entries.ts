@@ -1,4 +1,5 @@
-import { prisma } from '../db'
+import type { EntryKind } from '@prisma/client'
+import { prisma, type Tx } from '../db'
 import { uniqueSlug } from '../slug'
 import {
   collectDocRefs,
@@ -54,9 +55,9 @@ const followUpTitle = (parent: { title: string | null; kind: string }) =>
  * the moment it opened.
  */
 async function createFollowUp(
-  tx: any,
+  tx: Tx,
   owner: string,
-  parent: { id: string; kind: string; title: string | null; projectId: string | null },
+  parent: { id: string; kind: EntryKind; title: string | null; projectId: string | null },
   at: Date,
   contactIds: string[],
 ) {
@@ -65,7 +66,7 @@ async function createFollowUp(
       owner,
       kind: parent.kind,
       title: followUpTitle(parent),
-      bodyJson: EMPTY_DOC as any,
+      bodyJson: EMPTY_DOC,
       bodyText: '',
       occurredAt: at,
       projectId: parent.projectId,
@@ -98,7 +99,7 @@ async function createFollowUp(
  * record of a conversation that happened, and an emptied date field is not
  * consent to throw that away; deleting the note itself is.
  */
-async function syncFollowUp(tx: any, owner: string, parentId: string, at: Date | null) {
+async function syncFollowUp(tx: Tx, owner: string, parentId: string, at: Date | null) {
   const edge = await tx.entityEdge.findFirst({
     where: {
       owner,
@@ -139,7 +140,7 @@ async function syncFollowUp(tx: any, owner: string, parentId: string, at: Date |
       owner,
       parent,
       at,
-      parent.mentions.map((m: any) => m.contactId),
+      parent.mentions.map((m) => m.contactId),
     )
     return
   }
@@ -258,7 +259,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
     const taskIds = await existingIds(tx.task, owner, [...refs.taskIds, ...newTaskIds])
     const projectIds = await existingIds(tx.project, owner, [...refs.projectIds, ...newProjectIds])
 
-    const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+    const tagIds = await resolveTagIds(tx, owner, input.tags)
 
     const entry = await tx.entry.create({
       data: {
@@ -266,7 +267,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
         kind: input.kind,
         // Left null when the writer gave no title; the UI shows 'Untitled'.
         title: input.title?.trim() || null,
-        bodyJson: finalDoc as any,
+        bodyJson: finalDoc,
         bodyText,
         occurredAt: input.occurredAt,
         direction: input.direction ?? null,
@@ -328,7 +329,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
  * was never created, with no mention or ref recorded for it.
  */
 async function materializePending(
-  tx: any,
+  tx: Tx,
   owner: string,
   pending: PendingEntity[],
   labelHints: Map<string, string>,
@@ -379,14 +380,25 @@ async function materializePending(
   return { idMap, createdEntities, newContactIds, newTaskIds, newProjectIds }
 }
 
-async function existingIds(delegate: any, owner: string, ids: string[]): Promise<string[]> {
+interface OwnedIdLookup {
+  findMany(args: {
+    where: { owner: string; id: { in: string[] } }
+    select: { id: true }
+  }): Promise<{ id: string }[]>
+}
+
+async function existingIds(
+  delegate: OwnedIdLookup,
+  owner: string,
+  ids: string[],
+): Promise<string[]> {
   const unique = [...new Set(ids)].filter(Boolean)
   if (unique.length === 0) return []
   const rows = await delegate.findMany({
     where: { owner, id: { in: unique } },
     select: { id: true },
   })
-  return rows.map((r: { id: string }) => r.id)
+  return rows.map((r) => r.id)
 }
 
 export async function updateEntry(owner: string, id: string, input: Partial<CreateEntryInput>) {
@@ -427,7 +439,7 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
       createdEntities = materialized.createdEntities
 
       const finalDoc = rewriteDocIds(doc, materialized.idMap)
-      data.bodyJson = finalDoc as any
+      data.bodyJson = finalDoc
       data.bodyText = docToText(finalDoc)
 
       const contactIds = await existingIds(tx.contact, owner, [
@@ -464,7 +476,7 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
     }
 
     if (input.tags) {
-      const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+      const tagIds = await resolveTagIds(tx, owner, input.tags)
       await tx.entryTag.deleteMany({ where: { entryId: id } })
       if (tagIds.length)
         await tx.entryTag.createMany({ data: tagIds.map((tagId) => ({ entryId: id, tagId })) })
@@ -519,7 +531,7 @@ export async function listEntries(
     contactId?: string
     taskId?: string
     projectId?: string
-    kind?: string
+    kind?: EntryKind
     take?: number
     skip?: number
     /** Only entries that have already occurred. */
@@ -539,7 +551,7 @@ export async function listEntries(
       deletedAt: null,
       ...(past ? { occurredAt: { lte: now } } : {}),
       ...(upcoming ? { occurredAt: { gt: now } } : {}),
-      ...(kind ? { kind: kind as any } : {}),
+      ...(kind ? { kind } : {}),
       ...(contactId ? { mentions: { some: { contactId } } } : {}),
       ...(taskId ? { refs: { some: { taskId } } } : {}),
       ...(projectId ? { refs: { some: { projectId } } } : {}),

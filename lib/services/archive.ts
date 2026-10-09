@@ -17,6 +17,7 @@ import {
   reviveRow,
   type ModelName,
 } from '../archive-rows'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { ValidationError } from '../errors'
 import { ownerUploadDir, uploadUrl } from '../uploads'
@@ -44,9 +45,59 @@ export { archiveFilename } from '../archive-rows'
 type Client = typeof prisma
 type Tx = Omit<Client, '$transaction' | '$connect' | '$disconnect' | '$on' | '$use' | '$extends'>
 
+/** What the export does with every model's delegate. */
+interface ArchiveReader {
+  findMany(args: { where: object; orderBy: object }): Promise<Record<string, unknown>[]>
+  count(args: { where: object }): Promise<number>
+}
+
 /** `Contact` -> `prisma.contact`, the Prisma delegate naming rule. */
-function delegate(model: ModelName, client: Client | Tx = prisma): any {
-  return (client as any)[model[0].toLowerCase() + model.slice(1)]
+function delegate(model: ModelName): ArchiveReader {
+  const key = (model[0].toLowerCase() + model.slice(1)) as Uncapitalize<ModelName>
+  const d: ArchiveReader = prisma[key]
+  return d
+}
+
+type Row = Record<string, unknown>
+
+/**
+ * Writes one chunk of revived rows. An archive's rows have no compile-time
+ * type: `reviveRow` gives each one exactly the model's columns (read from
+ * Prisma's own model metadata) with dates restored, and Postgres checks every
+ * value on insert. Each entry says which Prisma input those rows are.
+ */
+const WRITERS: Record<ModelName, (tx: Tx, data: Row[]) => Promise<{ count: number }>> = {
+  Tag: (tx, data) => tx.tag.createMany({ data: data as Prisma.TagCreateManyInput[] }),
+  Contact: (tx, data) => tx.contact.createMany({ data: data as Prisma.ContactCreateManyInput[] }),
+  ContactAttribute: (tx, data) =>
+    tx.contactAttribute.createMany({ data: data as Prisma.ContactAttributeCreateManyInput[] }),
+  ContactChannel: (tx, data) =>
+    tx.contactChannel.createMany({ data: data as Prisma.ContactChannelCreateManyInput[] }),
+  ContactPosition: (tx, data) =>
+    tx.contactPosition.createMany({ data: data as Prisma.ContactPositionCreateManyInput[] }),
+  ContactMilestone: (tx, data) =>
+    tx.contactMilestone.createMany({ data: data as Prisma.ContactMilestoneCreateManyInput[] }),
+  ContactLink: (tx, data) =>
+    tx.contactLink.createMany({ data: data as Prisma.ContactLinkCreateManyInput[] }),
+  Project: (tx, data) => tx.project.createMany({ data: data as Prisma.ProjectCreateManyInput[] }),
+  BoardColumn: (tx, data) =>
+    tx.boardColumn.createMany({ data: data as Prisma.BoardColumnCreateManyInput[] }),
+  Task: (tx, data) => tx.task.createMany({ data: data as Prisma.TaskCreateManyInput[] }),
+  TaskAssignee: (tx, data) =>
+    tx.taskAssignee.createMany({ data: data as Prisma.TaskAssigneeCreateManyInput[] }),
+  Entry: (tx, data) => tx.entry.createMany({ data: data as Prisma.EntryCreateManyInput[] }),
+  Mention: (tx, data) => tx.mention.createMany({ data: data as Prisma.MentionCreateManyInput[] }),
+  EntityRef: (tx, data) =>
+    tx.entityRef.createMany({ data: data as Prisma.EntityRefCreateManyInput[] }),
+  ContactTag: (tx, data) =>
+    tx.contactTag.createMany({ data: data as Prisma.ContactTagCreateManyInput[] }),
+  EntryTag: (tx, data) =>
+    tx.entryTag.createMany({ data: data as Prisma.EntryTagCreateManyInput[] }),
+  TaskTag: (tx, data) => tx.taskTag.createMany({ data: data as Prisma.TaskTagCreateManyInput[] }),
+  EntityEdge: (tx, data) =>
+    tx.entityEdge.createMany({ data: data as Prisma.EntityEdgeCreateManyInput[] }),
+  Settings: (tx, data) =>
+    tx.settings.createMany({ data: data as Prisma.SettingsCreateManyInput[] }),
 }
 
 // ------------------------------------------------------------------- Export
@@ -307,7 +358,7 @@ export async function importArchive(
           // Chunked so a wide table cannot walk into Postgres's 65 535 bound
           // parameters per statement: 250 rows x ~30 columns leaves room to spare.
           for (let i = 0; i < rows.length; i += CHUNK) {
-            await delegate(model, tx).createMany({ data: rows.slice(i, i + CHUNK) })
+            await WRITERS[model](tx, rows.slice(i, i + CHUNK))
           }
         }
         return written

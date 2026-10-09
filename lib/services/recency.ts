@@ -49,7 +49,7 @@ export async function recomputeLastContact(
   if (!contactIds.length) return
   const now = new Date()
   for (const contactId of contactIds) {
-    const latest = await (db as any).entry.findFirst({
+    const latest = await db.entry.findFirst({
       where: {
         owner,
         deletedAt: null,
@@ -59,7 +59,7 @@ export async function recomputeLastContact(
       orderBy: { occurredAt: 'desc' },
       select: { occurredAt: true },
     })
-    await (db as any).contact.updateMany({
+    await db.contact.updateMany({
       where: { id: contactId, owner },
       data: { lastContactAt: latest?.occurredAt ?? null },
     })
@@ -72,9 +72,9 @@ export async function contactsMentionedBy(
   owner: string,
   entryId: string,
 ): Promise<string[]> {
-  const rows = await (db as any).mention.findMany({
+  const rows = await db.mention.findMany({
     where: { entryId, entry: { owner } },
     select: { contactId: true },
   })
-  return rows.map((r: { contactId: string }) => r.contactId)
+  return rows.map((r) => r.contactId)
 }

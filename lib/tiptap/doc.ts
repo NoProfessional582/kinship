@@ -6,12 +6,16 @@ import { CONTACT_MENTION, ENTITY_REF, isPendingId, type EntityKind } from './nod
  * Keeping one traversal here is what stops the three from drifting apart.
  */
 
+/** A value that survives JSON, which is how documents are stored. */
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
 export type ProseNode = {
   type?: string
-  attrs?: Record<string, any>
+  attrs?: Record<string, JsonValue>
   content?: ProseNode[]
   text?: string
-  marks?: unknown[]
+  marks?: { type: string; attrs?: Record<string, JsonValue> }[]
 }
 
 export interface DocRefs {

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, type Prisma } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 /**
@@ -16,6 +16,9 @@ function createClient() {
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   })
 }
+
+/** A transaction handle, as `prisma.$transaction(async (tx) => ...)` passes it. */
+export type Tx = Prisma.TransactionClient
 
 export const prisma = globalForPrisma.prisma ?? createClient()
 

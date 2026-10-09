@@ -93,7 +93,7 @@ export const ContactMention = Node.create<{ render: RenderFn }>({
   selectable: false,
 
   addOptions() {
-    return { render: undefined as unknown as RenderFn }
+    return { render: undefined }
   },
 
   addAttributes() {
@@ -168,7 +168,7 @@ export const EntityRef = Node.create<{ render: RenderFn }>({
   selectable: false,
 
   addOptions() {
-    return { render: undefined as unknown as RenderFn }
+    return { render: undefined }
   },
 
   addAttributes() {

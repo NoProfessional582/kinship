@@ -36,8 +36,9 @@ export async function PATCH(req: Request) {
   return handle(async () => {
     const body = settingsSchema.parse(await req.json())
     // Only the keys actually sent are written, so a partial save from one panel
-    // never clears a field owned by another.
-    const data = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined)) as any
+    // never clears a field owned by another: zod leaves absent keys out, and
+    // Prisma leaves a field it is given as undefined untouched.
+    const data = body
     return prisma.settings.upsert({
       where: { owner },
       create: { owner, ...data },

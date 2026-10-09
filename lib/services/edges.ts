@@ -20,8 +20,16 @@ export interface EdgeInput {
  * contact-only table, so "Maya introduced me to Northwind" and "Maya reports to
  * Tobias" are the same kind of record.
  */
+interface OwnedLookup {
+  findFirst(args: {
+    where: { id: string; owner: string }
+    select: { id: true }
+  }): Promise<{ id: string } | null>
+}
+
 async function requireOwnedEntity(owner: string, type: EntityType, id: string) {
-  const row = await (prisma as any)[type].findFirst({ where: { id, owner }, select: { id: true } })
+  const delegate: OwnedLookup = prisma[type]
+  const row = await delegate.findFirst({ where: { id, owner }, select: { id: true } })
   if (!row) throw Object.assign(new Error('Not found'), { code: 'P2025' })
 }
 

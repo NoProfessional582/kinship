@@ -88,13 +88,13 @@ export async function searchMentions(
   ])
 
   return [
-    ...(projects as any[]).map((p) => ({
+    ...projects.map((p) => ({
       id: p.id,
       label: p.name,
       kind: 'project' as const,
       sublabel: 'project',
     })),
-    ...(tasks as any[]).map((t) => ({
+    ...tasks.map((t) => ({
       id: t.id,
       label: t.title,
       kind: 'task' as const,

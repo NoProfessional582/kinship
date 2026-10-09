@@ -19,8 +19,27 @@ const KINDS = ['contact', 'entry', 'task', 'project'] as const
  */
 type Db = typeof prisma | Prisma.TransactionClient
 
+type OwnedId = { id: string; owner: string }
+type Trashed = { owner: string; deletedAt: { not: null } }
+
+/** The part of each trashable model's delegate this module uses. */
+interface TrashDelegate {
+  findFirstOrThrow(args: { where: OwnedId; select: { id: true } }): Promise<{ id: string }>
+  findFirst(args: {
+    where: OwnedId
+    select: { id: true; deletedAt: true }
+  }): Promise<{ id: string; deletedAt: Date | null } | null>
+  findMany(args: { where: Trashed; select: { id: true } }): Promise<{ id: string }[]>
+  update(args: {
+    where: { id: string }
+    data: { deletedAt: Date | null }
+  }): Promise<{ id: string; deletedAt: Date | null }>
+  delete(args: { where: { id: string } }): Promise<{ id: string; deletedAt: Date | null }>
+  deleteMany(args: { where: { id: { in: string[] } } }): Promise<{ count: number }>
+}
+
 /** Model delegate for a kind, bound to a specific client. */
-const model = (db: Db, kind: TrashKind) => (db as any)[kind]
+const model = (db: Db, kind: TrashKind): TrashDelegate => db[kind]
 
 /**
  * Soft delete. Rows are marked rather than removed so a misclick on years of
@@ -193,7 +212,7 @@ export async function emptyTrash(owner: string) {
     const ids = {} as Record<TrashKind, string[]>
     for (const kind of KINDS) {
       const rows = await model(tx, kind).findMany({ where: deleted, select: { id: true } })
-      ids[kind] = rows.map((r: { id: string }) => r.id)
+      ids[kind] = rows.map((r) => r.id)
     }
 
     // Same subtree policy as `purge`. One query is enough: every trashed task is

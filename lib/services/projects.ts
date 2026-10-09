@@ -71,7 +71,7 @@ export async function getProject(owner: string, idOrSlug: string) {
 
 export async function createProject(owner: string, input: UpsertProjectInput) {
   return prisma.$transaction(async (tx) => {
-    const slug = await uniqueSlug('project', owner, input.name, tx as any)
+    const slug = await uniqueSlug('project', owner, input.name, tx)
     return tx.project.create({
       data: {
         owner,
