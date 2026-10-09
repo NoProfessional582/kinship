@@ -35,6 +35,8 @@ All notable changes to Kinship are recorded here. The format follows
 - `npm run lint` runs ESLint 9 with Next.js's rules, since Next.js 16 no longer
   has `next lint`.
 - `@types/node` 24, to match Node 24.
+- The single-user gate is `proxy.ts`, Next.js 16's new name for
+  `middleware.ts`, and now runs in the Node.js runtime.
 
 ### Fixed
 

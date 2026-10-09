@@ -6,11 +6,12 @@
  * /api/import comes back "That file is not JSON." and a 300MB upload comes back
  * "Could not read the upload" — because Next TRUNCATES the body at 10MB and
  * logs `Request body exceeded 10MB for /api/upload. Only the first 10MB will be
- * available unless configured.` That is `middlewareClientMaxBodySize`, which
- * applies because this app has a middleware.ts. So the app was never actually
+ * available unless configured.` That is `proxyClientMaxBodySize` (formerly
+ * `middlewareClientMaxBodySize`), which applies because this app has a proxy.ts
+ * (formerly middleware.ts). So the app was never actually
  * exposed to a 2GB body — but it was relying on a framework default it never
  * asked for, that reports a truncated body as malformed input, and that
- * disappears the moment someone raises that setting or deletes middleware.ts.
+ * disappears the moment someone raises that setting or deletes proxy.ts.
  *
  * So the limits here are deliberate, explicit, and stated in the error the
  * caller receives (413, not a confusing 400 about JSON).

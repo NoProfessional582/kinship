@@ -8,11 +8,13 @@
  * All this does is refuse every page and API call, with a message saying what
  * to fix, when `KINSHIP_OWNER` is missing. That covers `/uploads/*` too, which
  * is served by a route handler and returns real user data.
+ *
+ * `proxy` is Next.js 16's name for middleware; it runs in the Node.js runtime.
  */
 import { NextResponse, type NextRequest } from 'next/server'
 import { ownerSubject } from './lib/identity'
 
-export function middleware(_req: NextRequest) {
+export function proxy(_req: NextRequest) {
   try {
     ownerSubject()
   } catch (err) {
