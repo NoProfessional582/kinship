@@ -4,9 +4,19 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
-  ContactForm, contactFromRecord, contactToPayload, type ContactFormValue,
+  ContactForm,
+  contactFromRecord,
+  contactToPayload,
+  type ContactFormValue,
 } from '@/components/entity-modal/contact-form'
-import { MSheet, MSheetContent, MSheetTitle, MSheetBody, MSheetFooter, MSheetHeader } from '@/components/mobile/sheet'
+import {
+  MSheet,
+  MSheetContent,
+  MSheetTitle,
+  MSheetBody,
+  MSheetFooter,
+  MSheetHeader,
+} from '@/components/mobile/sheet'
 import { api } from '@/lib/hooks/api'
 
 /**
@@ -16,7 +26,9 @@ import { api } from '@/lib/hooks/api'
  * the split is meant to avoid. Only the container is different.
  */
 export function MobileContactEditSheet({
-  contact, open, onOpenChange,
+  contact,
+  open,
+  onOpenChange,
 }: {
   contact: any
   open: boolean
@@ -52,9 +64,13 @@ export function MobileContactEditSheet({
           <ContactForm value={form} onChange={setForm} />
         </MSheetBody>
         <MSheetFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
           <span className="flex-1" />
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
         </MSheetFooter>
       </MSheetContent>
     </MSheet>

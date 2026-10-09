@@ -114,9 +114,7 @@ function assertModelsCovered(byName: Map<string, unknown>) {
  */
 export function orderBy(model: ModelName) {
   const shape = SCHEMA[model]
-  return shape.hasId
-    ? [{ id: 'asc' as const }]
-    : shape.fields.map((f) => ({ [f]: 'asc' as const }))
+  return shape.hasId ? [{ id: 'asc' as const }] : shape.fields.map((f) => ({ [f]: 'asc' as const }))
 }
 
 /** A filename for the download, stamped so two archives never collide. */
@@ -139,11 +137,9 @@ const uploadSchema = z.object({
     .refine((n) => !n.includes('/') && !n.includes('\\') && !n.startsWith('.'), {
       message: 'Upload names must be bare filenames',
     }),
-  data: z
-    .string()
-    .refine((s) => s.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(s), {
-      message: 'Upload data must be base64',
-    }),
+  data: z.string().refine((s) => s.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(s), {
+    message: 'Upload data must be base64',
+  }),
 })
 
 /**
@@ -173,10 +169,7 @@ export const archiveSchema = z.object({
  * older schema is missing columns, which take their defaults, and one that has
  * been hand-edited may carry keys that are not columns at all.
  */
-export function reviveRow(
-  model: ModelName,
-  row: Record<string, unknown>,
-): Record<string, unknown> {
+export function reviveRow(model: ModelName, row: Record<string, unknown>): Record<string, unknown> {
   const { fields, dates } = SCHEMA[model]
   const out: Record<string, unknown> = {}
 

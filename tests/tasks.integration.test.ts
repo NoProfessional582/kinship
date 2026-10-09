@@ -29,14 +29,23 @@ async function column() {
 async function project(key: string) {
   if (!projects[key]) {
     const p = await prisma.project.create({
-      data: { owner: OWNER, slug: `${MARK}${key}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: `${MARK}${key}` },
+      data: {
+        owner: OWNER,
+        slug: `${MARK}${key}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: `${MARK}${key}`,
+      },
     })
     projects[key] = p.id
   }
   return projects[key]
 }
 
-async function task(title: string, position: number, projectKey?: string, extra: Record<string, unknown> = {}) {
+async function task(
+  title: string,
+  position: number,
+  projectKey?: string,
+  extra: Record<string, unknown> = {},
+) {
   return prisma.task.create({
     data: {
       owner: OWNER,
@@ -53,7 +62,13 @@ async function task(title: string, position: number, projectKey?: string, extra:
 /** Titles in this column, in stored order, for one project — i.e. what the board shows. */
 async function visibleOrder(projectKey: string) {
   const rows = await prisma.task.findMany({
-    where: { owner: OWNER, columnId: await column(), projectId: await project(projectKey), deletedAt: null, parentTaskId: null },
+    where: {
+      owner: OWNER,
+      columnId: await column(),
+      projectId: await project(projectKey),
+      deletedAt: null,
+      parentTaskId: null,
+    },
     orderBy: { position: 'asc' },
     select: { title: true },
   })
@@ -61,9 +76,16 @@ async function visibleOrder(projectKey: string) {
 }
 
 afterAll(async () => {
-  const ids = await prisma.task.findMany({ where: { title: { startsWith: MARK } }, select: { id: true } })
+  const ids = await prisma.task.findMany({
+    where: { title: { startsWith: MARK } },
+    select: { id: true },
+  })
   await prisma.task.deleteMany({ where: { title: { startsWith: MARK } } })
-  await deleteEdgesFor(OWNER, 'task', ids.map((t) => t.id))
+  await deleteEdgesFor(
+    OWNER,
+    'task',
+    ids.map((t) => t.id),
+  )
   await prisma.project.deleteMany({ where: { name: { startsWith: MARK } } })
   await prisma.boardColumn.deleteMany({ where: { name: { startsWith: MARK } } })
   await prisma.$disconnect()
@@ -125,7 +147,13 @@ describe('moveTask — ordering on a filtered board (K05)', () => {
       data: { owner: OWNER, name: `${MARK}other`, status: 'TODO', position: 2000, projectId: null },
     })
     const stranger = await prisma.task.create({
-      data: { owner: OWNER, slug: `${MARK}stranger`, title: `${MARK}stranger`, columnId: other.id, position: 1000 },
+      data: {
+        owner: OWNER,
+        slug: `${MARK}stranger`,
+        title: `${MARK}stranger`,
+        columnId: other.id,
+        position: 1000,
+      },
     })
     const a = await task('x-a', 1000, 'xvisible')
     await task('x-b', 2000, 'xvisible')

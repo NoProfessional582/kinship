@@ -46,20 +46,31 @@ const store = (() => {
   return {
     read(): Draft | null {
       if (typeof window === 'undefined') return null
-      try { return JSON.parse(window.localStorage.getItem(k) ?? 'null') } catch { return null }
+      try {
+        return JSON.parse(window.localStorage.getItem(k) ?? 'null')
+      } catch {
+        return null
+      }
     },
     write(d: Draft) {
-      try { window.localStorage.setItem(k, JSON.stringify(d)) } catch { /* private mode */ }
+      try {
+        window.localStorage.setItem(k, JSON.stringify(d))
+      } catch {
+        /* private mode */
+      }
     },
     clear() {
-      try { window.localStorage.removeItem(k) } catch { /* private mode */ }
+      try {
+        window.localStorage.removeItem(k)
+      } catch {
+        /* private mode */
+      }
     },
   }
 })()
 
 const isEmptyDoc = (doc: any) =>
-  !doc?.content?.length ||
-  (doc.content.length === 1 && !doc.content[0].content?.length)
+  !doc?.content?.length || (doc.content.length === 1 && !doc.content[0].content?.length)
 
 /**
  * Capture, without a surface. The desktop card and the mobile sheet lay these
@@ -110,7 +121,9 @@ export function useComposer(onSaved?: () => void) {
   const qc = useQueryClient()
 
   const active = entryKind(kind)
-  const onReady = React.useCallback((e: Editor) => { editorRef.current = e }, [])
+  const onReady = React.useCallback((e: Editor) => {
+    editorRef.current = e
+  }, [])
 
   // Any stored draft is pulled in before the editor mounts, so its content can
   // be handed over as initial content rather than pushed in afterwards.
@@ -119,19 +132,41 @@ export function useComposer(onSaved?: () => void) {
     if (!d) return
     setRestored(d)
     setHasDraft(true)
-    setKind(d.kind); setTitle(d.title)
-    if (d.occurredAt) { dateTouched.current = true; setOccurredAt(d.occurredAt) }
-    setDirection(d.direction); setDurationMin(d.durationMin)
-    setLocation(d.location); setTags(d.tags)
-    setFollowUpAt(d.followUpAt ?? ''); setProjectId(d.projectId ?? '')
+    setKind(d.kind)
+    setTitle(d.title)
+    if (d.occurredAt) {
+      dateTouched.current = true
+      setOccurredAt(d.occurredAt)
+    }
+    setDirection(d.direction)
+    setDurationMin(d.durationMin)
+    setLocation(d.location)
+    setTags(d.tags)
+    setFollowUpAt(d.followUpAt ?? '')
+    setProjectId(d.projectId ?? '')
     setOpen(true)
   }, [])
 
   const persist = React.useCallback(() => {
     const doc = editorRef.current?.getJSON()
     const empty = isEmptyDoc(doc) && !title.trim() && tags.length === 0
-    if (empty) { store.clear(); setHasDraft(false); return }
-    store.write({ kind, title, occurredAt, direction, durationMin, location, followUpAt, projectId, tags, body: doc })
+    if (empty) {
+      store.clear()
+      setHasDraft(false)
+      return
+    }
+    store.write({
+      kind,
+      title,
+      occurredAt,
+      direction,
+      durationMin,
+      location,
+      followUpAt,
+      projectId,
+      tags,
+      body: doc,
+    })
     setHasDraft(true)
   }, [kind, title, occurredAt, direction, durationMin, location, followUpAt, projectId, tags])
 
@@ -144,9 +179,15 @@ export function useComposer(onSaved?: () => void) {
 
   const reset = () => {
     editorRef.current?.commands.clearContent()
-    setKind('NOTE'); setTitle(''); setDurationMin(''); setLocation(''); setDirection('')
-    setFollowUpAt(''); setProjectId('')
-    setTags([]); dateTouched.current = false
+    setKind('NOTE')
+    setTitle('')
+    setDurationMin('')
+    setLocation('')
+    setDirection('')
+    setFollowUpAt('')
+    setProjectId('')
+    setTags([])
+    dateTouched.current = false
     setOccurredAt(toLocalInputValue(new Date(), timezone))
     setRestored(null)
     store.clear()
@@ -201,12 +242,37 @@ export function useComposer(onSaved?: () => void) {
   }
 
   return {
-    open, setOpen, restored, hasDraft, setHasDraft,
-    kind, setKind, title, setTitle, occurredAt, setOccurredAt, dateTouched,
-    direction, setDirection, durationMin, setDurationMin,
-    location, setLocation, followUpAt, setFollowUpAt,
-    projectId, setProjectId, tags, setTags,
-    saving, setBodyRev, active, onReady, reset, save,
-    projects, timezone,
+    open,
+    setOpen,
+    restored,
+    hasDraft,
+    setHasDraft,
+    kind,
+    setKind,
+    title,
+    setTitle,
+    occurredAt,
+    setOccurredAt,
+    dateTouched,
+    direction,
+    setDirection,
+    durationMin,
+    setDurationMin,
+    location,
+    setLocation,
+    followUpAt,
+    setFollowUpAt,
+    projectId,
+    setProjectId,
+    tags,
+    setTags,
+    saving,
+    setBodyRev,
+    active,
+    onReady,
+    reset,
+    save,
+    projects,
+    timezone,
   }
 }

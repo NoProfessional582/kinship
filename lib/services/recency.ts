@@ -41,7 +41,11 @@ type Db = typeof prisma | Prisma.TransactionClient
  * other entries may still support the current recency; withdrawing an entry is
  * a statement that the evidence is gone.
  */
-export async function recomputeLastContact(db: Db, owner: string, contactIds: string[]): Promise<void> {
+export async function recomputeLastContact(
+  db: Db,
+  owner: string,
+  contactIds: string[],
+): Promise<void> {
   if (!contactIds.length) return
   const now = new Date()
   for (const contactId of contactIds) {
@@ -63,7 +67,11 @@ export async function recomputeLastContact(db: Db, owner: string, contactIds: st
 }
 
 /** Every contact an entry currently mentions. The input to a recompute. */
-export async function contactsMentionedBy(db: Db, owner: string, entryId: string): Promise<string[]> {
+export async function contactsMentionedBy(
+  db: Db,
+  owner: string,
+  entryId: string,
+): Promise<string[]> {
   const rows = await (db as any).mention.findMany({
     where: { entryId, entry: { owner } },
     select: { contactId: true },

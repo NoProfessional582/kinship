@@ -11,8 +11,14 @@ import * as React from 'react'
  * tooltip is what carries the detail.
  */
 export function EventChip({
-  tint, time, title,
-}: { tint: string; time?: string | null; title: string }) {
+  tint,
+  time,
+  title,
+}: {
+  tint: string
+  time?: string | null
+  title: string
+}) {
   return (
     <div className="kb-ev" style={{ ['--ev' as any]: tint }}>
       {time && <span className="kb-ev-time">{time}</span>}

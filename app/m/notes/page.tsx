@@ -44,7 +44,14 @@ export default function MobileNotes() {
         href={m(`/notes/${e.id}`)}
         lead={<Icon className="h-4 w-4" style={{ color: KIND_COLOR[e.kind] }} />}
         title={entryTitle(e)}
-        sub={e.mentions?.length ? e.mentions.map((x: any) => x.contact?.displayName).filter(Boolean).join(", ") : undefined}
+        sub={
+          e.mentions?.length
+            ? e.mentions
+                .map((x: any) => x.contact?.displayName)
+                .filter(Boolean)
+                .join(', ')
+            : undefined
+        }
         meta={fmt(e.occurredAt, 'MMM d')}
       />
     )
@@ -55,7 +62,9 @@ export default function MobileNotes() {
       <MobileCapture />
 
       <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
-        <Chip active={kind === ''} onClick={() => setKind('')}>All</Chip>
+        <Chip active={kind === ''} onClick={() => setKind('')}>
+          All
+        </Chip>
         {ENTRY_KINDS.map((k) => (
           <Chip key={k.value} active={kind === k.value} onClick={() => setKind(k.value)}>
             {k.label}
@@ -82,13 +91,23 @@ export default function MobileNotes() {
   )
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
   return (
     <button
       onClick={onClick}
       className={cn(
         'kb-tap-inline shrink-0 rounded-full border px-3 text-xs transition-colors',
-        active ? 'border-transparent bg-[var(--primary)] text-white' : 'border-[var(--border)] text-[var(--muted-foreground)]',
+        active
+          ? 'border-transparent bg-[var(--primary)] text-white'
+          : 'border-[var(--border)] text-[var(--muted-foreground)]',
       )}
     >
       {children}

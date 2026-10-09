@@ -41,7 +41,13 @@ export interface CalendarControls {
  * they can be typeset like the rest of the app rather than like a widget.
  */
 export function CalendarView({
-  onOpen, view, controlRef, onRangeChange, categories, selectedDate, onSelectDay,
+  onOpen,
+  view,
+  controlRef,
+  onRangeChange,
+  categories,
+  selectedDate,
+  onSelectDay,
 }: {
   onOpen: (source: string, id: string) => void
   view: CalendarViewName
@@ -65,21 +71,25 @@ export function CalendarView({
    * this is the only place some events are legible — it carries the full title
    * and the real interval in every view, month and list included.
    */
-  const tipFor = React.useCallback((event: any) => {
-    const when = event.allDay
-      ? isoDayLabel(String(event.startStr).slice(0, 10))
-      : [fmt(event.start, 'EEE d MMM, h:mm a'), event.end ? fmt(event.end, 'h:mm a') : null]
-          .filter(Boolean).join(' – ')
-    const p = event.extendedProps ?? {}
-    const meta = [p.project, p.who, p.kind].filter(Boolean).join(' · ')
-    return (
-      <>
-        <div className="kb-tip-title">{event.title}</div>
-        <div className="kb-tip-meta">{when}</div>
-        {meta && <div className="kb-tip-meta">{meta}</div>}
-      </>
-    )
-  }, [fmt])
+  const tipFor = React.useCallback(
+    (event: any) => {
+      const when = event.allDay
+        ? isoDayLabel(String(event.startStr).slice(0, 10))
+        : [fmt(event.start, 'EEE d MMM, h:mm a'), event.end ? fmt(event.end, 'h:mm a') : null]
+            .filter(Boolean)
+            .join(' – ')
+      const p = event.extendedProps ?? {}
+      const meta = [p.project, p.who, p.kind].filter(Boolean).join(' · ')
+      return (
+        <>
+          <div className="kb-tip-title">{event.title}</div>
+          <div className="kb-tip-meta">{when}</div>
+          {meta && <div className="kb-tip-meta">{meta}</div>}
+        </>
+      )
+    },
+    [fmt],
+  )
 
   React.useEffect(() => {
     if (!controlRef) return
@@ -89,7 +99,9 @@ export function CalendarView({
       today: () => calRef.current?.getApi().today(),
       refetch: () => calRef.current?.getApi().refetchEvents(),
     }
-    return () => { controlRef.current = null }
+    return () => {
+      controlRef.current = null
+    }
   }, [controlRef])
 
   // FullCalendar keeps its own view state, so a change to the prop has to be
@@ -102,7 +114,9 @@ export function CalendarView({
   // would hold on to the old one anyway, so the refetch below is what applies it.
   const catsRef = React.useRef(categories)
   catsRef.current = categories
-  React.useEffect(() => { calRef.current?.getApi().refetchEvents() }, [categories])
+  React.useEffect(() => {
+    calRef.current?.getApi().refetchEvents()
+  }, [categories])
 
   /**
    * The selection is painted onto the cell rather than driven through
@@ -117,7 +131,9 @@ export function CalendarView({
   const paintSelection = React.useCallback(() => {
     const root = rootRef.current
     if (!root) return
-    root.querySelectorAll('.kb-day-selected').forEach((el) => el.classList.remove('kb-day-selected'))
+    root
+      .querySelectorAll('.kb-day-selected')
+      .forEach((el) => el.classList.remove('kb-day-selected'))
     if (!isoRef.current) return
     root.querySelector(`.fc-day[data-date="${isoRef.current}"]`)?.classList.add('kb-day-selected')
   }, [])
@@ -126,12 +142,13 @@ export function CalendarView({
   // cells being rebuilt under it when the month or the view changes.
   React.useEffect(paintSelection, [paintSelection, selectedIso, view])
 
-  const fetchEvents = React.useCallback(
-    async (info: { startStr: string; endStr: string }) => {
-      const events = await api.get<CalendarEvent[]>(
-        `/api/calendar?start=${encodeURIComponent(info.startStr)}&end=${encodeURIComponent(info.endStr)}`,
-      )
-      return events.filter((e) => catsRef.current.has(e.category)).map((e) => ({
+  const fetchEvents = React.useCallback(async (info: { startStr: string; endStr: string }) => {
+    const events = await api.get<CalendarEvent[]>(
+      `/api/calendar?start=${encodeURIComponent(info.startStr)}&end=${encodeURIComponent(info.endStr)}`,
+    )
+    return events
+      .filter((e) => catsRef.current.has(e.category))
+      .map((e) => ({
         id: e.id,
         title: e.title,
         start: e.start,
@@ -143,13 +160,14 @@ export function CalendarView({
         editable: e.editable,
         extendedProps: { source: e.source, entityId: e.entityId, tint: e.color, ...e.meta },
       }))
-    },
-    [],
-  )
+  }, [])
 
   const reschedule = async (info: any) => {
     const { source, entityId } = info.event.extendedProps
-    if (source === 'birthday') { info.revert(); return }
+    if (source === 'birthday') {
+      info.revert()
+      return
+    }
     try {
       await api.patch('/api/calendar', {
         source,
@@ -167,32 +185,32 @@ export function CalendarView({
 
   return (
     <div ref={rootRef} className="h-full">
-    <FullCalendar
-      ref={calRef}
-      plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin, luxonPlugin]}
-      initialView={view}
-      timeZone={timezone}
-      headerToolbar={false}
-      /* Month sizes to its rows: a liquid height leaves dead space under the
+      <FullCalendar
+        ref={calRef}
+        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin, luxonPlugin]}
+        initialView={view}
+        timeZone={timezone}
+        headerToolbar={false}
+        /* Month sizes to its rows: a liquid height leaves dead space under the
          last week, since the grid will not stretch past its natural size. The
          time views do need a viewport-bound box, or they run 24 hours long. */
-      height={view === "dayGridMonth" ? "auto" : "100%"}
-      editable
-      /* Overlapping events divide the day column between them rather than
+        height={view === 'dayGridMonth' ? 'auto' : '100%'}
+        editable
+        /* Overlapping events divide the day column between them rather than
          stacking with an offset. Staggering keeps the frontmost block readable
          but hides the ones behind it, and which one wins is just whichever
          sorts last; splitting the width shows every event honestly. Blocks get
          narrow when several collide — see EventChip, which clips its label so
          nothing paints outside its own shape, and the tooltip, which carries
          the detail a squeezed block cannot. */
-      slotEventOverlap={false}
-      /* A deadline or a note carries one instant, not a span, so the time views
+        slotEventOverlap={false}
+        /* A deadline or a note carries one instant, not a span, so the time views
          have nothing to size it from. Half an hour is the smallest slot the
          grid draws, which makes a point-in-time item read as one block rather
          than the hour-long bar FullCalendar defaults to. Display only: the
          event keeps a null end, so dropping it writes no duration. */
-      defaultTimedEventDuration="00:30"
-      /* The one-slot floor for short blocks is CSS (see .fc-timegrid-event-
+        defaultTimedEventDuration="00:30"
+        /* The one-slot floor for short blocks is CSS (see .fc-timegrid-event-
          harness) and deliberately NOT `eventMinHeight`. FullCalendar folds that
          option into the pixel span it does overlap detection with — its own
          source marks the line `// :(` — so a floor even a fraction taller than
@@ -200,57 +218,61 @@ export function CalendarView({
          split the column as though they collided. A 9:00 follow-up and a 9:30
          meeting did exactly that for anyone whose root font size was under
          16px, which is where the slot pitch falls below 22px. */
-      dayMaxEvents={3}
-      nowIndicator
-      fixedWeekCount={false}
-      firstDay={calendarWeekStart === 'sunday' ? 0 : 1}
-      dayHeaderFormat={{ weekday: 'short' }}
-      /* Month cells carry their own date numbers; a week column has one nowhere
+        dayMaxEvents={3}
+        nowIndicator
+        fixedWeekCount={false}
+        firstDay={calendarWeekStart === 'sunday' ? 0 : 1}
+        dayHeaderFormat={{ weekday: 'short' }}
+        /* Month cells carry their own date numbers; a week column has one nowhere
          else in the grid, so its header carries it. Appended by hand rather
          than asked of `dayHeaderFormat`, because Intl orders that field pair as
          "27 Thu" in en-US and a calendar column reads as "Thu 27". The marker
          Date keeps the calendar's date in its UTC fields — a local getter would
          take the number back a day for anyone west of Greenwich. */
-      dayHeaderContent={(arg) =>
-        arg.view.type === 'timeGridWeek' ? `${arg.text} ${arg.date.getUTCDate()}` : arg.text}
-      moreLinkContent={(arg) => `+${arg.num} more`}
-      events={fetchEvents as any}
-      datesSet={(info) => { onRangeChange?.(info.view.currentStart); paintSelection() }}
-      /* dateStr is the calendar's own day string; parsing the marker Date in the
-         browser zone would land on the day before for anyone west of UTC. */
-      dateClick={(info) => onSelectDay?.(localDay(info.dateStr.slice(0, 10)))}
-      eventDrop={reschedule}
-      eventResize={reschedule}
-      eventClick={(info) => {
-        const { source, entityId } = info.event.extendedProps as any
-        onOpen(source, entityId)
-      }}
-      eventMouseEnter={(info) => tip.show(info.el, tipFor(info.event))}
-      eventMouseLeave={tip.hide}
-      eventDisplay="block"
-      eventTimeFormat={{ hour: 'numeric', minute: '2-digit', meridiem: 'short' }}
-      /* Pinned rather than left to the default so `blockTime` can split on the
-         same string FullCalendar joins with. */
-      defaultRangeSeparator={RANGE_SEP}
-      eventContent={(arg) => {
-        const tint = (arg.event.extendedProps as any).tint as string
-        if (arg.view.type === 'listWeek') {
-          return <span style={{ color: tint }}>{arg.event.title}</span>
+        dayHeaderContent={(arg) =>
+          arg.view.type === 'timeGridWeek' ? `${arg.text} ${arg.date.getUTCDate()}` : arg.text
         }
-        // A month cell is about what happened, not when — clock times there
-        // cost more width than they carry. The Today rail and the week views
-        // are where the hour matters.
-        const month = arg.view.type === 'dayGridMonth'
-        return (
-          <EventChip
-            tint={tint}
-            time={!month && !arg.event.allDay ? blockTime(arg) : null}
-            title={arg.event.title}
-          />
-        )
-      }}
-    />
-    {tip.node}
+        moreLinkContent={(arg) => `+${arg.num} more`}
+        events={fetchEvents as any}
+        datesSet={(info) => {
+          onRangeChange?.(info.view.currentStart)
+          paintSelection()
+        }}
+        /* dateStr is the calendar's own day string; parsing the marker Date in the
+         browser zone would land on the day before for anyone west of UTC. */
+        dateClick={(info) => onSelectDay?.(localDay(info.dateStr.slice(0, 10)))}
+        eventDrop={reschedule}
+        eventResize={reschedule}
+        eventClick={(info) => {
+          const { source, entityId } = info.event.extendedProps as any
+          onOpen(source, entityId)
+        }}
+        eventMouseEnter={(info) => tip.show(info.el, tipFor(info.event))}
+        eventMouseLeave={tip.hide}
+        eventDisplay="block"
+        eventTimeFormat={{ hour: 'numeric', minute: '2-digit', meridiem: 'short' }}
+        /* Pinned rather than left to the default so `blockTime` can split on the
+         same string FullCalendar joins with. */
+        defaultRangeSeparator={RANGE_SEP}
+        eventContent={(arg) => {
+          const tint = (arg.event.extendedProps as any).tint as string
+          if (arg.view.type === 'listWeek') {
+            return <span style={{ color: tint }}>{arg.event.title}</span>
+          }
+          // A month cell is about what happened, not when — clock times there
+          // cost more width than they carry. The Today rail and the week views
+          // are where the hour matters.
+          const month = arg.view.type === 'dayGridMonth'
+          return (
+            <EventChip
+              tint={tint}
+              time={!month && !arg.event.allDay ? blockTime(arg) : null}
+              title={arg.event.title}
+            />
+          )
+        }}
+      />
+      {tip.node}
     </div>
   )
 }
@@ -279,8 +301,12 @@ function blockTime(arg: any) {
 function isoDayLabel(day: string) {
   const [y, m, d] = day.split('-').map(Number)
   if (!y || !m || !d) return day
-  return new Date(y, m - 1, d).toLocaleDateString(undefined,
-    { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 /** `YYYY-MM-DD` in local time — the shape FullCalendar puts on a day cell. */

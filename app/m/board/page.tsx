@@ -28,7 +28,9 @@ export default function MobileBoardPage() {
         >
           <option value="">All projects</option>
           {(projects ?? []).map((p: any) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
         </Select>
         <Button onClick={() => setCreating(true)} className="shrink-0">

@@ -4,8 +4,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import {
-  PenLine, Users, SquareCheck, FolderKanban,
-  ArrowRight, Loader2, CloudSun,
+  PenLine,
+  Users,
+  SquareCheck,
+  FolderKanban,
+  ArrowRight,
+  Loader2,
+  CloudSun,
 } from 'lucide-react'
 import { UnifiedComposer } from '@/components/composer/unified-composer'
 import { EntryCard } from '@/components/shared/entry-card'
@@ -51,11 +56,29 @@ export default function Dashboard() {
   })
   const { data: drafts } = useDrafts()
 
-  const draftItems = React.useMemo(() => ([
-    ...(drafts?.contacts ?? []).map((c: any) => ({ id: c.id, label: c.displayName, icon: Users, href: `/contacts/${c.slug}` })),
-    ...(drafts?.projects ?? []).map((p: any) => ({ id: p.id, label: p.name, icon: FolderKanban, href: `/projects/${p.slug}` })),
-    ...(drafts?.tasks ?? []).map((t: any) => ({ id: t.id, label: t.title, icon: SquareCheck, task: t.id })),
-  ]), [drafts])
+  const draftItems = React.useMemo(
+    () => [
+      ...(drafts?.contacts ?? []).map((c: any) => ({
+        id: c.id,
+        label: c.displayName,
+        icon: Users,
+        href: `/contacts/${c.slug}`,
+      })),
+      ...(drafts?.projects ?? []).map((p: any) => ({
+        id: p.id,
+        label: p.name,
+        icon: FolderKanban,
+        href: `/projects/${p.slug}`,
+      })),
+      ...(drafts?.tasks ?? []).map((t: any) => ({
+        id: t.id,
+        label: t.title,
+        icon: SquareCheck,
+        task: t.id,
+      })),
+    ],
+    [drafts],
+  )
 
   // Deadlines, follow-ups and anything scheduled past today. Today's own items
   // already show above, so repeating them here would be the same list twice.
@@ -85,7 +108,9 @@ export default function Dashboard() {
           <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">{scheduleLine}</p>
         </div>
         <div className="pt-6 text-right">
-          <p className="display text-[1.4rem] leading-none">{now ? fmt(now, 'MMMM d, yyyy') : ''}</p>
+          <p className="display text-[1.4rem] leading-none">
+            {now ? fmt(now, 'MMMM d, yyyy') : ''}
+          </p>
           {weather?.enabled && (
             <p className="mt-2 flex items-center justify-end gap-1.5 font-mono text-[11px] uppercase tracking-wide text-[var(--muted-foreground)]">
               <CloudSun className="h-3 w-3" />
@@ -112,13 +137,22 @@ export default function Dashboard() {
                 <span className="max-w-[12rem] truncate">{d.label}</span>
               </>
             )
-            const cls = 'inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-2.5 py-1 text-xs transition-colors hover:border-[var(--warning)]'
-            return d.task
-              ? <button key={d.id} onClick={() => setOpenTask(d.task!)} className={cls}>{inner}</button>
-              : <Link key={d.id} href={d.href!} className={cls}>{inner}</Link>
+            const cls =
+              'inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-2.5 py-1 text-xs transition-colors hover:border-[var(--warning)]'
+            return d.task ? (
+              <button key={d.id} onClick={() => setOpenTask(d.task!)} className={cls}>
+                {inner}
+              </button>
+            ) : (
+              <Link key={d.id} href={d.href!} className={cls}>
+                {inner}
+              </Link>
+            )
           })}
           {draftItems.length > 6 && (
-            <span className="text-xs text-[var(--muted-foreground)]">+{draftItems.length - 6} more</span>
+            <span className="text-xs text-[var(--muted-foreground)]">
+              +{draftItems.length - 6} more
+            </span>
           )}
         </div>
       )}
@@ -130,7 +164,10 @@ export default function Dashboard() {
           <section>
             <div className="mb-3 flex items-baseline justify-between">
               <h2 className="text-[1.35rem]">Recent activity</h2>
-              <Link href="/notes" className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]">
+              <Link
+                href="/notes"
+                className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]"
+              >
                 View all <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -141,9 +178,14 @@ export default function Dashboard() {
                 </div>
               )}
               {entries?.length === 0 && (
-                <EmptyState title="Nothing captured yet" hint="Your first note will show up here." />
+                <EmptyState
+                  title="Nothing captured yet"
+                  hint="Your first note will show up here."
+                />
               )}
-              {entries?.map((e) => <EntryCard key={e.id} entry={e} compact />)}
+              {entries?.map((e) => (
+                <EntryCard key={e.id} entry={e} compact />
+              ))}
             </div>
           </section>
         </div>
@@ -168,9 +210,7 @@ export default function Dashboard() {
                       <span className="shrink-0 text-[11px] text-[var(--muted-foreground)]">
                         {/* A due date is a calendar day; shifting it into a
                             zone is what turned an Oct 5 target into Oct 4. */}
-                        {e.allDay
-                          ? format(calendarDate(e.start)!, 'MMM d')
-                          : fmt(e.start, 'MMM d')}
+                        {e.allDay ? format(calendarDate(e.start)!, 'MMM d') : fmt(e.start, 'MMM d')}
                       </span>
                     </button>
                   ))}

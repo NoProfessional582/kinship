@@ -32,27 +32,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ size: s
   const glyph = n - inset * 2
 
   return new ImageResponse(
-    (
-      <div
-        style={{
-          width: n, height: n, display: 'flex',
-          alignItems: 'center', justifyContent: 'center',
-          background: 'linear-gradient(135deg, #bd5b3f, #7a6a86)',
-          borderRadius: maskable ? 0 : n * 0.25,
-        }}
-      >
-        <svg width={glyph} height={glyph} viewBox="0 0 64 64">
-          <path
-            d="M21 16 V48 M21 32 L40 16 M21 32 L43 48"
-            fill="none"
-            stroke="#fff"
-            strokeWidth="7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
-    ),
+    <div
+      style={{
+        width: n,
+        height: n,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #bd5b3f, #7a6a86)',
+        borderRadius: maskable ? 0 : n * 0.25,
+      }}
+    >
+      <svg width={glyph} height={glyph} viewBox="0 0 64 64">
+        <path
+          d="M21 16 V48 M21 32 L40 16 M21 32 L43 48"
+          fill="none"
+          stroke="#fff"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>,
     { width: n, height: n },
   )
 }

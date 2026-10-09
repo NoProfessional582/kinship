@@ -29,10 +29,34 @@ export default function MobileTrash() {
   }
 
   const groups = [
-    { kind: 'contact', icon: Users, label: 'People', rows: data?.contacts ?? [], name: (r: any) => r.displayName },
-    { kind: 'entry', icon: NotebookPen, label: 'Notes', rows: data?.entries ?? [], name: (r: any) => entryTitle(r) },
-    { kind: 'task', icon: SquareCheck, label: 'Tasks', rows: data?.tasks ?? [], name: (r: any) => r.title },
-    { kind: 'project', icon: FolderKanban, label: 'Projects', rows: data?.projects ?? [], name: (r: any) => r.name },
+    {
+      kind: 'contact',
+      icon: Users,
+      label: 'People',
+      rows: data?.contacts ?? [],
+      name: (r: any) => r.displayName,
+    },
+    {
+      kind: 'entry',
+      icon: NotebookPen,
+      label: 'Notes',
+      rows: data?.entries ?? [],
+      name: (r: any) => entryTitle(r),
+    },
+    {
+      kind: 'task',
+      icon: SquareCheck,
+      label: 'Tasks',
+      rows: data?.tasks ?? [],
+      name: (r: any) => r.title,
+    },
+    {
+      kind: 'project',
+      icon: FolderKanban,
+      label: 'Projects',
+      rows: data?.projects ?? [],
+      name: (r: any) => r.name,
+    },
   ].filter((g) => g.rows.length > 0)
 
   return (
@@ -52,7 +76,10 @@ export default function MobileTrash() {
         <Section key={g.kind} title={g.label}>
           <MList>
             {g.rows.map((r: any) => (
-              <li key={r.id} className="flex items-center gap-2 border-b border-[var(--border)] py-2 last:border-0">
+              <li
+                key={r.id}
+                className="flex items-center gap-2 border-b border-[var(--border)] py-2 last:border-0"
+              >
                 <g.icon className="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
                 <span className="min-w-0 flex-1 truncate text-sm">{g.name(r)}</span>
                 <button
@@ -72,10 +99,15 @@ export default function MobileTrash() {
         <div className="pt-1">
           {confirming ? (
             <div className="flex items-center gap-2">
-              <Button variant="ghost" className="flex-1" onClick={() => setConfirming(false)}>Cancel</Button>
+              <Button variant="ghost" className="flex-1" onClick={() => setConfirming(false)}>
+                Cancel
+              </Button>
               <Button
                 className="flex-1 bg-[var(--destructive)]"
-                onClick={() => { act('empty', undefined, undefined, 'Trash emptied'); setConfirming(false) }}
+                onClick={() => {
+                  act('empty', undefined, undefined, 'Trash emptied')
+                  setConfirming(false)
+                }}
               >
                 Empty for good
               </Button>

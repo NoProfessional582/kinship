@@ -1,9 +1,4 @@
-import {
-  CONTACT_MENTION,
-  ENTITY_REF,
-  isPendingId,
-  type EntityKind,
-} from './nodes'
+import { CONTACT_MENTION, ENTITY_REF, isPendingId, type EntityKind } from './nodes'
 
 /**
  * A single walker over the TipTap document, shared by every consumer:
@@ -119,8 +114,13 @@ export function rewriteDocIds(doc: ProseNode, idMap: Map<string, string>): Prose
 export function docToText(doc: ProseNode): string {
   const parts: string[] = []
   const BLOCK = new Set([
-    'paragraph', 'heading', 'blockquote', 'listItem', 'taskItem',
-    'codeBlock', 'horizontalRule',
+    'paragraph',
+    'heading',
+    'blockquote',
+    'listItem',
+    'taskItem',
+    'codeBlock',
+    'horizontalRule',
   ])
 
   function visit(node: ProseNode) {
@@ -138,6 +138,9 @@ export function docToText(doc: ProseNode): string {
   }
 
   visit(doc)
-  return parts.join('').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+  return parts
+    .join('')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
-

@@ -33,12 +33,19 @@ export default function MobileSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     dirty,
-    settings.userName, settings.appTitle,
-    settings.calendarWeekStart, settings.defaultCadence,
-    settings.weatherEnabled, settings.weatherLocation, settings.weatherUnit,
+    settings.userName,
+    settings.appTitle,
+    settings.calendarWeekStart,
+    settings.defaultCadence,
+    settings.weatherEnabled,
+    settings.weatherLocation,
+    settings.weatherUnit,
   ])
 
-  const set = (patch: Partial<typeof settings>) => { setDirty(true); setV({ ...v, ...patch }) }
+  const set = (patch: Partial<typeof settings>) => {
+    setDirty(true)
+    setV({ ...v, ...patch })
+  }
 
   const commit = async () => {
     try {
@@ -78,16 +85,24 @@ export default function MobileSettings() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <Label>Week starts on</Label>
-            <Select value={v.calendarWeekStart} onChange={(e) => set({ calendarWeekStart: e.target.value as any })}>
+            <Select
+              value={v.calendarWeekStart}
+              onChange={(e) => set({ calendarWeekStart: e.target.value as any })}
+            >
               <option value="sunday">Sunday</option>
               <option value="monday">Monday</option>
             </Select>
           </div>
           <div className="flex flex-col gap-1">
             <Label>Default cadence</Label>
-            <Select value={v.defaultCadence} onChange={(e) => set({ defaultCadence: e.target.value })}>
+            <Select
+              value={v.defaultCadence}
+              onChange={(e) => set({ defaultCadence: e.target.value })}
+            >
               {Object.entries(CADENCE_LABEL).map(([k, label]) => (
-                <option key={k} value={k}>{label}</option>
+                <option key={k} value={k}>
+                  {label}
+                </option>
               ))}
             </Select>
           </div>
@@ -109,11 +124,18 @@ export default function MobileSettings() {
             <>
               <div className="flex flex-col gap-1">
                 <Label>Location</Label>
-                <Input value={v.weatherLocation} onChange={(e) => set({ weatherLocation: e.target.value })} placeholder="City, region" />
+                <Input
+                  value={v.weatherLocation}
+                  onChange={(e) => set({ weatherLocation: e.target.value })}
+                  placeholder="City, region"
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <Label>Units</Label>
-                <Select value={v.weatherUnit} onChange={(e) => set({ weatherUnit: e.target.value as any })}>
+                <Select
+                  value={v.weatherUnit}
+                  onChange={(e) => set({ weatherUnit: e.target.value as any })}
+                >
                   <option value="fahrenheit">Fahrenheit</option>
                   <option value="celsius">Celsius</option>
                 </Select>
@@ -128,7 +150,13 @@ export default function MobileSettings() {
       {dirty && (
         <div className="sticky bottom-2 z-10">
           <Button onClick={commit} disabled={save.isPending} className="w-full shadow-lg">
-            {save.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : 'Save changes'}
+            {save.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+              </>
+            ) : (
+              'Save changes'
+            )}
           </Button>
         </div>
       )}

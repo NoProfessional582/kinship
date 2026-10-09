@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -81,15 +81,15 @@
   --rail-expanded: 13rem;
 
   --radius: 0.875rem;
-  --shadow-card: 0 1px 2px rgba(50, 43, 31, .05), 0 6px 20px rgba(50, 43, 31, .07);
-  --shadow-lift: 0 2px 6px rgba(50, 43, 31, .1), 0 20px 60px rgba(50, 43, 31, .16);
+  --shadow-card: 0 1px 2px rgba(50, 43, 31, 0.05), 0 6px 20px rgba(50, 43, 31, 0.07);
+  --shadow-lift: 0 2px 6px rgba(50, 43, 31, 0.1), 0 20px 60px rgba(50, 43, 31, 0.16);
 
   /* Mirrors Codex's --font-scale, driven by the Settings page. */
   --font-scale: 1;
 
   --font-display: Newsreader, ui-serif, Georgia, serif;
   --font-body: Manrope, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
 .dark {
@@ -138,8 +138,8 @@
   --hue-5: #c98f7c;
   --hue-6: #b3a3c0;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 20px rgba(0, 0, 0, .28);
-  --shadow-lift: 0 2px 6px rgba(0, 0, 0, .4), 0 20px 60px rgba(0, 0, 0, .38);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.28);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 60px rgba(0, 0, 0, 0.38);
 }
 
 @theme inline {
@@ -166,9 +166,14 @@
   --radius-sm: calc(var(--radius) - 7px);
 }
 
-* { border-color: var(--border); }
+* {
+  border-color: var(--border);
+}
 
-html, body { height: 100%; }
+html,
+body {
+  height: 100%;
+}
 
 body {
   background-color: var(--background);
@@ -180,36 +185,60 @@ body {
 
 /* Newsreader carries the headings; Manrope everything else. The serif is what
    makes the app feel written-in rather than filled-in. */
-h1, h2, h3, .display {
+h1,
+h2,
+h3,
+.display {
   font-family: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.012em;
   text-wrap: balance;
 }
 
-.font-mono, code, kbd, .tabular {
+.font-mono,
+code,
+kbd,
+.tabular {
   font-family: var(--font-mono);
 }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
 ::-webkit-scrollbar-thumb {
   background: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: color-mix(in oklch, var(--muted-foreground) 55%, transparent); background-clip: content-box; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--muted-foreground) 55%, transparent);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
 /* --------------------------------------------------------------- app shell */
 /* The rail's width, restated as a token so the shell can be exactly as wide as
    page + rail. The bare value matches the aside's pure-CSS first paint (icons
    under sm, labels above); the data attribute pins it once the stored
    preference has resolved. */
-.kb-shell { --rail-w: var(--rail-collapsed); }
-@media (min-width: 40rem) { .kb-shell { --rail-w: var(--rail-expanded); } }
-.kb-shell[data-collapsed="true"] { --rail-w: var(--rail-collapsed); }
-.kb-shell[data-collapsed="false"] { --rail-w: var(--rail-expanded); }
+.kb-shell {
+  --rail-w: var(--rail-collapsed);
+}
+@media (min-width: 40rem) {
+  .kb-shell {
+    --rail-w: var(--rail-expanded);
+  }
+}
+.kb-shell[data-collapsed='true'] {
+  --rail-w: var(--rail-collapsed);
+}
+.kb-shell[data-collapsed='false'] {
+  --rail-w: var(--rail-expanded);
+}
 
 /* ------------------------------------------------------------ native menus */
 /* A select's popup is drawn by the browser out of the *control's* own colours,
@@ -236,12 +265,34 @@ select optgroup {
   height: 0;
   pointer-events: none;
 }
-.kb-editor .ProseMirror h1 { font-size: 1.5rem; font-weight: 650; margin: 0.8em 0 0.3em; }
-.kb-editor .ProseMirror h2 { font-size: 1.25rem; font-weight: 650; margin: 0.8em 0 0.3em; }
-.kb-editor .ProseMirror h3 { font-size: 1.1rem; font-weight: 600; margin: 0.7em 0 0.3em; }
-.kb-editor .ProseMirror p { margin: 0.4em 0; }
-.kb-editor .ProseMirror ul { list-style: disc; padding-left: 1.4em; margin: 0.4em 0; }
-.kb-editor .ProseMirror ol { list-style: decimal; padding-left: 1.4em; margin: 0.4em 0; }
+.kb-editor .ProseMirror h1 {
+  font-size: 1.5rem;
+  font-weight: 650;
+  margin: 0.8em 0 0.3em;
+}
+.kb-editor .ProseMirror h2 {
+  font-size: 1.25rem;
+  font-weight: 650;
+  margin: 0.8em 0 0.3em;
+}
+.kb-editor .ProseMirror h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.7em 0 0.3em;
+}
+.kb-editor .ProseMirror p {
+  margin: 0.4em 0;
+}
+.kb-editor .ProseMirror ul {
+  list-style: disc;
+  padding-left: 1.4em;
+  margin: 0.4em 0;
+}
+.kb-editor .ProseMirror ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+  margin: 0.4em 0;
+}
 .kb-editor .ProseMirror blockquote {
   border-left: 3px solid var(--border);
   padding-left: 0.9em;
@@ -261,9 +312,19 @@ select optgroup {
   overflow-x: auto;
   margin: 0.6em 0;
 }
-.kb-editor .ProseMirror pre code { background: none; padding: 0; }
-.kb-editor .ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
-.kb-editor .ProseMirror ul[data-type="taskList"] li { display: flex; gap: 0.5em; align-items: flex-start; }
+.kb-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+.kb-editor .ProseMirror ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.2em;
+}
+.kb-editor .ProseMirror ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.5em;
+  align-items: flex-start;
+}
 
 /* Inline tags. Pending entities are dashed until the enrichment modal saves them. */
 .kb-tag {
@@ -285,11 +346,17 @@ select optgroup {
   background: color-mix(in oklch, var(--tag-hue) 16%, transparent);
   color: var(--tag-hue);
 }
-.kb-tag[data-type="contact-mention"] { --tag-hue: var(--tag-contact); }
-.kb-tag[data-type="entity-ref"][data-kind="task"] { --tag-hue: var(--tag-task); }
-.kb-tag[data-type="entity-ref"][data-kind="project"] { --tag-hue: var(--tag-project); }
+.kb-tag[data-type='contact-mention'] {
+  --tag-hue: var(--tag-contact);
+}
+.kb-tag[data-type='entity-ref'][data-kind='task'] {
+  --tag-hue: var(--tag-task);
+}
+.kb-tag[data-type='entity-ref'][data-kind='project'] {
+  --tag-hue: var(--tag-project);
+}
 
-.kb-tag[data-pending="true"] {
+.kb-tag[data-pending='true'] {
   background: color-mix(in oklch, var(--tag-hue) 10%, transparent);
   border-bottom: 1.5px dashed currentColor;
   border-radius: 0.4em 0.4em 0 0;
@@ -304,10 +371,17 @@ select optgroup {
   --fc-neutral-bg-color: transparent;
   font-size: 0.875rem;
 }
-.fc a { color: inherit; text-decoration: none; }
+.fc a {
+  color: inherit;
+  text-decoration: none;
+}
 /* No overflow/radius on the scrollgrid itself: FullCalendar distributes row
    height through this table, and clipping it stops the last row filling. */
-.fc .fc-scrollgrid, .fc .fc-scrollgrid-section > * { border-left-width: 0; border-top-width: 0; }
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid-section > * {
+  border-left-width: 0;
+  border-top-width: 0;
+}
 
 /* Weekday rail: a quiet label row, not a header bar. */
 .fc .fc-col-header-cell {
@@ -328,7 +402,10 @@ select optgroup {
 }
 /* FullCalendar reverses this row so the number sits right; the date reads
    better where the eye starts. */
-.fc .fc-daygrid-day-top { flex-direction: row; padding: 0.15rem 0.15rem 0.25rem; }
+.fc .fc-daygrid-day-top {
+  flex-direction: row;
+  padding: 0.15rem 0.15rem 0.25rem;
+}
 .fc .fc-daygrid-day-number {
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -339,7 +416,9 @@ select optgroup {
 }
 /* Days from the neighbouring month recede by weight alone. Tinting the cell
    turned two whole rows into what looked like a selection. */
-.fc .fc-day-other .fc-daygrid-day-number { opacity: 0.4; }
+.fc .fc-day-other .fc-daygrid-day-number {
+  opacity: 0.4;
+}
 
 /* Today is called out twice: the date becomes a filled marker, and the cell
    keeps a ring, so the day is findable whether you scan numbers or shapes. */
@@ -392,8 +471,13 @@ select optgroup {
   cursor: pointer;
   box-shadow: none;
 }
-.fc .fc-event:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
-.fc .fc-daygrid-event-harness { margin-top: 1px; }
+.fc .fc-event:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+.fc .fc-daygrid-event-harness {
+  margin-top: 1px;
+}
 
 .kb-ev {
   display: flex;
@@ -417,13 +501,26 @@ select optgroup {
   line-height: 1.35;
   transition: background-color 120ms ease;
 }
-.fc .fc-event:hover .kb-ev { background: color-mix(in oklch, var(--ev) 40%, transparent); }
-.kb-ev-time { font-family: var(--font-mono); font-size: 0.66rem; opacity: 0.75; flex-shrink: 0; }
-.kb-ev-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc .fc-event:hover .kb-ev {
+  background: color-mix(in oklch, var(--ev) 40%, transparent);
+}
+.kb-ev-time {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+.kb-ev-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Overlapping events divide the day column between them, so a block can end up
    a couple of dozen pixels wide. Nothing may paint outside its own shape. */
-.kb-ev { overflow: hidden; }
+.kb-ev {
+  overflow: hidden;
+}
 
 /* In the time views the block's height *is* its duration, and the pill is the
    only thing that paints — FullCalendar's own fill is off. Without this the
@@ -433,18 +530,29 @@ select optgroup {
    (harness > .fc-timegrid-event > .fc-event-main) is already full-height, so
    claiming the last link is all this needs. Month cells are excluded on
    purpose — there a day is a list of chips, not a scale. */
-.fc .fc-timegrid-event .kb-ev { height: 100%; }
+.fc .fc-timegrid-event .kb-ev {
+  height: 100%;
+}
 
 /* Below these widths there is no room for both parts, and a clipped clock time
    reads as noise rather than information — the tooltip carries it instead.
    The harness is the element FullCalendar sizes, so it is the container. */
-.fc-timegrid-event-harness, .fc-daygrid-event-harness { container-type: inline-size; }
+.fc-timegrid-event-harness,
+.fc-daygrid-event-harness {
+  container-type: inline-size;
+}
 @container (max-width: 72px) {
-  .kb-ev-time { display: none; }
+  .kb-ev-time {
+    display: none;
+  }
 }
 @container (max-width: 34px) {
-  .kb-ev { padding-inline: 0.15rem; }
-  .kb-ev-title { display: none; }
+  .kb-ev {
+    padding-inline: 0.15rem;
+  }
+  .kb-ev-title {
+    display: none;
+  }
 }
 
 /* Floor every block at one 30-minute slot. A 20-minute call would otherwise
@@ -459,13 +567,17 @@ select optgroup {
    1.5em is FullCalendar's own slot height and +1px its border, both read at
    the .fc font size, so the floor tracks the slot pitch at any root font size
    instead of pinning the 22px that only holds at exactly 16px. */
-.fc-timegrid-event-harness { min-height: calc(1.5em + 1px); }
+.fc-timegrid-event-harness {
+  min-height: calc(1.5em + 1px);
+}
 
 /* Only the time views size a block by its duration, so only there is height
    worth asking about — `size` rather than `inline-size` makes it queryable.
    Month harnesses keep inline-size: they have no definite height, and the
    height query below simply never matches for them. */
-.fc-timegrid-event-harness { container-type: size; }
+.fc-timegrid-event-harness {
+  container-type: size;
+}
 /* A block two slots tall has room for two lines, and needs them: on one row an
    interval like "10:00am - 12:00pm" eats the whole column and squeezes the
    title out entirely, so a 2-hour workshop announced itself as a clock and
@@ -473,8 +585,15 @@ select optgroup {
    width plus however many lines the block's real duration bought it. Below the
    threshold two lines would not fit, so those blocks stay on one row. */
 @container (min-height: 40px) {
-  .kb-ev { flex-direction: column; align-items: stretch; gap: 0; }
-  .kb-ev-title { white-space: normal; overflow-wrap: anywhere; }
+  .kb-ev {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+  .kb-ev-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 /* ---------------------------------------------------------------- tooltips */
@@ -496,8 +615,16 @@ select optgroup {
   opacity: 0;
   transition: opacity 90ms ease;
 }
-.kb-tip-title { font-weight: 600; overflow-wrap: anywhere; }
-.kb-tip-meta { margin-top: 0.1rem; color: var(--muted-foreground); font-family: var(--font-mono); font-size: 0.7rem; }
+.kb-tip-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.kb-tip-meta {
+  margin-top: 0.1rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
 
 .fc .fc-daygrid-more-link {
   display: block;
@@ -508,43 +635,104 @@ select optgroup {
   color: var(--muted-foreground);
   background: var(--muted);
 }
-.fc .fc-daygrid-more-link:hover { color: var(--foreground); }
+.fc .fc-daygrid-more-link:hover {
+  color: var(--foreground);
+}
 .fc .fc-popover {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--card);
   box-shadow: var(--shadow-lift);
 }
-.fc .fc-popover-header { background: var(--muted); font-size: 0.75rem; padding: 0.4rem 0.6rem; }
+.fc .fc-popover-header {
+  background: var(--muted);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+}
 
 /* Week and list views inherit the same quiet chrome. */
-.fc .fc-timegrid-slot-label, .fc .fc-timegrid-axis {
+.fc .fc-timegrid-slot-label,
+.fc .fc-timegrid-axis {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--muted-foreground);
 }
-.fc .fc-timegrid-now-indicator-line { border-color: var(--primary); }
-.fc .fc-timegrid-now-indicator-arrow { border-color: var(--primary); color: var(--primary); }
-.fc .fc-list { border-radius: var(--radius-md); overflow: hidden; }
-.fc .fc-list-day-cushion { background: var(--muted); font-size: 0.8rem; }
-.fc .fc-list-event:hover td { background: var(--accent); }
-.fc .fc-list-event-time { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted-foreground); }
-.fc .fc-list-empty { background: transparent; color: var(--muted-foreground); font-size: 0.85rem; }
+.fc .fc-timegrid-now-indicator-line {
+  border-color: var(--primary);
+}
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.fc .fc-list {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.fc .fc-list-day-cushion {
+  background: var(--muted);
+  font-size: 0.8rem;
+}
+.fc .fc-list-event:hover td {
+  background: var(--accent);
+}
+.fc .fc-list-event-time {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+}
+.fc .fc-list-empty {
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
 
 /* ------------------------------------------------- read-only entry content */
 /* Mirrors the editor's content styles so a saved note looks the same in the
    feed as it did while being written. */
 
-.kb-prose > :first-child { margin-top: 0; }
-.kb-prose > :last-child { margin-bottom: 0; }
-.kb-prose p { margin: 0.4em 0; }
-.kb-prose h1 { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; margin: 0.7em 0 0.3em; }
-.kb-prose h2 { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; margin: 0.7em 0 0.3em; }
-.kb-prose h3 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; margin: 0.6em 0 0.3em; }
-.kb-prose ul { list-style: disc; padding-left: 1.4em; margin: 0.4em 0; }
-.kb-prose ol { list-style: decimal; padding-left: 1.4em; margin: 0.4em 0; }
-.kb-prose li { margin: 0.15em 0; }
-.kb-prose li::marker { color: var(--muted-foreground); }
+.kb-prose > :first-child {
+  margin-top: 0;
+}
+.kb-prose > :last-child {
+  margin-bottom: 0;
+}
+.kb-prose p {
+  margin: 0.4em 0;
+}
+.kb-prose h1 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0.7em 0 0.3em;
+}
+.kb-prose h2 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0.7em 0 0.3em;
+}
+.kb-prose h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+}
+.kb-prose ul {
+  list-style: disc;
+  padding-left: 1.4em;
+  margin: 0.4em 0;
+}
+.kb-prose ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+  margin: 0.4em 0;
+}
+.kb-prose li {
+  margin: 0.15em 0;
+}
+.kb-prose li::marker {
+  color: var(--muted-foreground);
+}
 .kb-prose blockquote {
   border-left: 3px solid var(--border);
   padding-left: 0.9em;
@@ -565,13 +753,35 @@ select optgroup {
   overflow-x: auto;
   margin: 0.6em 0;
 }
-.kb-prose pre code { background: none; padding: 0; }
-.kb-prose a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
-.kb-prose strong { font-weight: 650; }
-.kb-prose ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
-.kb-prose ul[data-type="taskList"] li { display: flex; gap: 0.5em; align-items: flex-start; }
-.kb-prose ul[data-type="taskList"] li input { margin-top: 0.35em; }
-.kb-prose hr { border: 0; border-top: 1px solid var(--border); margin: 0.9em 0; }
+.kb-prose pre code {
+  background: none;
+  padding: 0;
+}
+.kb-prose a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.kb-prose strong {
+  font-weight: 650;
+}
+.kb-prose ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.2em;
+}
+.kb-prose ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.5em;
+  align-items: flex-start;
+}
+.kb-prose ul[data-type='taskList'] li input {
+  margin-top: 0.35em;
+}
+.kb-prose hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0.9em 0;
+}
 
 /* Compact feed cards: clamp the height and fade the cut, rather than dropping
    the formatting to make it fit. */
@@ -581,7 +791,7 @@ select optgroup {
   overflow: hidden;
 }
 .kb-prose-clamp[data-clipped]::after {
-  content: "";
+  content: '';
   position: absolute;
   inset-inline: 0;
   bottom: 0;
@@ -599,7 +809,7 @@ select optgroup {
   --hero-ink: #f7f4ee;
   --hero-muted: #b8b2a6;
   --hero-line: #4a463e;
-  --hero-soft: rgba(255, 255, 255, .06);
+  --hero-soft: rgba(255, 255, 255, 0.06);
   background: #2b2823;
   color: var(--hero-ink);
 }
@@ -612,26 +822,53 @@ select optgroup {
   --hero-ink: #221f1a;
   --hero-muted: #6b6459;
   --hero-line: #d0b98c;
-  --hero-soft: rgba(255, 255, 255, .45);
+  --hero-soft: rgba(255, 255, 255, 0.45);
   --tag-contact: #4a6572;
   --tag-task: #697760;
   --tag-project: #95432e;
   background: #e0cfa8;
 }
-.dark .kb-hero .kb-tag { filter: none; }
-.dark .kb-hero .kb-chips > span { background: rgba(0, 0, 0, .08); }
-.dark .kb-hero select { color-scheme: light; }
-.dark .kb-hero input[type="datetime-local"] { color-scheme: light; }
-.dark .kb-hero::after { color: rgba(0, 0, 0, .035); }
+.dark .kb-hero .kb-tag {
+  filter: none;
+}
+.dark .kb-hero .kb-chips > span {
+  background: rgba(0, 0, 0, 0.08);
+}
+.dark .kb-hero select {
+  color-scheme: light;
+}
+.dark .kb-hero input[type='datetime-local'] {
+  color-scheme: light;
+}
+.dark .kb-hero::after {
+  color: rgba(0, 0, 0, 0.035);
+}
 
-.kb-hero .kb-editor .ProseMirror { color: var(--hero-ink); }
-.kb-hero .kb-editor .ProseMirror p.is-editor-empty:first-child::before { color: var(--hero-muted); }
-.kb-hero .kb-editor > div:first-child { border-color: var(--hero-line); }
-.kb-hero .kb-editor button { color: var(--hero-muted); }
-.kb-hero .kb-editor button:hover { background: var(--hero-soft); color: var(--hero-ink); }
-.kb-hero label { color: var(--hero-muted); }
-.kb-hero input::placeholder { color: var(--hero-muted); }
-.kb-hero .kb-tag { filter: brightness(1.45) saturate(.9); }
+.kb-hero .kb-editor .ProseMirror {
+  color: var(--hero-ink);
+}
+.kb-hero .kb-editor .ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--hero-muted);
+}
+.kb-hero .kb-editor > div:first-child {
+  border-color: var(--hero-line);
+}
+.kb-hero .kb-editor button {
+  color: var(--hero-muted);
+}
+.kb-hero .kb-editor button:hover {
+  background: var(--hero-soft);
+  color: var(--hero-ink);
+}
+.kb-hero label {
+  color: var(--hero-muted);
+}
+.kb-hero input::placeholder {
+  color: var(--hero-muted);
+}
+.kb-hero .kb-tag {
+  filter: brightness(1.45) saturate(0.9);
+}
 
 /* Every control on the dark card wears the same skin. Left alone, the chip
    input keeps its light card background and reads as a hole in the panel. */
@@ -640,19 +877,26 @@ select optgroup {
   border-color: var(--hero-line);
   color: var(--hero-ink);
 }
-.kb-hero .kb-chips input::placeholder { color: var(--hero-muted); }
+.kb-hero .kb-chips input::placeholder {
+  color: var(--hero-muted);
+}
 .kb-hero .kb-chips > span {
-  background: rgba(255, 255, 255, .12);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--hero-ink);
 }
-.kb-hero select { color-scheme: dark; }
+.kb-hero select {
+  color-scheme: dark;
+}
 .kb-hero select option,
 .kb-hero select optgroup {
   background-color: #2b2823;
   color: var(--hero-ink);
 }
 .dark .kb-hero select option,
-.dark .kb-hero select optgroup { background-color: #e0cfa8; color: var(--hero-ink); }
+.dark .kb-hero select optgroup {
+  background-color: #e0cfa8;
+  color: var(--hero-ink);
+}
 
 /* ------------------------------------------------------- framed editor */
 /* Inside the capture card the editor sits in its own well: toolbar on a rail
@@ -672,8 +916,13 @@ select optgroup {
 
 /* The @ and [[ affordances. They read as keys rather than buttons, because
    what they do is type a character you could have typed yourself. */
-.kb-trigger { color: var(--muted-foreground); }
-.kb-trigger:hover { background: var(--muted); color: var(--foreground); }
+.kb-trigger {
+  color: var(--muted-foreground);
+}
+.kb-trigger:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
 .kb-trigger-key {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -682,10 +931,20 @@ select optgroup {
   background: var(--muted);
   border: 1px solid var(--border);
 }
-.kb-hero .kb-trigger:hover { background: var(--hero-soft); color: var(--hero-ink); }
-.kb-hero .kb-trigger-key { background: var(--hero-soft); border-color: var(--hero-line); }
-.kb-hero .kb-editor-framed > div:first-child { border-bottom-color: var(--hero-line); }
-.kb-hero input[type="datetime-local"] { color-scheme: dark; }
+.kb-hero .kb-trigger:hover {
+  background: var(--hero-soft);
+  color: var(--hero-ink);
+}
+.kb-hero .kb-trigger-key {
+  background: var(--hero-soft);
+  border-color: var(--hero-line);
+}
+.kb-hero .kb-editor-framed > div:first-child {
+  border-bottom-color: var(--hero-line);
+}
+.kb-hero input[type='datetime-local'] {
+  color-scheme: dark;
+}
 
 /* The watermark Codex puts behind the capture card. Purely a texture — it sits
    under the content and never intercepts a click.
@@ -700,7 +959,7 @@ select optgroup {
   font-size: 9.5rem;
   line-height: 1;
   font-weight: 600;
-  color: rgba(255, 255, 255, .032);
+  color: rgba(255, 255, 255, 0.032);
   pointer-events: none;
   user-select: none;
 }
@@ -730,20 +989,38 @@ select optgroup {
 /* A phone-width measure. On a phone this is simply the viewport; the cap only
    bites when /m is opened on a tablet or a desktop browser, which is exactly
    how this GUI gets built and reviewed without a phone in hand. */
-.kb-m-page { width: 100%; max-width: 34rem; margin-inline: auto; }
+.kb-m-page {
+  width: 100%;
+  max-width: 34rem;
+  margin-inline: auto;
+}
 
 /* Touch targets. The desktop rail uses 24-32px controls, which are fine with a
    mouse and are not fine with a thumb; 44px is the floor both platform HIGs
    land on. Scoped to the mobile tree so the desktop keeps its own density. */
-.kb-m .kb-tap { min-height: 2.75rem; min-width: 2.75rem; }
+.kb-m .kb-tap {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
 
 /* Inside a mobile sheet the editor fills whatever height the sheet has left,
    rather than sitting at the desktop's fixed 11rem floor with dead space under
    it. It shrinks to its own floor when Details is opened, and the body scrolls
    from there. */
-.kb-m .kb-editor-framed { display: flex; flex-direction: column; min-height: 0; flex: 1; }
-.kb-m .kb-editor-framed > div:first-child { flex: none; }
-.kb-m .kb-editor-framed .ProseMirror { flex: 1; min-height: 6rem; overflow-y: auto; }
+.kb-m .kb-editor-framed {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.kb-m .kb-editor-framed > div:first-child {
+  flex: none;
+}
+.kb-m .kb-editor-framed .ProseMirror {
+  flex: 1;
+  min-height: 6rem;
+  overflow-y: auto;
+}
 
 /* Touch floor for the shared primitives.
    `Button` is h-9 (36px) and h-8 (32px), which are right for a pointer and
@@ -752,13 +1029,31 @@ select optgroup {
    height, and min-height cannot win against it. Scoped to .kb-m, so the
    desktop rail keeps its own density. Icon-only buttons grow in both axes so
    they stay square. */
-.kb-m button.h-9:not(.w-9), .kb-m a.h-9:not(.w-9) { height: 2.75rem; }
-.kb-m button.h-8:not(.w-8), .kb-m a.h-8:not(.w-8) { height: 2.5rem; }
-.kb-m button.h-9.w-9, .kb-m a.h-9.w-9 { height: 2.75rem; width: 2.75rem; }
-.kb-m button.h-8.w-8, .kb-m a.h-8.w-8 { height: 2.5rem; width: 2.5rem; }
+.kb-m button.h-9:not(.w-9),
+.kb-m a.h-9:not(.w-9) {
+  height: 2.75rem;
+}
+.kb-m button.h-8:not(.w-8),
+.kb-m a.h-8:not(.w-8) {
+  height: 2.5rem;
+}
+.kb-m button.h-9.w-9,
+.kb-m a.h-9.w-9 {
+  height: 2.75rem;
+  width: 2.75rem;
+}
+.kb-m button.h-8.w-8,
+.kb-m a.h-8.w-8 {
+  height: 2.5rem;
+  width: 2.5rem;
+}
 
 /* A text link or chip that has to be tappable without becoming a block. */
-.kb-m .kb-tap-inline { display: inline-flex; align-items: center; min-height: 2.5rem; }
+.kb-m .kb-tap-inline {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+}
 
 /* The capture hero, at phone size. The desktop watermark is a 9.5rem glyph
    positioned for a 6rem-tall card; on a card a third of that height it would
@@ -769,4 +1064,3 @@ select optgroup {
   top: 0.35rem;
   font-size: 4.5rem;
 }
-

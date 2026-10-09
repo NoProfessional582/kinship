@@ -33,20 +33,35 @@ function csvBody(raw: string): string {
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = []
-  let row: string[] = [], field = '', quoted = false
+  let row: string[] = [],
+    field = '',
+    quoted = false
   for (let i = 0; i < text.length; i++) {
     const c = text[i]
     if (quoted) {
       if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++ } else quoted = false
+        if (text[i + 1] === '"') {
+          field += '"'
+          i++
+        } else quoted = false
       } else field += c
     } else if (c === '"') quoted = true
-    else if (c === ',') { row.push(field); field = '' }
-    else if (c === '\r') { /* CRLF */ }
-    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = '' }
-    else field += c
+    else if (c === ',') {
+      row.push(field)
+      field = ''
+    } else if (c === '\r') {
+      /* CRLF */
+    } else if (c === '\n') {
+      row.push(field)
+      rows.push(row)
+      row = []
+      field = ''
+    } else field += c
   }
-  if (field || row.length) { row.push(field); rows.push(row) }
+  if (field || row.length) {
+    row.push(field)
+    rows.push(row)
+  }
   return rows.filter((r) => r.some((f) => f.trim() !== ''))
 }
 
@@ -75,7 +90,7 @@ function splitCredentials(lastRaw: string): { last: string; credentials: string 
   // nickname or a maiden name survives.
   for (;;) {
     const m = last.trim().match(/^(.*\S)\s*\(([A-Z][A-Z.\-]{1,7})\)$/)
-    if (!m || GENERATIONAL.has(m[2].replace(/\./g, ""))) break
+    if (!m || GENERATIONAL.has(m[2].replace(/\./g, ''))) break
     creds.unshift(m[2])
     last = m[1]
   }
@@ -116,9 +131,15 @@ const cap = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd(
 async function main() {
   const rows = parseCsv(csvBody(readFileSync(CSV, 'utf8')))
   const header = rows[0].map((h) => h.trim())
-  const recs = rows.slice(1).map((r) =>
-    Object.fromEntries(header.map((h, i) => [h, (r[i] ?? '').trim()])) as Record<string, string>,
-  )
+  const recs = rows
+    .slice(1)
+    .map(
+      (r) =>
+        Object.fromEntries(header.map((h, i) => [h, (r[i] ?? '').trim()])) as Record<
+          string,
+          string
+        >,
+    )
 
   // Rows carrying only a date are connections whose profile is gone or hidden.
   const named = recs.filter((r) => r['First Name'] || r['Last Name'])
@@ -130,18 +151,25 @@ async function main() {
   })
   const seen = new Set(existing.map((l) => l.url.replace(/\/+$/, '').toLowerCase()))
 
-  let created = 0, skipped = 0, withCreds = 0
+  let created = 0,
+    skipped = 0,
+    withCreds = 0
   const report: string[] = []
 
   for (const r of named) {
     const url = r['URL'].trim()
     const key = url.replace(/\/+$/, '').toLowerCase()
-    if (url && seen.has(key)) { skipped++; continue }
+    if (url && seen.has(key)) {
+      skipped++
+      continue
+    }
 
     const firstRaw = r['First Name']
     const lastRaw = r['Last Name']
 
-    let first: string, last: string, credentials = ''
+    let first: string,
+      last: string,
+      credentials = ''
     if (KEEP_NAMES) {
       first = firstRaw
       last = lastRaw
@@ -153,7 +181,10 @@ async function main() {
     }
 
     const displayName = [first, last].filter(Boolean).join(' ').trim()
-    if (!displayName) { skipped++; continue }
+    if (!displayName) {
+      skipped++
+      continue
+    }
     if (credentials) withCreds++
 
     const company = r['Company'].trim()
@@ -166,26 +197,51 @@ async function main() {
       displayName: cap(displayName, 160),
       firstName: first || null,
       lastName: last || null,
-      nickname: null, pronouns: null, avatarUrl: null,
+      nickname: null,
+      pronouns: null,
+      avatarUrl: null,
       headline: null,
       company: company ? cap(company, 160) : null,
       jobTitle: role ? cap(role, 160) : null,
-      location: null, birthday: null,
+      location: null,
+      birthday: null,
       tier: 'TIER_3' as const,
       // Not the configured default: a cadence on 199 acquaintances at once would
       // fill "worth reconnecting" with people you never meant to commit to.
       cadence: 'NONE' as const,
-      howWeMet: null, bio: null, personalContext: null, notes: null,
+      howWeMet: null,
+      bio: null,
+      personalContext: null,
+      notes: null,
       interests: [],
       customFields: {},
       tags: [TAG],
       channels: [
-        ...(email ? [{ type: 'EMAIL' as const, value: cap(email, 300), label: null, isPreferred: true }] : []),
-        ...(handle ? [{ type: 'LINKEDIN' as const, value: cap(handle, 300), label: null, isPreferred: !email }] : []),
+        ...(email
+          ? [{ type: 'EMAIL' as const, value: cap(email, 300), label: null, isPreferred: true }]
+          : []),
+        ...(handle
+          ? [
+              {
+                type: 'LINKEDIN' as const,
+                value: cap(handle, 300),
+                label: null,
+                isPreferred: !email,
+              },
+            ]
+          : []),
       ],
       positions: role
-        ? [{ role: cap(role, 160), organization: company ? cap(company, 160) : null, team: null,
-             startDate: null, endDate: null, isCurrent: true }]
+        ? [
+            {
+              role: cap(role, 160),
+              organization: company ? cap(company, 160) : null,
+              team: null,
+              startDate: null,
+              endDate: null,
+              isCurrent: true,
+            },
+          ]
         : [],
       milestones: connectedOn
         ? [{ title: 'Connected on LinkedIn', date: connectedOn, note: null }]
@@ -201,7 +257,7 @@ async function main() {
     if (DRY) {
       report.push(
         `${displayName}${credentials ? `  [${credentials}]` : ''}` +
-        `${role ? ` — ${role}` : ''}${company ? ` @ ${company}` : ''}`,
+          `${role ? ` — ${role}` : ''}${company ? ` @ ${company}` : ''}`,
       )
     } else {
       await createContact(owner, input as any)
@@ -212,16 +268,20 @@ async function main() {
 
   if (DRY) {
     report.slice(0, Number(process.env.SHOW ?? 20)).forEach((l) => console.log('  ' + l))
-    if (report.length > Number(process.env.SHOW ?? 20)) console.log(`  … and ${report.length - 20} more`)
+    if (report.length > Number(process.env.SHOW ?? 20))
+      console.log(`  … and ${report.length - 20} more`)
   }
   console.log(
     `\n${DRY ? '[dry run] would import' : 'Imported'} ${created} contacts` +
-    ` · skipped ${skipped} already present` +
-    ` · ignored ${blank} rows with no name` +
-    (KEEP_CREDENTIALS ? ` · ${withCreds} carried credentials` : ''),
+      ` · skipped ${skipped} already present` +
+      ` · ignored ${blank} rows with no name` +
+      (KEEP_CREDENTIALS ? ` · ${withCreds} carried credentials` : ''),
   )
 }
 
 main()
-  .catch((e) => { console.error(e); process.exitCode = 1 })
+  .catch((e) => {
+    console.error(e)
+    process.exitCode = 1
+  })
   .finally(() => prisma.$disconnect())

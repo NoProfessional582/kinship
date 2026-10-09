@@ -34,13 +34,18 @@ function BoardInner() {
               <KanbanSquare className="h-4 w-4" /> Board
             </h1>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Drag cards between columns. Group by project to get swimlanes — dropping into one reassigns the task.
+              Drag cards between columns. Group by project to get swimlanes — dropping into one
+              reassigns the task.
             </p>
           </div>
 
           <div className="flex flex-col gap-1">
             <Label>Group by</Label>
-            <Select value={groupBy} onChange={(e) => setGroupBy(e.target.value as GroupBy)} className="h-8 w-32 text-xs">
+            <Select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+              className="h-8 w-32 text-xs"
+            >
               <option value="none">None</option>
               <option value="project">Project</option>
               <option value="assignee">Assignee</option>

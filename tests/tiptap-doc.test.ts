@@ -49,7 +49,10 @@ describe('collectDocRefs', () => {
 })
 
 describe('rewriteDocIds', () => {
-  const map = new Map([['new:c1', 'cuid-maya'], ['new:p1', 'cuid-project']])
+  const map = new Map([
+    ['new:c1', 'cuid-maya'],
+    ['new:p1', 'cuid-project'],
+  ])
   const out = rewriteDocIds(doc as any, map)
 
   it('leaves no provisional ids behind', () => {

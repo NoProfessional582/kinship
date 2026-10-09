@@ -4,7 +4,8 @@ import { slugify, uniqueSlug } from '@/lib/slug'
 describe('slugify', () => {
   it('lowercases and hyphenates', () => expect(slugify('Sarah Chen')).toBe('sarah-chen'))
   it('strips diacritics', () => expect(slugify('Tobias Lindqvíst')).toBe('tobias-lindqvist'))
-  it('collapses punctuation runs', () => expect(slugify('Q3 — Planning!! (draft)')).toBe('q3-planning-draft'))
+  it('collapses punctuation runs', () =>
+    expect(slugify('Q3 — Planning!! (draft)')).toBe('q3-planning-draft'))
   it('trims leading and trailing separators', () => expect(slugify('  --hello--  ')).toBe('hello'))
   it('falls back for input with nothing sluggable', () => expect(slugify('!!!')).toBe('untitled'))
 })
@@ -25,7 +26,9 @@ describe('uniqueSlug', () => {
   })
 
   it('suffixes on collision', async () => {
-    expect(await uniqueSlug('contact', owner, 'Sarah Chen', dbWith(['sarah-chen']))).toBe('sarah-chen-2')
+    expect(await uniqueSlug('contact', owner, 'Sarah Chen', dbWith(['sarah-chen']))).toBe(
+      'sarah-chen-2',
+    )
   })
 
   it('walks past a run of collisions', async () => {

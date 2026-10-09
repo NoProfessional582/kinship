@@ -3,8 +3,15 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import {
-  addDays, addMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  differenceInCalendarDays, isSameMonth, format,
+  addDays,
+  addMonths,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  differenceInCalendarDays,
+  isSameMonth,
+  format,
 } from 'date-fns'
 import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -15,7 +22,12 @@ import { api } from '@/lib/hooks/api'
 import { useTimezone, useSettings } from '@/lib/hooks/settings'
 import { zonedDayBoundsFor, zonedToday } from '@/lib/format'
 import { byWhen, eventDayKey, dayKeyOf } from '@/lib/calendar-agenda'
-import { CATEGORY_META, EVENT_CATEGORIES, type CalendarEvent, type EventCategory } from '@/lib/calendar-categories'
+import {
+  CATEGORY_META,
+  EVENT_CATEGORIES,
+  type CalendarEvent,
+  type EventCategory,
+} from '@/lib/calendar-categories'
 import { cn } from '@/lib/utils'
 import { m } from '@/lib/mobile/href'
 
@@ -62,12 +74,18 @@ export default function MobileCalendar() {
     try {
       const stored = localStorage.getItem(VIEW_KEY)
       if (stored === 'week' || stored === 'month') setView(stored)
-    } catch { /* private mode */ }
+    } catch {
+      /* private mode */
+    }
   }, [timezone])
 
   const setViewPersisted = (next: View) => {
     setView(next)
-    try { localStorage.setItem(VIEW_KEY, next) } catch { /* not worth a toast */ }
+    try {
+      localStorage.setItem(VIEW_KEY, next)
+    } catch {
+      /* not worth a toast */
+    }
   }
 
   /**
@@ -79,12 +97,11 @@ export default function MobileCalendar() {
    */
   const days = React.useMemo(() => {
     if (!cursor) return []
-    const from = view === 'week'
-      ? startOfWeek(cursor, { weekStartsOn })
-      : startOfWeek(startOfMonth(cursor), { weekStartsOn })
-    const to = view === 'week'
-      ? addDays(from, 6)
-      : endOfWeek(endOfMonth(cursor), { weekStartsOn })
+    const from =
+      view === 'week'
+        ? startOfWeek(cursor, { weekStartsOn })
+        : startOfWeek(startOfMonth(cursor), { weekStartsOn })
+    const to = view === 'week' ? addDays(from, 6) : endOfWeek(endOfMonth(cursor), { weekStartsOn })
     const count = differenceInCalendarDays(to, from) + 1
     return Array.from({ length: count }, (_, i) => addDays(from, i))
   }, [cursor, view, weekStartsOn])
@@ -101,9 +118,10 @@ export default function MobileCalendar() {
   const { data, isLoading } = useQuery({
     enabled: !!range,
     queryKey: ['calendar', 'agenda', range?.start, range?.end],
-    queryFn: () => api.get<CalendarEvent[]>(
-      `/api/calendar?start=${encodeURIComponent(range!.start)}&end=${encodeURIComponent(range!.end)}`,
-    ),
+    queryFn: () =>
+      api.get<CalendarEvent[]>(
+        `/api/calendar?start=${encodeURIComponent(range!.start)}&end=${encodeURIComponent(range!.end)}`,
+      ),
   })
 
   const byDay = React.useMemo(() => {
@@ -127,7 +145,9 @@ export default function MobileCalendar() {
     if (view !== 'month' || !cursor) return
     const inView = days.some((d) => dayKeyOf(d) === selected && isSameMonth(d, cursor))
     if (inView) return
-    setSelected(isSameMonth(zonedToday(timezone), cursor) ? todayKey : dayKeyOf(startOfMonth(cursor)))
+    setSelected(
+      isSameMonth(zonedToday(timezone), cursor) ? todayKey : dayKeyOf(startOfMonth(cursor)),
+    )
   }, [view, cursor, days, selected, timezone, todayKey])
 
   const toggle = (c: string) =>
@@ -155,19 +175,22 @@ export default function MobileCalendar() {
   /** True while today is somewhere in the period on screen. */
   const onToday = days.some((d) => dayKeyOf(d) === todayKey)
 
-  const title = !cursor ? ' '
+  const title = !cursor
+    ? ' '
     : view === 'week'
       ? `${format(days[0], 'MMM d')} – ${format(days[days.length - 1], 'MMM d')}`
       : format(cursor, 'MMMM yyyy')
 
   /** The day a new event lands on: the one you are looking at, not row one. */
-  const newEventDay = view === 'month' && selected
-    ? days.find((d) => dayKeyOf(d) === selected) ?? cursor
-    : days[0] ?? cursor
+  const newEventDay =
+    view === 'month' && selected
+      ? (days.find((d) => dayKeyOf(d) === selected) ?? cursor)
+      : (days[0] ?? cursor)
 
-  const listed = view === 'month'
-    ? days.filter((d) => dayKeyOf(d) === selected)
-    : days.filter((d) => (byDay.get(dayKeyOf(d))?.length ?? 0) > 0)
+  const listed =
+    view === 'month'
+      ? days.filter((d) => dayKeyOf(d) === selected)
+      : days.filter((d) => (byDay.get(dayKeyOf(d))?.length ?? 0) > 0)
 
   return (
     <div className="flex flex-col gap-3">
@@ -211,7 +234,9 @@ export default function MobileCalendar() {
             aria-pressed={view === v}
             className={cn(
               'kb-tap flex-1 rounded-[var(--radius-sm)] text-[13px] font-medium capitalize transition-colors',
-              view === v ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'text-[var(--muted-foreground)]',
+              view === v
+                ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+                : 'text-[var(--muted-foreground)]',
             )}
           >
             {v}
@@ -235,9 +260,20 @@ export default function MobileCalendar() {
                   isToday && 'bg-[color-mix(in_oklch,var(--primary)_12%,transparent)]',
                 )}
               >
-                <span className="font-mono text-[9px] uppercase text-[var(--muted-foreground)]">{format(d, 'EEEEE')}</span>
-                <span className={cn('text-[13px]', isToday ? 'font-bold text-[var(--primary)]' : '')}>{format(d, 'd')}</span>
-                <span className={cn('h-1 w-1 rounded-full', count > 0 ? 'bg-[var(--muted-foreground)]' : 'bg-transparent')} />
+                <span className="font-mono text-[9px] uppercase text-[var(--muted-foreground)]">
+                  {format(d, 'EEEEE')}
+                </span>
+                <span
+                  className={cn('text-[13px]', isToday ? 'font-bold text-[var(--primary)]' : '')}
+                >
+                  {format(d, 'd')}
+                </span>
+                <span
+                  className={cn(
+                    'h-1 w-1 rounded-full',
+                    count > 0 ? 'bg-[var(--muted-foreground)]' : 'bg-transparent',
+                  )}
+                />
               </div>
             )
           })}
@@ -246,7 +282,10 @@ export default function MobileCalendar() {
         <MTile className="px-1.5 py-1.5">
           <div className="grid grid-cols-7">
             {days.slice(0, 7).map((d) => (
-              <span key={`h-${dayKeyOf(d)}`} className="pb-1 text-center font-mono text-[9px] uppercase text-[var(--muted-foreground)]">
+              <span
+                key={`h-${dayKeyOf(d)}`}
+                className="pb-1 text-center font-mono text-[9px] uppercase text-[var(--muted-foreground)]"
+              >
                 {format(d, 'EEEEE')}
               </span>
             ))}
@@ -270,11 +309,19 @@ export default function MobileCalendar() {
                        the way the desktop grid does it — tinting those cells
                        turns two whole rows into what looks like a selection. */
                     outside && 'opacity-35',
-                    isSelected && 'bg-[color-mix(in_oklch,var(--primary)_14%,transparent)] [box-shadow:inset_0_0_0_1.5px_var(--primary)]',
-                    !isSelected && isToday && 'bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]',
+                    isSelected &&
+                      'bg-[color-mix(in_oklch,var(--primary)_14%,transparent)] [box-shadow:inset_0_0_0_1.5px_var(--primary)]',
+                    !isSelected &&
+                      isToday &&
+                      'bg-[color-mix(in_oklch,var(--primary)_10%,transparent)]',
                   )}
                 >
-                  <span className={cn('text-[13px] leading-none', isToday && 'font-bold text-[var(--primary)]')}>
+                  <span
+                    className={cn(
+                      'text-[13px] leading-none',
+                      isToday && 'font-bold text-[var(--primary)]',
+                    )}
+                  >
                     {format(d, 'd')}
                   </span>
                   {/* Up to three dots, then a bare count: four dots at this size
@@ -282,10 +329,16 @@ export default function MobileCalendar() {
                       "more than you can count from here". */}
                   <span className="flex h-1.5 items-center justify-center gap-[2px]">
                     {list.slice(0, 3).map((e) => (
-                      <span key={e.id} className="h-1.5 w-1.5 rounded-full" style={{ background: e.color }} />
+                      <span
+                        key={e.id}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: e.color }}
+                      />
                     ))}
                     {list.length > 3 && (
-                      <span className="font-mono text-[8px] leading-none text-[var(--muted-foreground)]">+{list.length - 3}</span>
+                      <span className="font-mono text-[8px] leading-none text-[var(--muted-foreground)]">
+                        +{list.length - 3}
+                      </span>
                     )}
                   </span>
                 </button>
@@ -302,10 +355,15 @@ export default function MobileCalendar() {
             onClick={() => toggle(c)}
             className={cn(
               'kb-tap-inline shrink-0 gap-1.5 rounded-full border px-3 text-[11px] transition-colors',
-              hidden.has(c) ? 'border-[var(--border)] text-[var(--muted-foreground)] opacity-60' : 'border-[var(--border)]',
+              hidden.has(c)
+                ? 'border-[var(--border)] text-[var(--muted-foreground)] opacity-60'
+                : 'border-[var(--border)]',
             )}
           >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: CATEGORY_META[c as EventCategory].tint }} />
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: CATEGORY_META[c as EventCategory].tint }}
+            />
             {CATEGORY_META[c as EventCategory].short}
           </button>
         ))}
@@ -328,20 +386,31 @@ export default function MobileCalendar() {
         const list = byDay.get(k) ?? []
         return (
           <section key={k}>
-            <h2 className={cn(
-              'mb-1.5 font-mono text-[10px] uppercase tracking-[0.13em]',
-              k === todayKey ? 'text-[var(--primary)]' : 'text-[var(--muted-foreground)]',
-            )}>
-              {format(d, 'EEEE, MMM d')}{k === todayKey ? ' · today' : ''}
+            <h2
+              className={cn(
+                'mb-1.5 font-mono text-[10px] uppercase tracking-[0.13em]',
+                k === todayKey ? 'text-[var(--primary)]' : 'text-[var(--muted-foreground)]',
+              )}
+            >
+              {format(d, 'EEEE, MMM d')}
+              {k === todayKey ? ' · today' : ''}
             </h2>
             <MTile>
-              {list.length === 0 ? <MEmpty>Nothing on this day.</MEmpty> : (
+              {list.length === 0 ? (
+                <MEmpty>Nothing on this day.</MEmpty>
+              ) : (
                 <MList>
                   {list.map((e) => (
                     <MRow
                       key={e.id}
                       onClick={() => open(e)}
-                      lead={<span className="h-2 w-2 rounded-full" style={{ background: e.color }} title={CATEGORY_META[e.category].short} />}
+                      lead={
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ background: e.color }}
+                          title={CATEGORY_META[e.category].short}
+                        />
+                      }
                       title={e.title}
                       meta={e.allDay ? 'All day' : fmt(e.start, 'HH:mm')}
                     />

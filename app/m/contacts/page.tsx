@@ -57,7 +57,11 @@ export default function MobileContacts() {
                 lead={<Avatar name={c.displayName} src={c.avatarUrl} size={36} />}
                 title={c.displayName}
                 sub={[c.jobTitle, c.company].filter(Boolean).join(' · ') || undefined}
-                meta={c.cadence && c.cadence !== 'NONE' ? CADENCE_LABEL[c.cadence as keyof typeof CADENCE_LABEL] : undefined}
+                meta={
+                  c.cadence && c.cadence !== 'NONE'
+                    ? CADENCE_LABEL[c.cadence as keyof typeof CADENCE_LABEL]
+                    : undefined
+                }
                 chevron
               />
             ))}

@@ -20,12 +20,27 @@ import { useTaskDetail } from '@/lib/hooks/task-detail'
  */
 export function TaskDialog({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {
   const {
-    data, entries, isLoading, mode, setMode, form, setForm,
-    saving, save, remove, startEdit, openTask,
+    data,
+    entries,
+    isLoading,
+    mode,
+    setMode,
+    form,
+    setForm,
+    saving,
+    save,
+    remove,
+    startEdit,
+    openTask,
   } = useTaskDetail(taskId, onClose)
 
   return (
-    <Dialog open={Boolean(taskId)} onOpenChange={(o) => { if (!o) onClose() }}>
+    <Dialog
+      open={Boolean(taskId)}
+      onOpenChange={(o) => {
+        if (!o) onClose()
+      }}
+    >
       <DialogContent className="max-w-2xl gap-0 p-0">
         {isLoading || !data ? (
           <div className="flex h-48 items-center justify-center">
@@ -59,8 +74,12 @@ export function TaskDialog({ taskId, onClose }: { taskId: string | null; onClose
                 </Button>
               ) : (
                 <>
-                  <Button variant="ghost" onClick={() => setMode('view')} disabled={saving}>Cancel</Button>
-                  <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
+                  <Button variant="ghost" onClick={() => setMode('view')} disabled={saving}>
+                    Cancel
+                  </Button>
+                  <Button onClick={save} disabled={saving}>
+                    {saving ? 'Saving…' : 'Save changes'}
+                  </Button>
                 </>
               )}
             </div>

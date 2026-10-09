@@ -33,7 +33,13 @@ export async function searchMentions(
     }
 
     const rows = await prisma.$queryRaw<
-      { id: string; displayName: string; company: string | null; jobTitle: string | null; isDraft: boolean }[]
+      {
+        id: string
+        displayName: string
+        company: string | null
+        jobTitle: string | null
+        isDraft: boolean
+      }[]
     >`
       SELECT id, "displayName", company, "jobTitle", "isDraft"
       FROM "Contact"
@@ -83,16 +89,26 @@ export async function searchMentions(
 
   return [
     ...(projects as any[]).map((p) => ({
-      id: p.id, label: p.name, kind: 'project' as const, sublabel: 'project',
+      id: p.id,
+      label: p.name,
+      kind: 'project' as const,
+      sublabel: 'project',
     })),
     ...(tasks as any[]).map((t) => ({
-      id: t.id, label: t.title, kind: 'task' as const, sublabel: 'task',
+      id: t.id,
+      label: t.title,
+      kind: 'task' as const,
+      sublabel: 'task',
     })),
   ].slice(0, limit)
 }
 
 function toContactSuggestion(c: {
-  id: string; displayName: string; company: string | null; jobTitle: string | null; isDraft: boolean
+  id: string
+  displayName: string
+  company: string | null
+  jobTitle: string | null
+  isDraft: boolean
 }): MentionSuggestion {
   const bits = [c.jobTitle, c.company].filter(Boolean)
   return {
@@ -130,7 +146,9 @@ export async function globalSearch(owner: string, q: string, limit = 20): Promis
         AND "searchVector" @@ plainto_tsquery('english', ${term})
       ORDER BY rank DESC LIMIT ${limit}
     `,
-    prisma.$queryRaw<{ id: string; slug: string; displayName: string; jobTitle: string | null; rank: number }[]>`
+    prisma.$queryRaw<
+      { id: string; slug: string; displayName: string; jobTitle: string | null; rank: number }[]
+    >`
       SELECT id, slug, "displayName", "jobTitle",
              GREATEST(
                ts_rank("searchVector", plainto_tsquery('english', ${term})),
@@ -159,20 +177,36 @@ export async function globalSearch(owner: string, q: string, limit = 20): Promis
 
   const hits: SearchHit[] = [
     ...entries.map((e) => ({
-      id: e.id, kind: 'entry' as const, title: e.title || 'Untitled',
-      snippet: highlightSnippet(e.snippet), href: `/notes/${e.id}`, rank: Number(e.rank) + 0.05,
+      id: e.id,
+      kind: 'entry' as const,
+      title: e.title || 'Untitled',
+      snippet: highlightSnippet(e.snippet),
+      href: `/notes/${e.id}`,
+      rank: Number(e.rank) + 0.05,
     })),
     ...contacts.map((c) => ({
-      id: c.id, kind: 'contact' as const, title: c.displayName,
-      snippet: c.jobTitle, href: `/contacts/${c.slug}`, rank: Number(c.rank) + 0.1,
+      id: c.id,
+      kind: 'contact' as const,
+      title: c.displayName,
+      snippet: c.jobTitle,
+      href: `/contacts/${c.slug}`,
+      rank: Number(c.rank) + 0.1,
     })),
     ...tasks.map((t) => ({
-      id: t.id, kind: 'task' as const, title: t.title, snippet: null,
-      href: `/board?task=${t.id}`, rank: Number(t.rank),
+      id: t.id,
+      kind: 'task' as const,
+      title: t.title,
+      snippet: null,
+      href: `/board?task=${t.id}`,
+      rank: Number(t.rank),
     })),
     ...projects.map((p) => ({
-      id: p.id, kind: 'project' as const, title: p.name, snippet: null,
-      href: `/projects/${p.slug}`, rank: Number(p.rank),
+      id: p.id,
+      kind: 'project' as const,
+      title: p.name,
+      snippet: null,
+      href: `/projects/${p.slug}`,
+      rank: Number(p.rank),
     })),
   ]
 

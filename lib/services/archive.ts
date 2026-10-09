@@ -52,12 +52,27 @@ function delegate(model: ModelName, client: Client | Tx = prisma): any {
 // ------------------------------------------------------------------- Export
 
 const ROOT_MODELS = new Set<ModelName>([
-  'Contact', 'EntityEdge', 'Entry', 'Project', 'BoardColumn', 'Task', 'Tag', 'Settings',
+  'Contact',
+  'EntityEdge',
+  'Entry',
+  'Project',
+  'BoardColumn',
+  'Task',
+  'Tag',
+  'Settings',
 ])
 
 function ownerWhere(model: ModelName, owner: string): Record<string, unknown> {
   if (ROOT_MODELS.has(model)) return { owner }
-  if (['ContactAttribute', 'ContactChannel', 'ContactPosition', 'ContactMilestone', 'ContactLink'].includes(model)) {
+  if (
+    [
+      'ContactAttribute',
+      'ContactChannel',
+      'ContactPosition',
+      'ContactMilestone',
+      'ContactLink',
+    ].includes(model)
+  ) {
     return { contact: { owner } }
   }
   if (model === 'Mention') return { entry: { owner } }
@@ -99,7 +114,8 @@ export async function exportArchive(owner: string): Promise<Archive> {
  */
 export async function currentCounts(owner: string): Promise<Record<string, number>> {
   const counts: Record<string, number> = {}
-  for (const model of MODEL_ORDER) counts[model] = await delegate(model).count({ where: ownerWhere(model, owner) })
+  for (const model of MODEL_ORDER)
+    counts[model] = await delegate(model).count({ where: ownerWhere(model, owner) })
   return counts
 }
 
@@ -216,10 +232,7 @@ export async function importArchive(
   // Counted BEFORE `prepared` is built, because building it is the allocation
   // being bounded — discovering the archive was enormous afterwards is the same
   // mistake `file.read()` made on the jobs side.
-  const declaredRows = MODEL_ORDER.reduce(
-    (n, model) => n + (archive.data[model]?.length ?? 0),
-    0,
-  )
+  const declaredRows = MODEL_ORDER.reduce((n, model) => n + (archive.data[model]?.length ?? 0), 0)
   if (declaredRows > MAX_ARCHIVE_ROWS) {
     throw new ValidationError(
       `Archive declares ${declaredRows.toLocaleString()} rows; the maximum is ` +
@@ -321,19 +334,45 @@ const REFERENCES: Partial<Record<ModelName, [field: string, target: ModelName][]
   ContactMilestone: [['contactId', 'Contact']],
   ContactLink: [['contactId', 'Contact']],
   BoardColumn: [['projectId', 'Project']],
-  Task: [['projectId', 'Project'], ['parentTaskId', 'Task'], ['columnId', 'BoardColumn']],
-  TaskAssignee: [['taskId', 'Task'], ['contactId', 'Contact']],
+  Task: [
+    ['projectId', 'Project'],
+    ['parentTaskId', 'Task'],
+    ['columnId', 'BoardColumn'],
+  ],
+  TaskAssignee: [
+    ['taskId', 'Task'],
+    ['contactId', 'Contact'],
+  ],
   Entry: [['projectId', 'Project']],
-  Mention: [['entryId', 'Entry'], ['contactId', 'Contact']],
-  EntityRef: [['entryId', 'Entry'], ['taskId', 'Task'], ['projectId', 'Project']],
-  ContactTag: [['contactId', 'Contact'], ['tagId', 'Tag']],
-  EntryTag: [['entryId', 'Entry'], ['tagId', 'Tag']],
-  TaskTag: [['taskId', 'Task'], ['tagId', 'Tag']],
+  Mention: [
+    ['entryId', 'Entry'],
+    ['contactId', 'Contact'],
+  ],
+  EntityRef: [
+    ['entryId', 'Entry'],
+    ['taskId', 'Task'],
+    ['projectId', 'Project'],
+  ],
+  ContactTag: [
+    ['contactId', 'Contact'],
+    ['tagId', 'Tag'],
+  ],
+  EntryTag: [
+    ['entryId', 'Entry'],
+    ['tagId', 'Tag'],
+  ],
+  TaskTag: [
+    ['taskId', 'Task'],
+    ['tagId', 'Tag'],
+  ],
 }
 
 /** `EntityEdge` endpoints have no foreign key, so their types are mapped here. */
 const EDGE_TARGETS: Record<string, ModelName> = {
-  contact: 'Contact', entry: 'Entry', task: 'Task', project: 'Project',
+  contact: 'Contact',
+  entry: 'Entry',
+  task: 'Task',
+  project: 'Project',
 }
 
 /**
@@ -342,7 +381,9 @@ const EDGE_TARGETS: Record<string, ModelName> = {
  * linked only by id — without this, a hand-edited archive could attach a
  * mention, tag or edge to another owner's contact.
  */
-export function assertReferencesClosed(prepared: Partial<Record<ModelName, Record<string, unknown>[]>>) {
+export function assertReferencesClosed(
+  prepared: Partial<Record<ModelName, Record<string, unknown>[]>>,
+) {
   const ids = new Map<ModelName, Set<unknown>>()
   const idsOf = (model: ModelName) => {
     let set = ids.get(model)
@@ -463,7 +504,9 @@ async function stageUploads(owner: string, uploads: ArchiveUpload[]): Promise<Ma
     // Belt and braces. The name is ours now, not the archive's, so this can no
     // longer fail — which is exactly why it is cheap to keep asserting.
     if (path.dirname(path.resolve(target)) !== path.resolve(directory)) {
-      throw new ValidationError(`Refusing to write an upload outside the uploads directory: ${item.to}`)
+      throw new ValidationError(
+        `Refusing to write an upload outside the uploads directory: ${item.to}`,
+      )
     }
     await writeFile(target, item.bytes)
     staged.set(item.from, item.to)

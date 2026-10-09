@@ -4,8 +4,14 @@ import { useRouter } from 'next/navigation'
 import { Command } from 'cmdk'
 import { useQuery } from '@tanstack/react-query'
 import {
-  User, SquareCheck, FolderKanban, NotebookPen,
-  KanbanSquare, CalendarDays, Users, Plus,
+  User,
+  SquareCheck,
+  FolderKanban,
+  NotebookPen,
+  KanbanSquare,
+  CalendarDays,
+  Users,
+  Plus,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { api } from '@/lib/hooks/api'
@@ -13,7 +19,10 @@ import { useUi } from '@/lib/store'
 import type { SearchHit } from '@/lib/services/search'
 
 const ICONS = {
-  entry: NotebookPen, contact: User, task: SquareCheck, project: FolderKanban,
+  entry: NotebookPen,
+  contact: User,
+  task: SquareCheck,
+  project: FolderKanban,
 } as const
 
 const ACTIONS = [

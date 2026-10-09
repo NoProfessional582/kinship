@@ -57,7 +57,9 @@ export async function getProject(owner: string, idOrSlug: string) {
       tasks: {
         where: { deletedAt: null },
         include: {
-          assignees: { include: { contact: { select: { id: true, displayName: true, avatarUrl: true } } } },
+          assignees: {
+            include: { contact: { select: { id: true, displayName: true, avatarUrl: true } } },
+          },
           column: true,
         },
         orderBy: { position: 'asc' },

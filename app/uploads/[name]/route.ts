@@ -37,9 +37,9 @@ export const runtime = 'nodejs'
  * dots beyond the single extension one, fixed length.
  */
 const STORED_NAME = new RegExp(
-  `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\.(?:${
-    ALLOWED_IMAGE_TYPES.map(extensionFor).join('|')
-  })$`,
+  `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\.(?:${ALLOWED_IMAGE_TYPES.map(
+    extensionFor,
+  ).join('|')})$`,
 )
 
 export async function GET(req: Request, { params }: { params: Promise<{ name: string }> }) {

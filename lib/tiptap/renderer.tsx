@@ -34,7 +34,10 @@ export function createSuggestionRenderer(): SuggestionOptions<SuggestionItem>['r
       })
     }
 
-    const render = (props: { items: SuggestionItem[]; command: (item: SuggestionItem) => void }) => {
+    const render = (props: {
+      items: SuggestionItem[]
+      command: (item: SuggestionItem) => void
+    }) => {
       latestItems = props.items
       root?.render(
         <SuggestionList

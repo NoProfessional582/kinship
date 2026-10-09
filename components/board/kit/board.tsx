@@ -40,13 +40,26 @@
  */
 import * as React from 'react'
 import {
-  DndContext, DragOverlay, PointerSensor, KeyboardSensor,
-  closestCorners, pointerWithin, rectIntersection,
-  useSensor, useSensors, useDroppable,
-  type CollisionDetection, type DragStartEvent, type DragOverEvent, type DragEndEvent,
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  closestCorners,
+  pointerWithin,
+  rectIntersection,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type CollisionDetection,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
 } from '@dnd-kit/sortable'
 import { cn } from '@/lib/utils'
 import { SortableCard } from './sortable-card'
@@ -57,7 +70,9 @@ import { SortableCard } from './sortable-card'
 // carry far more than this; they satisfy these by having the right fields, and
 // the extra fields travel through untouched to the render props.
 
-export interface BoardColumn { id: string }
+export interface BoardColumn {
+  id: string
+}
 
 export interface BoardItem {
   id: string
@@ -173,8 +188,17 @@ export interface BoardProps<C extends BoardColumn, I extends BoardItem> {
 }
 
 export function Board<C extends BoardColumn, I extends BoardItem>({
-  columns, items, groups, groupIdsOf, renderColumnHeader, renderCard,
-  onMove, sortable = true, settling = false, emptyLabel = 'Drop a card here', className,
+  columns,
+  items,
+  groups,
+  groupIdsOf,
+  renderColumnHeader,
+  renderCard,
+  onMove,
+  sortable = true,
+  settling = false,
+  emptyLabel = 'Drop a card here',
+  className,
 }: BoardProps<C, I>) {
   const [activeId, setActiveId] = React.useState<string | null>(null)
 
@@ -200,8 +224,7 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
    * only snapping once the server responds.
    */
   const serverZones = React.useMemo<ZoneMap>(() => {
-    const lanesOf = (item: I): string[] =>
-      groupIdsOf ? groupIdsOf(item) : [UNGROUPED.id]
+    const lanesOf = (item: I): string[] => (groupIdsOf ? groupIdsOf(item) : [UNGROUPED.id])
 
     const map: ZoneMap = {}
     for (const c of columns) for (const g of lanes) map[zoneId(c.id, g.id)] = []
@@ -242,8 +265,7 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const zoneOf = (map: ZoneMap, card: string) =>
-    Object.keys(map).find((z) => map[z].includes(card))
+  const zoneOf = (map: ZoneMap, card: string) => Object.keys(map).find((z) => map[z].includes(card))
 
   const resolveZone = (over: any): string | null => {
     if (!over) return null
@@ -300,7 +322,10 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
     setActiveId(null)
 
     const finalZone = zoneOf(zones, id)
-    if (!finalZone) { setZones(serverZones); return }
+    if (!finalZone) {
+      setZones(serverZones)
+      return
+    }
 
     const { columnId } = parseZone(finalZone)
     const lane = zones[finalZone]
@@ -339,7 +364,10 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      onDragCancel={() => { setActiveId(null); setZones(serverZones) }}
+      onDragCancel={() => {
+        setActiveId(null)
+        setZones(serverZones)
+      }}
     >
       <div className={cn('flex flex-col gap-6', fullHeight && 'h-full', className)}>
         {lanes.map((group) => (
@@ -392,7 +420,9 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
 
       <DragOverlay dropAnimation={null}>
         {activeItem && (
-          <div className="w-[19rem] rotate-2">{renderCard({ item: activeItem, dragging: true })}</div>
+          <div className="w-[19rem] rotate-2">
+            {renderCard({ item: activeItem, dragging: true })}
+          </div>
         )}
       </DragOverlay>
     </DndContext>
@@ -408,7 +438,13 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
  * `renderColumnHeader` instead.
  */
 function Column({
-  zone, cardIds, fullHeight, dropDisabled, header, emptyLabel, children,
+  zone,
+  cardIds,
+  fullHeight,
+  dropDisabled,
+  header,
+  emptyLabel,
+  children,
 }: {
   zone: string
   cardIds: string[]
@@ -422,7 +458,9 @@ function Column({
   // of collision detection entirely, so a column in another lane never lights up
   // as a target it would then refuse.
   const { setNodeRef, isOver } = useDroppable({
-    id: zone, data: { type: 'zone' }, disabled: dropDisabled,
+    id: zone,
+    data: { type: 'zone' },
+    disabled: dropDisabled,
   })
 
   return (

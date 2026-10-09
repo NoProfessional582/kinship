@@ -8,10 +8,18 @@
  * must no-op when there is no DOM rather than throw on `Element`.
  */
 if (typeof globalThis.document !== 'undefined' && typeof globalThis.Element !== 'undefined') {
-  const emptyRect = () => ({
-    x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0,
-    toJSON: () => ({}),
-  }) as DOMRect
+  const emptyRect = () =>
+    ({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: 0,
+      height: 0,
+      toJSON: () => ({}),
+    }) as DOMRect
 
   const emptyRectList = () => {
     const list: any = [emptyRect()]
@@ -28,6 +36,10 @@ if (typeof globalThis.document !== 'undefined' && typeof globalThis.Element !== 
   }
 
   if (typeof (globalThis as any).DOMRect === 'undefined') {
-    ;(globalThis as any).DOMRect = class { constructor() { return emptyRect() } }
+    ;(globalThis as any).DOMRect = class {
+      constructor() {
+        return emptyRect()
+      }
+    }
   }
 }

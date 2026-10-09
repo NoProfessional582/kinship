@@ -1,6 +1,11 @@
 import 'dotenv/config'
 import { prisma } from '../lib/db'
-import { archiveFilename, currentCounts, exportArchive, importArchive } from '../lib/services/archive'
+import {
+  archiveFilename,
+  currentCounts,
+  exportArchive,
+  importArchive,
+} from '../lib/services/archive'
 import { requireConfiguredOwner } from '../lib/identity'
 
 /**
@@ -91,7 +96,9 @@ async function runImport({ replace, force }: { replace: boolean; force: boolean 
     // A dry run is worth more than a confirmation prompt here: the interesting
     // question is not "are you sure" but "what exactly is on each side".
     const here = await currentCounts(owner)
-    say(`Archive written ${archive.exportedAt ?? 'at an unrecorded time'}, format v${archive.version}.`)
+    say(
+      `Archive written ${archive.exportedAt ?? 'at an unrecorded time'}, format v${archive.version}.`,
+    )
     say('\nIt would REPLACE this database:\n')
     say(compare(here, archive.counts ?? {}))
     say(`\nUploads in the archive: ${archive.uploads?.length ?? 0}`)

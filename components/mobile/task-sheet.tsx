@@ -5,21 +5,48 @@ import { Button } from '@/components/ui/button'
 import { TaskView } from '@/components/shared/task-view'
 import { TaskForm } from '@/components/entity-modal/task-form'
 import { useTaskDetail } from '@/lib/hooks/task-detail'
-import { MSheet, MSheetContent, MSheetTitle, MSheetBody, MSheetFooter } from '@/components/mobile/sheet'
+import {
+  MSheet,
+  MSheetContent,
+  MSheetTitle,
+  MSheetBody,
+  MSheetFooter,
+} from '@/components/mobile/sheet'
 
 /**
  * The task detail view on a phone. Same hook as the desktop `TaskDialog` — the
  * view/edit mode, the drill-into-subtask stack, the save and the delete are all
  * `useTaskDetail`; only the container differs.
  */
-export function MobileTaskSheet({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {
+export function MobileTaskSheet({
+  taskId,
+  onClose,
+}: {
+  taskId: string | null
+  onClose: () => void
+}) {
   const {
-    data, entries, isLoading, mode, setMode, form, setForm,
-    saving, save, remove, startEdit, openTask,
+    data,
+    entries,
+    isLoading,
+    mode,
+    setMode,
+    form,
+    setForm,
+    saving,
+    save,
+    remove,
+    startEdit,
+    openTask,
   } = useTaskDetail(taskId, onClose)
 
   return (
-    <MSheet open={Boolean(taskId)} onOpenChange={(o) => { if (!o) onClose() }}>
+    <MSheet
+      open={Boolean(taskId)}
+      onOpenChange={(o) => {
+        if (!o) onClose()
+      }}
+    >
       <MSheetContent tall hideClose>
         {isLoading || !data ? (
           <div className="flex h-40 items-center justify-center">
@@ -44,11 +71,17 @@ export function MobileTaskSheet({ taskId, onClose }: { taskId: string | null; on
               </Button>
               <span className="flex-1" />
               {mode === 'view' ? (
-                <Button onClick={startEdit}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+                <Button onClick={startEdit}>
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Button>
               ) : (
                 <>
-                  <Button variant="ghost" onClick={() => setMode('view')} disabled={saving}>Cancel</Button>
-                  <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+                  <Button variant="ghost" onClick={() => setMode('view')} disabled={saving}>
+                    Cancel
+                  </Button>
+                  <Button onClick={save} disabled={saving}>
+                    {saving ? 'Saving…' : 'Save'}
+                  </Button>
                 </>
               )}
             </MSheetFooter>

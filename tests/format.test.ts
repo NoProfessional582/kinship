@@ -8,14 +8,17 @@ const INSTANT = '2026-08-21T02:46:00.000Z'
 describe('formatInstant', () => {
   it('renders an instant in the requested zone, not the machine zone', () => {
     expect(formatInstant(INSTANT, 'yyyy-MM-dd HH:mm', 'UTC')).toBe('2026-08-21 02:46')
-    expect(formatInstant(INSTANT, 'yyyy-MM-dd HH:mm', 'America/Los_Angeles')).toBe('2026-08-20 19:46')
+    expect(formatInstant(INSTANT, 'yyyy-MM-dd HH:mm', 'America/Los_Angeles')).toBe(
+      '2026-08-20 19:46',
+    )
     expect(formatInstant(INSTANT, 'yyyy-MM-dd HH:mm', 'Australia/Sydney')).toBe('2026-08-21 12:46')
   })
 
   it('can roll the calendar day backwards across the date line', () => {
     // Same moment, three different dates on the wall.
-    const days = ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati']
-      .map((tz) => formatInstant(INSTANT, 'dd', tz))
+    const days = ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati'].map((tz) =>
+      formatInstant(INSTANT, 'dd', tz),
+    )
     expect(new Set(days).size).toBeGreaterThan(1)
   })
 

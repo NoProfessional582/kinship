@@ -8,15 +8,21 @@ import { zonedDayOf } from '@/lib/format'
 import { calendarDate, cn } from '@/lib/utils'
 
 const PRIORITY: Record<string, { label: string; color: string }> = {
-  LOW:    { label: 'Low',    color: 'var(--muted-foreground)' },
+  LOW: { label: 'Low', color: 'var(--muted-foreground)' },
   MEDIUM: { label: 'Medium', color: 'var(--hue-2)' },
-  HIGH:   { label: 'High',   color: 'var(--warning)' },
+  HIGH: { label: 'High', color: 'var(--warning)' },
   URGENT: { label: 'Urgent', color: 'var(--destructive)' },
 }
 
 export function TaskCardFace({
-  task, dragging, onOpen,
-}: { task: any; dragging?: boolean; onOpen?: (task: any) => void }) {
+  task,
+  dragging,
+  onOpen,
+}: {
+  task: any
+  dragging?: boolean
+  onOpen?: (task: any) => void
+}) {
   const subtasks = task.subtasks ?? []
   const done = subtasks.filter((s: any) => s.status === 'DONE').length
   const pct = subtasks.length ? Math.round((done / subtasks.length) * 100) : 0
@@ -32,14 +38,15 @@ export function TaskCardFace({
   // `today`, which is null until mount, so the server never renders a clock.
   const dueAt = task.dueDate ? new Date(task.dueDate) : null
   const due = task.dueDate
-    ? (allDay ? calendarDate(task.dueDate) : zonedDayOf(task.dueDate, timezone))
+    ? allDay
+      ? calendarDate(task.dueDate)
+      : zonedDayOf(task.dueDate, timezone)
     : null
   const dueInDays = due && today ? differenceInCalendarDays(due, today) : null
-  const overdue = task.status !== 'DONE' && today !== null && (
-    allDay
-      ? dueInDays !== null && dueInDays < 0
-      : dueAt !== null && dueAt.getTime() < Date.now()
-  )
+  const overdue =
+    task.status !== 'DONE' &&
+    today !== null &&
+    (allDay ? dueInDays !== null && dueInDays < 0 : dueAt !== null && dueAt.getTime() < Date.now())
   const priority = PRIORITY[task.priority] ?? PRIORITY.MEDIUM
   const accent = task.project?.color ?? priority.color
 
@@ -48,8 +55,9 @@ export function TaskCardFace({
       onClick={() => onOpen?.(task)}
       className={cn(
         'group relative cursor-pointer overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] transition-all',
-        dragging ? '[box-shadow:var(--shadow-lift)] ring-2 ring-[var(--ring)]'
-                 : '[box-shadow:var(--shadow-card)] hover:-translate-y-0.5 hover:[box-shadow:var(--shadow-lift)]',
+        dragging
+          ? '[box-shadow:var(--shadow-lift)] ring-2 ring-[var(--ring)]'
+          : '[box-shadow:var(--shadow-card)] hover:-translate-y-0.5 hover:[box-shadow:var(--shadow-lift)]',
       )}
     >
       <span className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
@@ -78,7 +86,10 @@ export function TaskCardFace({
               color: task.project.color ?? 'var(--primary)',
             }}
           >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: task.project.color ?? 'var(--primary)' }} />
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: task.project.color ?? 'var(--primary)' }}
+            />
             {task.project.name}
           </span>
         )}
@@ -86,12 +97,18 @@ export function TaskCardFace({
         {subtasks.length > 0 && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)]">
-              <span className="inline-flex items-center gap-1"><ListChecks className="h-3 w-3" /> Subtasks</span>
-              <span>{done}/{subtasks.length}</span>
+              <span className="inline-flex items-center gap-1">
+                <ListChecks className="h-3 w-3" /> Subtasks
+              </span>
+              <span>
+                {done}/{subtasks.length}
+              </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-[var(--muted)]">
-              <div className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, background: 'var(--hue-3)' }} />
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${pct}%`, background: 'var(--hue-3)' }}
+              />
             </div>
           </div>
         )}
@@ -99,7 +116,10 @@ export function TaskCardFace({
         {(task.tags ?? []).length > 0 && (
           <div className="flex flex-wrap gap-1">
             {task.tags.map((t: any) => (
-              <span key={t.tagId} className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] text-[var(--muted-foreground)]">
+              <span
+                key={t.tagId}
+                className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] text-[var(--muted-foreground)]"
+              >
                 #{t.tag.name}
               </span>
             ))}
@@ -121,26 +141,40 @@ export function TaskCardFace({
             </span>
           )}
 
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: priority.color }}>
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-medium"
+            style={{ color: priority.color }}
+          >
             <Flag className="h-3 w-3" /> {priority.label}
           </span>
 
           {due && (
             <span
-              className={cn('inline-flex items-center gap-1 text-[11px]',
-                overdue ? 'font-medium text-[var(--destructive)]' : 'text-[var(--muted-foreground)]')}
+              className={cn(
+                'inline-flex items-center gap-1 text-[11px]',
+                overdue
+                  ? 'font-medium text-[var(--destructive)]'
+                  : 'text-[var(--muted-foreground)]',
+              )}
               title={allDay || !dueAt ? format(due, 'PPP') : fmt(dueAt, 'PPP, h:mm a')}
             >
               <CalendarClock className="h-3 w-3" />
-              {dueInDays === 0 ? (allDay || !dueAt ? 'Today' : fmt(dueAt, 'h:mm a'))
-                : overdue ? `${Math.abs(dueInDays!)}d over`
-                : allDay || !dueAt ? format(due, 'MMM d') : fmt(dueAt, 'MMM d, h:mm a')}
+              {dueInDays === 0
+                ? allDay || !dueAt
+                  ? 'Today'
+                  : fmt(dueAt, 'h:mm a')
+                : overdue
+                  ? `${Math.abs(dueInDays!)}d over`
+                  : allDay || !dueAt
+                    ? format(due, 'MMM d')
+                    : fmt(dueAt, 'MMM d, h:mm a')}
             </span>
           )}
 
           {task._count?.refs > 0 && (
             <span className="inline-flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
-              <Link2 className="h-3 w-3" />{task._count.refs}
+              <Link2 className="h-3 w-3" />
+              {task._count.refs}
             </span>
           )}
 
@@ -149,7 +183,11 @@ export function TaskCardFace({
           {(task.assignees ?? []).length > 0 && (
             <div className="flex -space-x-1.5">
               {task.assignees.slice(0, 3).map((a: any) => (
-                <span key={a.id} title={a.contact.displayName} className="rounded-full ring-2 ring-[var(--card)]">
+                <span
+                  key={a.id}
+                  title={a.contact.displayName}
+                  className="rounded-full ring-2 ring-[var(--card)]"
+                >
                   <Avatar src={a.contact.avatarUrl} name={a.contact.displayName} size={22} />
                 </span>
               ))}

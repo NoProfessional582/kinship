@@ -14,11 +14,14 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  get: <T,>(url: string) => req<T>(url),
-  post: <T,>(url: string, body: unknown) => req<T>(url, { method: 'POST', body: JSON.stringify(body) }),
-  put: <T,>(url: string, body: unknown) => req<T>(url, { method: 'PUT', body: JSON.stringify(body) }),
-  patch: <T,>(url: string, body: unknown) => req<T>(url, { method: 'PATCH', body: JSON.stringify(body) }),
-  del: <T,>(url: string) => req<T>(url, { method: 'DELETE' }),
+  get: <T>(url: string) => req<T>(url),
+  post: <T>(url: string, body: unknown) =>
+    req<T>(url, { method: 'POST', body: JSON.stringify(body) }),
+  put: <T>(url: string, body: unknown) =>
+    req<T>(url, { method: 'PUT', body: JSON.stringify(body) }),
+  patch: <T>(url: string, body: unknown) =>
+    req<T>(url, { method: 'PATCH', body: JSON.stringify(body) }),
+  del: <T>(url: string) => req<T>(url, { method: 'DELETE' }),
 }
 
 export const keys = {
@@ -58,8 +61,12 @@ export function useMoveTask(projectId: string | null) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (vars: {
-      taskId: string; columnId: string; toIndex: number; projectId?: string | null
-      beforeId?: string | null; afterId?: string | null
+      taskId: string
+      columnId: string
+      toIndex: number
+      projectId?: string | null
+      beforeId?: string | null
+      afterId?: string | null
     }) =>
       api.patch(`/api/tasks/${vars.taskId}/move`, {
         columnId: vars.columnId,
@@ -86,8 +93,13 @@ export function useMoveTask(projectId: string | null) {
           ...old,
           tasks: old.tasks.map((t: any) =>
             t.id === vars.taskId
-              ? { ...t, columnId: vars.columnId, ...(vars.projectId !== undefined ? { projectId: vars.projectId } : {}) }
-              : t),
+              ? {
+                  ...t,
+                  columnId: vars.columnId,
+                  ...(vars.projectId !== undefined ? { projectId: vars.projectId } : {}),
+                }
+              : t,
+          ),
         }
       })
       return { previous }

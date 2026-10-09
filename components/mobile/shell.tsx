@@ -4,8 +4,19 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
-  LayoutDashboard, NotebookPen, Users, KanbanSquare, CalendarDays,
-  Search, Moon, Sun, FolderKanban, Settings, Trash2, MoreHorizontal, X,
+  LayoutDashboard,
+  NotebookPen,
+  Users,
+  KanbanSquare,
+  CalendarDays,
+  Search,
+  Moon,
+  Sun,
+  FolderKanban,
+  Settings,
+  Trash2,
+  MoreHorizontal,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { m } from '@/lib/mobile/href'
@@ -47,7 +58,9 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) =>
     href === '/' ? pathname === '/m' : pathname.startsWith(m(href))
 
-  React.useEffect(() => { setMoreOpen(false) }, [pathname])
+  React.useEffect(() => {
+    setMoreOpen(false)
+  }, [pathname])
 
   return (
     <div className="kb-m flex h-dvh flex-col overflow-hidden bg-[var(--background)]">
@@ -96,7 +109,12 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
               aria-current={active ? 'page' : undefined}
             >
               <t.icon className={cn('h-5 w-5', !active && 'text-[var(--muted-foreground)]')} />
-              <span className={cn('text-[10px] leading-none', active ? 'font-semibold' : 'text-[var(--muted-foreground)]')}>
+              <span
+                className={cn(
+                  'text-[10px] leading-none',
+                  active ? 'font-semibold' : 'text-[var(--muted-foreground)]',
+                )}
+              >
                 {t.label}
               </span>
             </Link>
@@ -123,7 +141,11 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
               <span className="truncate">{settings.userName}</span>
               <span className="flex-1" />
-              <button onClick={() => setMoreOpen(false)} aria-label="Close" className="kb-tap flex items-center justify-center">
+              <button
+                onClick={() => setMoreOpen(false)}
+                aria-label="Close"
+                className="kb-tap flex items-center justify-center"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -148,7 +170,11 @@ function ThemeRow() {
       onClick={() => setTheme(dark ? 'light' : 'dark')}
       className="kb-tap flex items-center gap-3 rounded-[var(--radius-md)] px-3 text-left text-sm"
     >
-      {dark ? <Sun className="h-4 w-4 text-[var(--muted-foreground)]" /> : <Moon className="h-4 w-4 text-[var(--muted-foreground)]" />}
+      {dark ? (
+        <Sun className="h-4 w-4 text-[var(--muted-foreground)]" />
+      ) : (
+        <Moon className="h-4 w-4 text-[var(--muted-foreground)]" />
+      )}
       {dark ? 'Light theme' : 'Dark theme'}
     </button>
   )

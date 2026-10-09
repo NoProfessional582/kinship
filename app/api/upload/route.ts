@@ -4,7 +4,12 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { ownerUploadDir, uploadUrl } from '@/lib/uploads'
 import { requireIdentity } from '@/lib/identity'
-import { ALLOWED_IMAGE_TYPES, allowedImageLabel, extensionFor, sniffImageType } from '@/lib/image-types'
+import {
+  ALLOWED_IMAGE_TYPES,
+  allowedImageLabel,
+  extensionFor,
+  sniffImageType,
+} from '@/lib/image-types'
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_REQUEST_BYTES, readBodyCapped } from '@/lib/body-limit'
 import { PayloadTooLargeError } from '@/lib/errors'
 

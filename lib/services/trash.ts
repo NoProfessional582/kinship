@@ -49,7 +49,12 @@ export async function restore(owner: string, kind: TrashKind, id: string) {
  * `db` defaults to the global client so existing callers (and the test suite)
  * keep working, but everything inside a purge passes its transaction.
  */
-export async function deleteEdgesFor(owner: string, kind: TrashKind, ids: string[], db: Db = prisma) {
+export async function deleteEdgesFor(
+  owner: string,
+  kind: TrashKind,
+  ids: string[],
+  db: Db = prisma,
+) {
   if (!ids.length) return
   await db.entityEdge.deleteMany({
     where: {
@@ -236,25 +241,32 @@ export async function listTrash(owner: string) {
 
   const [contacts, entries, tasks, projects] = await Promise.all([
     prisma.contact.findMany({
-      where: deleted, orderBy: order,
+      where: deleted,
+      orderBy: order,
       select: { id: true, displayName: true, avatarUrl: true, deletedAt: true },
     }),
     prisma.entry.findMany({
-      where: deleted, orderBy: order,
+      where: deleted,
+      orderBy: order,
       select: { id: true, title: true, kind: true, bodyText: true, deletedAt: true },
     }),
     prisma.task.findMany({
-      where: deleted, orderBy: order,
+      where: deleted,
+      orderBy: order,
       select: { id: true, title: true, deletedAt: true },
     }),
     prisma.project.findMany({
-      where: deleted, orderBy: order,
+      where: deleted,
+      orderBy: order,
       select: { id: true, name: true, color: true, deletedAt: true },
     }),
   ])
 
   return {
-    contacts, entries, tasks, projects,
+    contacts,
+    entries,
+    tasks,
+    projects,
     total: contacts.length + entries.length + tasks.length + projects.length,
   }
 }

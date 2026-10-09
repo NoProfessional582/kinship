@@ -18,10 +18,16 @@ export interface Settings {
 }
 
 const FALLBACK: Settings = {
-  timezone: null, userName: 'You', appTitle: 'Kinship',
+  timezone: null,
+  userName: 'You',
+  appTitle: 'Kinship',
   tagline: 'Personal knowledge & relationships',
-  weatherEnabled: false, weatherLocation: 'San Francisco, CA', weatherUnit: 'fahrenheit',
-  calendarWeekStart: 'monday', fontScale: 1, defaultCadence: 'MONTHLY',
+  weatherEnabled: false,
+  weatherLocation: 'San Francisco, CA',
+  weatherUnit: 'fahrenheit',
+  calendarWeekStart: 'monday',
+  fontScale: 1,
+  defaultCadence: 'MONTHLY',
 }
 
 export function useSettings() {

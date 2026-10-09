@@ -10,6 +10,14 @@ export async function PATCH(req: Request, { params }: RouteCtx) {
   const { id } = await params
   return handle(async () => {
     const body = moveTaskSchema.parse(await req.json())
-    return moveTask(owner, id, body.columnId, body.toIndex, body.projectId, body.beforeId, body.afterId)
+    return moveTask(
+      owner,
+      id,
+      body.columnId,
+      body.toIndex,
+      body.projectId,
+      body.beforeId,
+      body.afterId,
+    )
   })
 }

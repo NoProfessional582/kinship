@@ -53,8 +53,14 @@ export function toTimed(iso: string, timezone: string, hour: number): string {
 }
 
 export function DateTimeField({
-  value, allDay, onChange,
-}: { value: string; allDay: boolean; onChange: (iso: string) => void }) {
+  value,
+  allDay,
+  onChange,
+}: {
+  value: string
+  allDay: boolean
+  onChange: (iso: string) => void
+}) {
   const { timezone } = useTimezone()
 
   if (allDay) {
@@ -82,8 +88,12 @@ export function DateTimeField({
  * all-day end has no coherent meaning on a calendar.
  */
 export function AllDayToggle({
-  checked, onChange,
-}: { checked: boolean; onChange: (next: boolean) => void }) {
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: (next: boolean) => void
+}) {
   return (
     <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />

@@ -6,12 +6,17 @@ import { z } from 'zod'
  */
 
 export const entryKindSchema = z.enum([
-  'NOTE', 'CALL', 'EMAIL', 'TEXT', 'MEETING', 'IN_PERSON', 'SOCIAL', 'EVENT',
+  'NOTE',
+  'CALL',
+  'EMAIL',
+  'TEXT',
+  'MEETING',
+  'IN_PERSON',
+  'SOCIAL',
+  'EVENT',
 ])
 export const directionSchema = z.enum(['INBOUND', 'OUTBOUND'])
-export const taskStatusSchema = z.enum([
-  'TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'ARCHIVED',
-])
+export const taskStatusSchema = z.enum(['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'ARCHIVED'])
 export const prioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
 
 const optionalDate = z.coerce.date().nullish()
@@ -53,7 +58,12 @@ const entryFields = {
   bodyJson: z.any(),
   occurredAt: strictDate,
   direction: directionSchema.nullish(),
-  durationMin: z.number().int().min(0).max(60 * 24).nullish(),
+  durationMin: z
+    .number()
+    .int()
+    .min(0)
+    .max(60 * 24)
+    .nullish(),
   location: trimmed(200).nullish(),
   /**
    * When to pick this conversation back up. Not a column: the save creates a
@@ -91,7 +101,13 @@ export const updateEntrySchema = z.object(entryFields).partial()
 
 export const tierSchema = z.enum(['TIER_1', 'TIER_2', 'TIER_3', 'TIER_4'])
 export const cadenceSchema = z.enum([
-  'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'BIANNUAL', 'ANNUAL', 'NONE',
+  'WEEKLY',
+  'BIWEEKLY',
+  'MONTHLY',
+  'QUARTERLY',
+  'BIANNUAL',
+  'ANNUAL',
+  'NONE',
 ])
 export const entityTypeSchema = z.enum(['contact', 'project', 'task', 'entry'])
 
@@ -128,9 +144,7 @@ export const trashActionSchema = z.object({
   deletedAt: z.string().datetime().optional(),
 })
 
-export const channelTypeSchema = z.enum([
-  'PHONE', 'EMAIL', 'SLACK', 'TEAMS', 'LINKEDIN', 'OTHER',
-])
+export const channelTypeSchema = z.enum(['PHONE', 'EMAIL', 'SLACK', 'TEAMS', 'LINKEDIN', 'OTHER'])
 
 export const contactChannelSchema = z.object({
   type: channelTypeSchema,
@@ -161,9 +175,10 @@ export const contactMilestoneSchema = z.object({
  * click. A bare "example.com" is still accepted and normalized to https, which
  * is how these are usually typed.
  */
-const safeUrl = trimmed(600).min(1)
+const safeUrl = trimmed(600)
+  .min(1)
   .transform((v) => (/^[a-z][a-z0-9+.-]*:/i.test(v) ? v : `https://${v}`))
-  .refine((v) => /^(https?:\/\/|mailto:)/i.test(v), "Links must be http(s) or mailto")
+  .refine((v) => /^(https?:\/\/|mailto:)/i.test(v), 'Links must be http(s) or mailto')
 
 export const contactLinkSchema = z.object({
   label: trimmed(100).min(1),
@@ -345,8 +360,12 @@ export const settingsSchema = z.object({
     .max(80)
     .refine(
       (tz) => {
-        try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true }
-        catch { return false }
+        try {
+          new Intl.DateTimeFormat('en-US', { timeZone: tz })
+          return true
+        } catch {
+          return false
+        }
       },
       { message: 'Not a recognised IANA timezone' },
     )

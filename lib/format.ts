@@ -70,7 +70,10 @@ export function zoneOffsetLabel(timezone: string, at: Date = new Date()): string
 
 /** Start/end of the given day *in a zone*, as UTC instants for querying. */
 export function zonedDayBoundsFor(
-  year: number, month: number, day: number, timezone: string,
+  year: number,
+  month: number,
+  day: number,
+  timezone: string,
 ): { start: Date; end: Date } {
   const start = new TZDate(year, month, day, 0, 0, 0, 0, timezone)
   const end = new TZDate(year, month, day, 23, 59, 59, 999, timezone)
@@ -109,7 +112,14 @@ export function zonedToday(timezone: string, at: Date = new Date()): Date {
 export function msUntilZoneMidnight(timezone: string, at: Date = new Date()): number {
   const z = new TZDate(at, timezone)
   const nextMidnight = new TZDate(
-    z.getFullYear(), z.getMonth(), z.getDate() + 1, 0, 0, 0, 0, timezone,
+    z.getFullYear(),
+    z.getMonth(),
+    z.getDate() + 1,
+    0,
+    0,
+    0,
+    0,
+    timezone,
   )
   return nextMidnight.getTime() - at.getTime()
 }

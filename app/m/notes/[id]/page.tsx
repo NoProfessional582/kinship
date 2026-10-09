@@ -60,36 +60,66 @@ export default function MobileEntry() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-2">
-        <button onClick={() => router.back()} className="kb-tap -ml-1 flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
+        <button
+          onClick={() => router.back()}
+          className="kb-tap -ml-1 flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]"
+        >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <span className="flex-1" />
-        <button onClick={() => setEditing(true)} aria-label="Edit entry" className="kb-tap flex items-center justify-center rounded-[var(--radius-md)] text-[var(--muted-foreground)]">
+        <button
+          onClick={() => setEditing(true)}
+          aria-label="Edit entry"
+          className="kb-tap flex items-center justify-center rounded-[var(--radius-md)] text-[var(--muted-foreground)]"
+        >
           <Pencil className="h-4 w-4" />
         </button>
-        <button onClick={remove} aria-label="Delete entry" className="kb-tap flex items-center justify-center rounded-[var(--radius-md)] text-[var(--destructive)]">
+        <button
+          onClick={remove}
+          aria-label="Delete entry"
+          className="kb-tap flex items-center justify-center rounded-[var(--radius-md)] text-[var(--destructive)]"
+        >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
       <header>
-        <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.13em]" style={{ color: KIND_COLOR[entry.kind] }}>
+        <p
+          className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.13em]"
+          style={{ color: KIND_COLOR[entry.kind] }}
+        >
           <Icon className="h-3.5 w-3.5" /> {String(entry.kind).toLowerCase().replace(/_/g, ' ')}
         </p>
         <h1 className="mt-1 text-[1.35rem] leading-tight">{entryTitle(entry)}</h1>
         <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-[var(--muted-foreground)]">
           <span>{fmt(entry.occurredAt, 'EEE, MMM d yyyy · HH:mm')}</span>
-          {entry.durationMin && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{entry.durationMin}m</span>}
-          {entry.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{entry.location}</span>}
+          {entry.durationMin && (
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {entry.durationMin}m
+            </span>
+          )}
+          {entry.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {entry.location}
+            </span>
+          )}
         </p>
         {(entry.mentions?.length ?? 0) > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {entry.mentions.map((x: any) => x.contact && (
-              <Link key={x.contact.id} href={m(`/contacts/${x.contact.slug}`)}
-                className="kb-tap-inline rounded-full border border-[var(--border)] bg-[var(--card)] px-3 text-[11px]">
-                {x.contact.displayName}
-              </Link>
-            ))}
+            {entry.mentions.map(
+              (x: any) =>
+                x.contact && (
+                  <Link
+                    key={x.contact.id}
+                    href={m(`/contacts/${x.contact.slug}`)}
+                    className="kb-tap-inline rounded-full border border-[var(--border)] bg-[var(--card)] px-3 text-[11px]"
+                  >
+                    {x.contact.displayName}
+                  </Link>
+                ),
+            )}
           </div>
         )}
       </header>

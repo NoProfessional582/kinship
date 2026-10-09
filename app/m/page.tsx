@@ -62,7 +62,9 @@ export default function MobileToday() {
         <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--primary)]">
           {now ? `${fmt(now, 'EEEE')} · ${fmt(now, 'MMM d')}` : ' '}
         </p>
-        <h1 className="mt-1 text-[1.6rem] leading-[1.15]">{greeting}, {settings.userName}.</h1>
+        <h1 className="mt-1 text-[1.6rem] leading-[1.15]">
+          {greeting}, {settings.userName}.
+        </h1>
         <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
           {now
             ? `${counts.comms} communication${counts.comms === 1 ? '' : 's'} · ${counts.tasks} task${counts.tasks === 1 ? '' : 's'} today.`
@@ -79,13 +81,21 @@ export default function MobileToday() {
       <MobileCapture />
 
       <Section title="Today">
-        {events.length === 0 ? <MEmpty>A clear day.</MEmpty> : (
+        {events.length === 0 ? (
+          <MEmpty>A clear day.</MEmpty>
+        ) : (
           <MList>
             {events.map((e) => (
               <MRow
                 key={e.id}
                 onClick={() => open(e.source, e.entityId)}
-                lead={<span className="h-2 w-2 rounded-full" style={{ background: e.color }} title={CATEGORY_META[e.category].short} />}
+                lead={
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: e.color }}
+                    title={CATEGORY_META[e.category].short}
+                  />
+                }
                 title={e.title}
                 meta={e.allDay ? 'All day' : fmt(e.start, 'HH:mm')}
               />
@@ -114,7 +124,14 @@ export default function MobileToday() {
 
       <Section
         title="Recent"
-        action={<Link href={m('/notes')} className="kb-tap-inline gap-1 text-[11px] text-[var(--muted-foreground)]">All <ArrowRight className="h-3 w-3" /></Link>}
+        action={
+          <Link
+            href={m('/notes')}
+            className="kb-tap-inline gap-1 text-[11px] text-[var(--muted-foreground)]"
+          >
+            All <ArrowRight className="h-3 w-3" />
+          </Link>
+        }
       >
         {!entries && (
           <div className="flex items-center justify-center gap-2 py-5 text-sm text-[var(--muted-foreground)]">

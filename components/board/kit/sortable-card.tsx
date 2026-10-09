@@ -30,19 +30,21 @@ import { cn } from '@/lib/utils'
  * what then receives the drop.
  */
 export function SortableCard({
-  id, zone, disabled, children,
+  id,
+  zone,
+  disabled,
+  children,
 }: {
   id: string
   zone: string
   disabled?: boolean
   children: React.ReactNode
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({
-      id,
-      data: { type: 'card', zone },
-      disabled: { draggable: false, droppable: !!disabled },
-    })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    data: { type: 'card', zone },
+    disabled: { draggable: false, droppable: !!disabled },
+  })
 
   return (
     <div

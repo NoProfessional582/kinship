@@ -2,7 +2,11 @@
 import * as React from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { taskFromRecord, taskToPayload, type TaskFormValue } from '@/components/entity-modal/task-form'
+import {
+  taskFromRecord,
+  taskToPayload,
+  type TaskFormValue,
+} from '@/components/entity-modal/task-form'
 import { api } from '@/lib/hooks/api'
 
 /**
@@ -28,7 +32,10 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
   const [drill, setDrill] = React.useState<string | null>(null)
   const activeId = drill ?? taskId
 
-  React.useEffect(() => { setDrill(null); setMode('view') }, [taskId])
+  React.useEffect(() => {
+    setDrill(null)
+    setMode('view')
+  }, [taskId])
 
   const { data, isLoading } = useQuery({
     queryKey: ['task', activeId],
@@ -81,11 +88,23 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
     setMode('edit')
   }
 
-  const openTask = (id: string) => { setDrill(id); setMode('view') }
+  const openTask = (id: string) => {
+    setDrill(id)
+    setMode('view')
+  }
 
   return {
-    data, entries, isLoading,
-    mode, setMode, form, setForm, saving,
-    save, remove, startEdit, openTask,
+    data,
+    entries,
+    isLoading,
+    mode,
+    setMode,
+    form,
+    setForm,
+    saving,
+    save,
+    remove,
+    startEdit,
+    openTask,
   }
 }

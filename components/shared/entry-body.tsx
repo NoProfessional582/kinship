@@ -51,9 +51,17 @@ export function EntryBody({ doc, compact }: { doc: any; compact?: boolean }) {
           aria-expanded={open}
           className="mt-1.5 inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
         >
-          {open
-            ? <><ChevronUp className="h-3 w-3" />Show less</>
-            : <><ChevronDown className="h-3 w-3" />Show more</>}
+          {open ? (
+            <>
+              <ChevronUp className="h-3 w-3" />
+              Show less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3 w-3" />
+              Show more
+            </>
+          )}
         </button>
       )}
     </>

@@ -20,7 +20,9 @@ beforeEach(() => {
   editor = new Editor({
     element,
     extensions: [
-      Document, Paragraph, Text,
+      Document,
+      Paragraph,
+      Text,
       ContactMention.configure({ render: undefined as any }),
       EntityRef.configure({ render: undefined as any }),
     ],
@@ -36,7 +38,9 @@ function commitTag(typed: string, node: { type: string; attrs: Record<string, un
   insertTagNode(editor, { from: to - typed.length, to }, node)
 }
 
-afterEach(() => { editor?.destroy() })
+afterEach(() => {
+  editor?.destroy()
+})
 
 const maya = { type: CONTACT_MENTION, attrs: { id: 'c1', label: 'Maya Okafor' } }
 const sitemap = { type: ENTITY_REF, attrs: { id: 't1', kind: 'task', label: 'Draft the sitemap' } }

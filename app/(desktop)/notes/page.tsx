@@ -39,16 +39,25 @@ export default function NotesPage() {
             <NotebookPen className="h-4 w-4" /> Notes & communications
           </h1>
           <p className="text-xs text-[var(--muted-foreground)]">
-            Type <strong>@</strong> to tag a person and <strong>[[</strong> for a task or project — anything new gets created as you write.
+            Type <strong>@</strong> to tag a person and <strong>[[</strong> for a task or project —
+            anything new gets created as you write.
           </p>
         </div>
         <div className="flex flex-col gap-1">
           <Label>Filter</Label>
-          <Select value={kind} onChange={(e) => setKind(e.target.value)} className="h-8 w-36 text-xs">
+          <Select
+            value={kind}
+            onChange={(e) => setKind(e.target.value)}
+            className="h-8 w-36 text-xs"
+          >
             <option value="">All kinds</option>
-            {['NOTE', 'CALL', 'EMAIL', 'TEXT', 'MEETING', 'IN_PERSON', 'SOCIAL', 'EVENT'].map((k) => (
-              <option key={k} value={k}>{k.replace('_', ' ').toLowerCase()}</option>
-            ))}
+            {['NOTE', 'CALL', 'EMAIL', 'TEXT', 'MEETING', 'IN_PERSON', 'SOCIAL', 'EVENT'].map(
+              (k) => (
+                <option key={k} value={k}>
+                  {k.replace('_', ' ').toLowerCase()}
+                </option>
+              ),
+            )}
           </Select>
         </div>
       </header>
@@ -61,7 +70,9 @@ export default function NotesPage() {
             <CalendarClock className="h-3 w-3" /> Upcoming
           </h2>
           <div className="flex flex-col gap-3">
-            {(upcoming ?? []).map((e) => <EntryCard key={e.id} entry={e} />)}
+            {(upcoming ?? []).map((e) => (
+              <EntryCard key={e.id} entry={e} />
+            ))}
           </div>
         </section>
       )}
@@ -73,9 +84,15 @@ export default function NotesPage() {
           </div>
         )}
         {!isLoading && (entries ?? []).length === 0 && (upcoming ?? []).length === 0 && (
-          <EmptyState icon={NotebookPen} title="Nothing captured yet" hint="Write your first note above." />
+          <EmptyState
+            icon={NotebookPen}
+            title="Nothing captured yet"
+            hint="Write your first note above."
+          />
         )}
-        {(entries ?? []).map((e) => <EntryCard key={e.id} entry={e} />)}
+        {(entries ?? []).map((e) => (
+          <EntryCard key={e.id} entry={e} />
+        ))}
       </div>
     </div>
   )

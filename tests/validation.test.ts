@@ -39,7 +39,11 @@ describe('updateEntrySchema', () => {
 
   it('still carries the fields a patch does send', () => {
     const at = new Date('2026-08-27T15:00:00.000Z')
-    const out = updateEntrySchema.parse({ kind: 'CALL', occurredAt: at.toISOString(), tags: ['intro'] })
+    const out = updateEntrySchema.parse({
+      kind: 'CALL',
+      occurredAt: at.toISOString(),
+      tags: ['intro'],
+    })
     expect(out.kind).toBe('CALL')
     expect(out.occurredAt).toEqual(at)
     expect(out.tags).toEqual(['intro'])

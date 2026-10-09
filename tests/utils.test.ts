@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { calendarDate, canOfferCreate, entryTitle, normalizeLabel, initials, MAX_CREATE_LEN } from '@/lib/utils'
+import {
+  calendarDate,
+  canOfferCreate,
+  entryTitle,
+  normalizeLabel,
+  initials,
+  MAX_CREATE_LEN,
+} from '@/lib/utils'
 
 describe('normalizeLabel', () => {
   it('is case and whitespace insensitive, which is what dedupes @Sarah vs @sarah', () => {

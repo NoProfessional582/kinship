@@ -9,7 +9,10 @@ import { AGENDA_CATEGORIES, type CalendarEvent } from '@/lib/calendar-categories
  */
 
 export const SOURCE_LABEL: Record<string, string> = {
-  task: 'task', entry: 'note', birthday: 'birthday', followup: 'follow-up',
+  task: 'task',
+  entry: 'note',
+  birthday: 'birthday',
+  followup: 'follow-up',
 }
 
 const AGENDA = new Set<string>(AGENDA_CATEGORIES)
@@ -61,8 +64,7 @@ export const withinDays = (events: CalendarEvent[], fromIso: string, toIso: stri
  * hour ago is a record of what happened, not something still on your plate —
  * only the calendar can opt back into those, and only deliberately.
  */
-export const agendaOnly = (events: CalendarEvent[]) =>
-  events.filter((e) => AGENDA.has(e.category))
+export const agendaOnly = (events: CalendarEvent[]) => events.filter((e) => AGENDA.has(e.category))
 
 /** The day an event actually lands on, in the app's zone. */
 export const eventDayKey = (e: CalendarEvent, timezone: string) =>

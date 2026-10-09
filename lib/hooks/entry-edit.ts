@@ -4,7 +4,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { Editor } from '@tiptap/core'
 import {
-  entryFromRecord, entryToPayload, type EntryFormValue,
+  entryFromRecord,
+  entryToPayload,
+  type EntryFormValue,
 } from '@/components/entity-modal/entry-form'
 import { api } from '@/lib/hooks/api'
 import { useEnrichmentQueue } from '@/lib/store'
@@ -26,7 +28,9 @@ export function useEntryEdit(entry: any, onDone: () => void) {
   const enqueue = useEnrichmentQueue((s) => s.enqueue)
   const qc = useQueryClient()
 
-  const onReady = React.useCallback((e: Editor) => { editorRef.current = e }, [])
+  const onReady = React.useCallback((e: Editor) => {
+    editorRef.current = e
+  }, [])
 
   const save = async () => {
     const editor = editorRef.current

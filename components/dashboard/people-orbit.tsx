@@ -48,28 +48,33 @@ export function PeopleOrbit() {
     if (!today) return null
     const weekAgo = new Date(today.getTime() - 7 * 86_400_000)
     return {
-      active: list.filter((c: any) => c.lastContactAt && new Date(c.lastContactAt) >= weekAgo).length,
+      active: list.filter((c: any) => c.lastContactAt && new Date(c.lastContactAt) >= weekAgo)
+        .length,
       interactions: list.reduce((n: number, c: any) => n + (c._count?.mentions ?? 0), 0),
     }
   }, [list, today])
 
-  const faces = React.useMemo(() => (
-    [...list]
-      .sort((a: any, b: any) =>
-        new Date(b.lastContactAt ?? 0).getTime() - new Date(a.lastContactAt ?? 0).getTime())
-      .slice(0, 4)
-  ), [list])
-
-  const milestone = React.useMemo(
-    () => (today ? nextBirthday(list, today) : null),
-    [list, today],
+  const faces = React.useMemo(
+    () =>
+      [...list]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.lastContactAt ?? 0).getTime() - new Date(a.lastContactAt ?? 0).getTime(),
+        )
+        .slice(0, 4),
+    [list],
   )
+
+  const milestone = React.useMemo(() => (today ? nextBirthday(list, today) : null), [list, today])
 
   return (
     <Card className="flex flex-col overflow-hidden">
       <div className="flex items-baseline justify-between gap-2 px-4 pt-3.5 pb-3">
         <h2 className="text-[1.15rem]">People in orbit</h2>
-        <Link href="/contacts" className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]">
+        <Link
+          href="/contacts"
+          className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]"
+        >
           Everyone <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -116,9 +121,11 @@ export function PeopleOrbit() {
                 <Avatar src={c.avatarUrl} name={c.displayName} size={20} />
                 <span className="min-w-0 flex-1 truncate">{c.displayName}</span>
                 <span className="shrink-0 text-[11px] font-medium text-[var(--destructive)]">
-                  {c.health.state === 'never' ? 'never'
-                    : c.health.state === 'overdue' ? `${Math.abs(c.health.dueInDays)}d over`
-                    : `due in ${c.health.dueInDays}d`}
+                  {c.health.state === 'never'
+                    ? 'never'
+                    : c.health.state === 'overdue'
+                      ? `${Math.abs(c.health.dueInDays)}d over`
+                      : `due in ${c.health.dueInDays}d`}
                 </span>
               </Link>
             ))}

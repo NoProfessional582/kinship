@@ -26,7 +26,10 @@ export interface ContactRef {
  * a name, and the search results only ever contain the current query's matches.
  */
 export function ContactPicker({
-  value, onChange, placeholder = 'Search people…', emptyHint,
+  value,
+  onChange,
+  placeholder = 'Search people…',
+  emptyHint,
 }: {
   value: ContactRef[]
   onChange: (next: ContactRef[]) => void
@@ -48,7 +51,8 @@ export function ContactPicker({
 
   const { data, isFetching } = useQuery({
     queryKey: ['mentions', 'contact', debounced],
-    queryFn: () => api.get<any[]>(`/api/search/mentions?type=contact&q=${encodeURIComponent(debounced)}`),
+    queryFn: () =>
+      api.get<any[]>(`/api/search/mentions?type=contact&q=${encodeURIComponent(debounced)}`),
     enabled: open,
     staleTime: 30_000,
   })
@@ -82,19 +86,34 @@ export function ContactPicker({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Backspace' && !query && value.length) return remove(value[value.length - 1].id)
     if (!open) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter') { setOpen(true); e.preventDefault() }
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        setOpen(true)
+        e.preventDefault()
+      }
       return
     }
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(i + 1, results.length - 1)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)) }
-    else if (e.key === 'Enter') { e.preventDefault(); if (results[active]) add(results[active]) }
-    else if (e.key === 'Escape') { e.preventDefault(); setOpen(false) }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActive((i) => Math.min(i + 1, results.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (results[active]) add(results[active])
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setOpen(false)
+    }
   }
 
   return (
     <div ref={boxRef} className="relative">
       <div
-        onClick={() => { setOpen(true); inputRef.current?.focus() }}
+        onClick={() => {
+          setOpen(true)
+          inputRef.current?.focus()
+        }}
         className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--card)] p-1.5"
       >
         {value.map((c) => (
@@ -106,7 +125,10 @@ export function ContactPicker({
             {c.displayName}
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); remove(c.id) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                remove(c.id)
+              }}
               className="opacity-60 transition hover:opacity-100"
               aria-label={`Remove ${c.displayName}`}
             >
@@ -119,7 +141,10 @@ export function ContactPicker({
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setOpen(true)
+            }}
             onFocus={() => setOpen(true)}
             onKeyDown={onKeyDown}
             // A bare magnifier next to existing chips reads as decoration; the
@@ -127,7 +152,9 @@ export function ContactPicker({
             placeholder={value.length ? 'Add…' : placeholder}
             className="w-full bg-transparent py-0.5 text-sm outline-none placeholder:text-[var(--muted-foreground)]"
           />
-          {isFetching && <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--muted-foreground)]" />}
+          {isFetching && (
+            <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--muted-foreground)]" />
+          )}
         </div>
       </div>
 
@@ -135,9 +162,11 @@ export function ContactPicker({
         <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg">
           {results.length === 0 && (
             <p className="px-3 py-2 text-xs text-[var(--muted-foreground)]">
-              {isFetching ? 'Searching…'
-                : query ? `No one matching “${query}”`
-                : emptyHint ?? 'No contacts yet'}
+              {isFetching
+                ? 'Searching…'
+                : query
+                  ? `No one matching “${query}”`
+                  : (emptyHint ?? 'No contacts yet')}
             </p>
           )}
           {results.map((r, i) => (
@@ -155,11 +184,15 @@ export function ContactPicker({
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{r.label}</span>
                 {r.sublabel && (
-                  <span className="block truncate text-[11px] text-[var(--muted-foreground)]">{r.sublabel}</span>
+                  <span className="block truncate text-[11px] text-[var(--muted-foreground)]">
+                    {r.sublabel}
+                  </span>
                 )}
               </span>
               {r.isDraft && (
-                <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--pending)]">draft</span>
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--pending)]">
+                  draft
+                </span>
               )}
             </button>
           ))}

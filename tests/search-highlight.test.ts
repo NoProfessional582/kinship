@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import {
-  HL_END, HL_OPTIONS, HL_START, escapeHtml, highlightSnippet,
-} from '@/lib/search-highlight'
+import { HL_END, HL_OPTIONS, HL_START, escapeHtml, highlightSnippet } from '@/lib/search-highlight'
 
 describe('escapeHtml', () => {
   it('neutralises every character that could open a tag or attribute', () => {
-    expect(escapeHtml('<img src="x" onerror=alert(1)>&'))
-      .toBe('&lt;img src=&quot;x&quot; onerror=alert(1)&gt;&amp;')
+    expect(escapeHtml('<img src="x" onerror=alert(1)>&')).toBe(
+      '&lt;img src=&quot;x&quot; onerror=alert(1)&gt;&amp;',
+    )
   })
 
   it('escapes the ampersand first, so an entity is not double-decoded', () => {
@@ -16,8 +15,7 @@ describe('escapeHtml', () => {
 
 describe('highlightSnippet', () => {
   it('turns the sentinels into bold runs', () => {
-    expect(highlightSnippet(`a ${HL_START}match${HL_END} here`))
-      .toBe('a <b>match</b> here')
+    expect(highlightSnippet(`a ${HL_START}match${HL_END} here`)).toBe('a <b>match</b> here')
   })
 
   it('escapes markup that came from the note body', () => {

@@ -19,7 +19,11 @@ import { cn } from '@/lib/utils'
  * a mono label. Same idea as the desktop card at phone density: the same
  * `--shadow-card`, less padding.
  */
-export function MTile({ children, className, style }: {
+export function MTile({
+  children,
+  className,
+  style,
+}: {
   children: React.ReactNode
   className?: string
   style?: React.CSSProperties
@@ -45,7 +49,13 @@ export function MTile({ children, className, style }: {
  * column stack, where every column is already a tile and one more around the
  * whole lot is a box in a box.
  */
-export function Section({ title, action, children, className, bare }: {
+export function Section({
+  title,
+  action,
+  children,
+  className,
+  bare,
+}: {
   title?: string
   action?: React.ReactNode
   children: React.ReactNode
@@ -75,9 +85,7 @@ export function Section({ title, action, children, className, bare }: {
  * real section off the screen.
  */
 export function MEmpty({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="py-3 text-[13px] text-[var(--muted-foreground)] opacity-80">{children}</p>
-  )
+  return <p className="py-3 text-[13px] text-[var(--muted-foreground)] opacity-80">{children}</p>
 }
 
 /** A separated list. Borders between rows rather than a card each. */
@@ -91,7 +99,14 @@ export function MList({ children, className }: { children: React.ReactNode; clas
  * rather than a div with a clickable region inside it.
  */
 export function MRow({
-  href, onClick, lead, title, meta, sub, chevron, className,
+  href,
+  onClick,
+  lead,
+  title,
+  meta,
+  sub,
+  chevron,
+  className,
 }: {
   href?: string
   onClick?: () => void
@@ -109,8 +124,14 @@ export function MRow({
         <span className="truncate text-sm">{title}</span>
         {sub && <span className="truncate text-[11px] text-[var(--muted-foreground)]">{sub}</span>}
       </span>
-      {meta && <span className="shrink-0 font-mono text-[11px] text-[var(--muted-foreground)]">{meta}</span>}
-      {chevron && <ChevronRight className="h-4 w-4 shrink-0 text-[var(--muted-foreground)] opacity-50" />}
+      {meta && (
+        <span className="shrink-0 font-mono text-[11px] text-[var(--muted-foreground)]">
+          {meta}
+        </span>
+      )}
+      {chevron && (
+        <ChevronRight className="h-4 w-4 shrink-0 text-[var(--muted-foreground)] opacity-50" />
+      )}
     </>
   )
   const cls = cn('kb-tap flex w-full items-center gap-2.5 py-2 text-left', className)
@@ -120,6 +141,19 @@ export function MRow({
   // been asking for since it was written never drew at all. On the `li` the
   // variant means what it reads as: every row but the last.
   const item = 'border-b border-[var(--border)] last:border-0'
-  if (href) return <li className={item}><Link href={href} className={cls}>{inner}</Link></li>
-  return <li className={item}><button onClick={onClick} className={cls}>{inner}</button></li>
+  if (href)
+    return (
+      <li className={item}>
+        <Link href={href} className={cls}>
+          {inner}
+        </Link>
+      </li>
+    )
+  return (
+    <li className={item}>
+      <button onClick={onClick} className={cls}>
+        {inner}
+      </button>
+    </li>
+  )
 }

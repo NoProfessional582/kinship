@@ -75,7 +75,9 @@ export default function EntryPage() {
                 <span className="w-[7rem] shrink-0 text-[11px] text-[var(--muted-foreground)]">
                   {relationLabel(e.relation, e.direction)}
                 </span>
-                <Link href={e.href} className="min-w-0 flex-1 break-words hover:underline">{e.label}</Link>
+                <Link href={e.href} className="min-w-0 flex-1 break-words hover:underline">
+                  {e.label}
+                </Link>
               </div>
             ))}
           </div>

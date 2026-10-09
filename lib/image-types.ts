@@ -31,8 +31,7 @@ const ascii = (bytes: Uint8Array, from: number, to: number) =>
 export const IMAGE_TYPES = {
   'image/png': {
     ext: 'png',
-    matches: (b: Uint8Array) =>
-      b.length > 8 && ascii(b, 0, 8) === '\x89PNG\r\n\x1a\n',
+    matches: (b: Uint8Array) => b.length > 8 && ascii(b, 0, 8) === '\x89PNG\r\n\x1a\n',
   },
   'image/jpeg': {
     ext: 'jpg',
@@ -57,7 +56,10 @@ export const ALLOWED_IMAGE_TYPES = Object.keys(IMAGE_TYPES) as ImageMime[]
 
 /** What the bytes actually are, or null for anything not on the list. */
 export function sniffImageType(bytes: Uint8Array): ImageMime | null {
-  for (const [mime, spec] of Object.entries(IMAGE_TYPES) as [ImageMime, { matches: (b: Uint8Array) => boolean }][]) {
+  for (const [mime, spec] of Object.entries(IMAGE_TYPES) as [
+    ImageMime,
+    { matches: (b: Uint8Array) => boolean },
+  ][]) {
     if (spec.matches(bytes)) return mime
   }
   return null

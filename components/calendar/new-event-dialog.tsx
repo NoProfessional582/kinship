@@ -5,10 +5,18 @@ import { toast } from 'sonner'
 import type { Editor } from '@tiptap/core'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  EntryForm, blankEntry, entryToPayload, type EntryFormValue,
+  EntryForm,
+  blankEntry,
+  entryToPayload,
+  type EntryFormValue,
 } from '@/components/entity-modal/entry-form'
 import { isoFromDay, toTimed } from '@/components/ui/datetime-field'
 import { useTimezone } from '@/lib/hooks/settings'
@@ -29,7 +37,10 @@ import { useEnrichmentQueue } from '@/lib/store'
  * creation, so a dialog kept mounted would reopen holding the last event's body.
  */
 export function NewEventDialog({
-  open, onOpenChange, day, onCreated,
+  open,
+  onOpenChange,
+  day,
+  onCreated,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -59,7 +70,9 @@ export function NewEventDialog({
     }
   })
 
-  const onReady = React.useCallback((e: Editor) => { editorRef.current = e }, [])
+  const onReady = React.useCallback((e: Editor) => {
+    editorRef.current = e
+  }, [])
 
   const save = async () => {
     if (saving) return
@@ -95,19 +108,18 @@ export function NewEventDialog({
         <DialogHeader>
           <DialogTitle>New event</DialogTitle>
           <DialogDescription>
-            Something on the calendar in its own right. Switch the kind above if it
-            turns out to be a conversation you want to log instead.
+            Something on the calendar in its own right. Switch the kind above if it turns out to be
+            a conversation you want to log instead.
           </DialogDescription>
         </DialogHeader>
-        <EntryForm
-          value={form}
-          onChange={setForm}
-          onEditorReady={onReady}
-          onSubmit={save}
-        />
+        <EntryForm value={form} onChange={setForm} onEditorReady={onReady} onSubmit={save} />
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Add event'}</Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Add event'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

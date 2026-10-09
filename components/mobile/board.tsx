@@ -1,7 +1,14 @@
 'use client'
 import * as React from 'react'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronRight, MoveRight, Loader2, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  MoveRight,
+  Loader2,
+  ChevronsDownUp,
+  ChevronsUpDown,
+} from 'lucide-react'
 import { MEmpty, MTile } from '@/components/mobile/bits'
 import { MSheet, MSheetContent, MSheetTitle, MSheetHeader } from '@/components/mobile/sheet'
 import { useMoveTask } from '@/lib/hooks/api'
@@ -35,7 +42,10 @@ const COLLAPSED_KEY = 'kb.m.board.collapsed'
  * dedicated handle — not the whole card.)
  */
 export function MobileBoard({
-  columns, tasks, projectId, onOpenTask,
+  columns,
+  tasks,
+  projectId,
+  onOpenTask,
 }: {
   columns: any[]
   tasks: any[]
@@ -52,12 +62,18 @@ export function MobileBoard({
     try {
       const raw = localStorage.getItem(COLLAPSED_KEY)
       if (raw) setCollapsed(new Set(JSON.parse(raw) as string[]))
-    } catch { /* private mode, or someone hand-edited the value */ }
+    } catch {
+      /* private mode, or someone hand-edited the value */
+    }
   }, [])
 
   const persist = (next: Set<string>) => {
     setCollapsed(next)
-    try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])) } catch { /* not worth a toast */ }
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]))
+    } catch {
+      /* not worth a toast */
+    }
   }
 
   const toggle = (id: string) => {
@@ -110,7 +126,11 @@ export function MobileBoard({
           onClick={() => persist(allShut ? new Set() : new Set(columns.map((c) => c.id)))}
           className="kb-tap-inline gap-1.5 text-[11px] text-[var(--muted-foreground)]"
         >
-          {allShut ? <ChevronsUpDown className="h-3.5 w-3.5" /> : <ChevronsDownUp className="h-3.5 w-3.5" />}
+          {allShut ? (
+            <ChevronsUpDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronsDownUp className="h-3.5 w-3.5" />
+          )}
           {allShut ? 'Expand all' : 'Collapse all'}
         </button>
       </div>
@@ -131,9 +151,11 @@ export function MobileBoard({
               aria-expanded={!shut}
               className="kb-tap flex w-full items-center gap-2 px-3 text-left"
             >
-              {shut
-                ? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
-                : <ChevronDown className="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />}
+              {shut ? (
+                <ChevronRight className="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
+              ) : (
+                <ChevronDown className="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
+              )}
               <span className="min-w-0 flex-1 truncate text-sm font-semibold">{col.name}</span>
               <span className="shrink-0 rounded-full bg-[var(--muted)] px-2 py-0.5 font-mono text-[11px] text-[var(--muted-foreground)]">
                 {inColumn.length}
@@ -154,18 +176,33 @@ export function MobileBoard({
                           onClick={() => onOpenTask(t.id)}
                           className="min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--background)] p-3 text-left"
                         >
-                          <p className={cn('truncate text-sm', t.status === 'DONE' && 'line-through opacity-60')}>{t.title}</p>
+                          <p
+                            className={cn(
+                              'truncate text-sm',
+                              t.status === 'DONE' && 'line-through opacity-60',
+                            )}
+                          >
+                            {t.title}
+                          </p>
                           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--muted-foreground)]">
                             {t.project && (
                               <span className="flex items-center gap-1">
-                                <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.project.color ?? 'var(--primary)' }} />
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full"
+                                  style={{ background: t.project.color ?? 'var(--primary)' }}
+                                />
                                 {t.project.name}
                               </span>
                             )}
-                            {t.priority && t.priority !== 'NONE' && <span>{String(t.priority).toLowerCase()}</span>}
+                            {t.priority && t.priority !== 'NONE' && (
+                              <span>{String(t.priority).toLowerCase()}</span>
+                            )}
                             {(t.assignees?.length ?? 0) > 0 && (
                               <span className="truncate">
-                                {t.assignees.map((a: any) => a.contact?.displayName).filter(Boolean).join(', ')}
+                                {t.assignees
+                                  .map((a: any) => a.contact?.displayName)
+                                  .filter(Boolean)
+                                  .join(', ')}
                               </span>
                             )}
                           </div>
@@ -175,7 +212,11 @@ export function MobileBoard({
                           aria-label={`Move ${t.title}`}
                           className="kb-tap flex shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] text-[var(--muted-foreground)]"
                         >
-                          {move.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoveRight className="h-4 w-4" />}
+                          {move.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MoveRight className="h-4 w-4" />
+                          )}
                         </button>
                       </li>
                     ))}
@@ -187,10 +228,17 @@ export function MobileBoard({
         )
       })}
 
-      <MSheet open={Boolean(moving)} onOpenChange={(o) => { if (!o) setMoving(null) }}>
+      <MSheet
+        open={Boolean(moving)}
+        onOpenChange={(o) => {
+          if (!o) setMoving(null)
+        }}
+      >
         <MSheetContent hideClose>
           <MSheetHeader>
-            <MSheetTitle className="truncate text-sm font-semibold">Move “{moving?.title}”</MSheetTitle>
+            <MSheetTitle className="truncate text-sm font-semibold">
+              Move “{moving?.title}”
+            </MSheetTitle>
           </MSheetHeader>
           <div className="flex flex-col px-2 pb-3">
             {columns.map((col) => (
@@ -200,9 +248,14 @@ export function MobileBoard({
                 onClick={() => commit(moving, col.id)}
                 className="kb-tap flex items-center gap-2 rounded-[var(--radius-md)] px-3 text-left text-sm disabled:opacity-40"
               >
-                <span className="h-2 w-2 rounded-full" style={{ background: col.color ?? 'var(--muted-foreground)' }} />
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: col.color ?? 'var(--muted-foreground)' }}
+                />
                 {col.name}
-                {col.id === moving?.columnId && <span className="text-[11px] text-[var(--muted-foreground)]">(current)</span>}
+                {col.id === moving?.columnId && (
+                  <span className="text-[11px] text-[var(--muted-foreground)]">(current)</span>
+                )}
               </button>
             ))}
           </div>

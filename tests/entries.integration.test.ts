@@ -1,6 +1,10 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { prisma } from '@/lib/db'
-import { createEntry as createEntryOwned, updateEntry as updateEntryOwned, getEntry as getEntryOwned } from '@/lib/services/entries'
+import {
+  createEntry as createEntryOwned,
+  updateEntry as updateEntryOwned,
+  getEntry as getEntryOwned,
+} from '@/lib/services/entries'
 import { FOLLOWS_UP } from '@/lib/relations'
 import { deleteEdgesFor as deleteOwnedEdges } from '@/lib/services/trash'
 import { createEntrySchema } from '@/lib/validation'
@@ -20,19 +24,21 @@ const deleteEdgesFor = (kind: any, ids: string[]) => deleteOwnedEdges(OWNER, kin
 
 const bodyWith = (label: string, project: string, task: string) => ({
   type: 'doc',
-  content: [{
-    type: 'paragraph',
-    content: [
-      { type: 'text', text: `${MARK} call with ` },
-      { type: CONTACT_MENTION, attrs: { id: 'new:c', label } },
-      { type: 'text', text: ' about ' },
-      { type: ENTITY_REF, attrs: { id: 'new:p', kind: 'project', label: project } },
-      { type: 'text', text: ' owning ' },
-      { type: ENTITY_REF, attrs: { id: 'new:t', kind: 'task', label: task } },
-      { type: 'text', text: ' and again ' },
-      { type: CONTACT_MENTION, attrs: { id: 'new:c', label } },
-    ],
-  }],
+  content: [
+    {
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: `${MARK} call with ` },
+        { type: CONTACT_MENTION, attrs: { id: 'new:c', label } },
+        { type: 'text', text: ' about ' },
+        { type: ENTITY_REF, attrs: { id: 'new:p', kind: 'project', label: project } },
+        { type: 'text', text: ' owning ' },
+        { type: ENTITY_REF, attrs: { id: 'new:t', kind: 'task', label: task } },
+        { type: 'text', text: ' and again ' },
+        { type: CONTACT_MENTION, attrs: { id: 'new:c', label } },
+      ],
+    },
+  ],
 })
 
 const pending = (label: string, project: string, task: string) => [
@@ -161,10 +167,15 @@ describe('createEntry transaction', () => {
         occurredAt: new Date('2020-01-01T10:00:00Z'),
         bodyJson: {
           type: 'doc',
-          content: [{ type: 'paragraph', content: [
-            { type: 'text', text: MARK },
-            { type: CONTACT_MENTION, attrs: { id, label } },
-          ]}],
+          content: [
+            {
+              type: 'paragraph',
+              content: [
+                { type: 'text', text: MARK },
+                { type: CONTACT_MENTION, attrs: { id, label } },
+              ],
+            },
+          ],
         },
         pendingEntities: [],
       }),
@@ -184,13 +195,15 @@ describe('createEntry transaction', () => {
 describe('follow-ups', () => {
   const noteFor = (id: string, label: string) => ({
     type: 'doc',
-    content: [{
-      type: 'paragraph',
-      content: [
-        { type: 'text', text: `${MARK} spoke to ` },
-        { type: CONTACT_MENTION, attrs: { id, label } },
-      ],
-    }],
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: `${MARK} spoke to ` },
+          { type: CONTACT_MENTION, attrs: { id, label } },
+        ],
+      },
+    ],
   })
 
   /** Creates a parent with one mention and returns both it and the contact. */
@@ -202,13 +215,15 @@ describe('follow-ups', () => {
         title: `${MARK}${name}`,
         bodyJson: {
           type: 'doc',
-          content: [{
-            type: 'paragraph',
-            content: [
-              { type: 'text', text: `${MARK} first call ` },
-              { type: CONTACT_MENTION, attrs: { id: 'new:c', label } },
-            ],
-          }],
+          content: [
+            {
+              type: 'paragraph',
+              content: [
+                { type: 'text', text: `${MARK} first call ` },
+                { type: CONTACT_MENTION, attrs: { id: 'new:c', label } },
+              ],
+            },
+          ],
         },
         pendingEntities: [{ tempId: 'new:c', type: 'contact', label }],
         ...(followUpAt ? { followUpAt } : {}),
@@ -222,7 +237,12 @@ describe('follow-ups', () => {
     const { parent, contactId } = await seed('Spin', at)
 
     const edge = await prisma.entityEdge.findFirstOrThrow({
-      where: { relation: FOLLOWS_UP, sourceType: 'entry', targetType: 'entry', targetId: parent.id },
+      where: {
+        relation: FOLLOWS_UP,
+        sourceType: 'entry',
+        targetType: 'entry',
+        targetId: parent.id,
+      },
     })
 
     const followUp = await prisma.entry.findUniqueOrThrow({
@@ -262,7 +282,9 @@ describe('follow-ups', () => {
       where: { relation: FOLLOWS_UP, targetId: parent.id },
     })
     expect(edges).toHaveLength(1)
-    expect((await getEntry(parent.id))?.followUp?.occurredAt.toISOString()).toBe(moved.toISOString())
+    expect((await getEntry(parent.id))?.followUp?.occurredAt.toISOString()).toBe(
+      moved.toISOString(),
+    )
   })
 
   it('creates one on an entry that was saved without a date', async () => {
@@ -283,7 +305,10 @@ describe('follow-ups', () => {
 
     // Write the conversation up, then clear the field. A record of something
     // that happened is not thrown away by emptying a date on another note.
-    await updateEntry(followUpId, { bodyJson: noteFor(contactId, `${MARK}Kept`), pendingEntities: [] })
+    await updateEntry(followUpId, {
+      bodyJson: noteFor(contactId, `${MARK}Kept`),
+      pendingEntities: [],
+    })
     await updateEntry(kept.id, { followUpAt: null })
 
     const still = await getEntry(kept.id)

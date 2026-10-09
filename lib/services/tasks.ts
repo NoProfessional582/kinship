@@ -10,7 +10,9 @@ import { softDelete } from './trash'
 export const taskDetail = {
   project: { select: { id: true, slug: true, name: true, color: true } },
   column: true,
-  assignees: { include: { contact: { select: { id: true, slug: true, displayName: true, avatarUrl: true } } } },
+  assignees: {
+    include: { contact: { select: { id: true, slug: true, displayName: true, avatarUrl: true } } },
+  },
   tags: { include: { tag: true } },
   subtasks: {
     // K06: without this filter a soft-deleted child stayed visible inside its
@@ -30,16 +32,28 @@ export const taskDetail = {
  * sitting in — which is what made the old separate Status field so confusing.
  */
 async function statusForColumn(tx: any, owner: string, columnId: string): Promise<TaskStatus> {
-  const column = await tx.boardColumn.findFirstOrThrow({ where: { id: columnId, owner }, select: { status: true } })
+  const column = await tx.boardColumn.findFirstOrThrow({
+    where: { id: columnId, owner },
+    select: { status: true },
+  })
   return column.status as TaskStatus
 }
 
 async function validateLinks(tx: any, owner: string, input: UpsertTaskInput) {
-  if (input.projectId) await tx.project.findFirstOrThrow({ where: { id: input.projectId, owner }, select: { id: true } })
-  if (input.parentTaskId) await tx.task.findFirstOrThrow({ where: { id: input.parentTaskId, owner }, select: { id: true } })
+  if (input.projectId)
+    await tx.project.findFirstOrThrow({
+      where: { id: input.projectId, owner },
+      select: { id: true },
+    })
+  if (input.parentTaskId)
+    await tx.task.findFirstOrThrow({
+      where: { id: input.parentTaskId, owner },
+      select: { id: true },
+    })
   if (input.assigneeIds.length) {
     const count = await tx.contact.count({ where: { owner, id: { in: input.assigneeIds } } })
-    if (count !== new Set(input.assigneeIds).size) throw Object.assign(new Error('Not found'), { code: 'P2025' })
+    if (count !== new Set(input.assigneeIds).size)
+      throw Object.assign(new Error('Not found'), { code: 'P2025' })
   }
 }
 
@@ -52,7 +66,8 @@ const completionFor = (status: TaskStatus, existing?: Date | null) =>
  * columns exist — so a card is in the same column wherever you look at it.
  */
 export async function getBoard(owner: string, projectId: string | null) {
-  if (projectId) await prisma.project.findFirstOrThrow({ where: { id: projectId, owner }, select: { id: true } })
+  if (projectId)
+    await prisma.project.findFirstOrThrow({ where: { id: projectId, owner }, select: { id: true } })
   const columns = await ensureColumns(prisma as any, owner)
   const tasks = await prisma.task.findMany({
     where: {
@@ -118,7 +133,8 @@ export async function updateTask(owner: string, id: string, input: UpsertTaskInp
     await tx.taskTag.deleteMany({ where: { taskId: id } })
 
     const existing = await tx.task.findUniqueOrThrow({
-      where: { id }, select: { columnId: true, completedAt: true },
+      where: { id },
+      select: { columnId: true, completedAt: true },
     })
     const columnId = input.columnId ?? existing.columnId
     const status = await statusForColumn(tx, owner, columnId)
@@ -128,9 +144,8 @@ export async function updateTask(owner: string, id: string, input: UpsertTaskInp
     // tie it exactly with a card already sitting there — which makes the board
     // order non-deterministic and fires a full renormalize on the next drag.
     // `undefined` leaves the column unchanged when the task has not moved.
-    const position = columnId === existing.columnId
-      ? undefined
-      : await appendPosition(tx as any, owner, columnId)
+    const position =
+      columnId === existing.columnId ? undefined : await appendPosition(tx as any, owner, columnId)
 
     return tx.task.update({
       where: { id },
@@ -174,7 +189,8 @@ export async function moveTask(
   const result = await prisma.$transaction(async (tx) => {
     await tx.task.findFirstOrThrow({ where: { id: taskId, owner }, select: { id: true } })
     await tx.boardColumn.findFirstOrThrow({ where: { id: columnId, owner }, select: { id: true } })
-    if (projectId) await tx.project.findFirstOrThrow({ where: { id: projectId, owner }, select: { id: true } })
+    if (projectId)
+      await tx.project.findFirstOrThrow({ where: { id: projectId, owner }, select: { id: true } })
     const siblings = await tx.task.findMany({
       where: { owner, columnId, parentTaskId: null, deletedAt: null, NOT: { id: taskId } },
       orderBy: { position: 'asc' },
@@ -205,19 +221,31 @@ export async function moveTask(
 
     let position: number
     if (beforeIdx >= 0) {
-      position = positionBetween(siblings[beforeIdx].position, siblings[beforeIdx + 1]?.position ?? null)
+      position = positionBetween(
+        siblings[beforeIdx].position,
+        siblings[beforeIdx + 1]?.position ?? null,
+      )
     } else if (afterIdx >= 0) {
-      position = positionBetween(siblings[afterIdx - 1]?.position ?? null, siblings[afterIdx].position)
+      position = positionBetween(
+        siblings[afterIdx - 1]?.position ?? null,
+        siblings[afterIdx].position,
+      )
     } else {
       // No usable anchor: an empty column, an append, or both neighbours gone
       // since the drag began. The index is all there is — and with nothing
       // either side of the slot it is unambiguous anyway.
-      position = positionForIndex(siblings.map((s) => s.position), toIndex)
+      position = positionForIndex(
+        siblings.map((s) => s.position),
+        toIndex,
+      )
     }
 
     // Dropping a card into a column is what sets the task's status.
     const status = await statusForColumn(tx, owner, columnId)
-    const current = await tx.task.findUnique({ where: { id: taskId }, select: { completedAt: true } })
+    const current = await tx.task.findUnique({
+      where: { id: taskId },
+      select: { completedAt: true },
+    })
 
     return tx.task.update({
       where: { id: taskId },

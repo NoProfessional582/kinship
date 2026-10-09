@@ -31,7 +31,11 @@ export type GroupBy = 'none' | 'project' | 'assignee'
 const UNGROUPED: BoardGroup = { id: '__none__', label: 'No project' }
 
 export function Board({
-  columns, tasks, projectId, groupBy, onOpenTask,
+  columns,
+  tasks,
+  projectId,
+  groupBy,
+  onOpenTask,
 }: {
   columns: any[]
   tasks: any[]
@@ -63,16 +67,23 @@ export function Board({
     if (groupBy === 'project') {
       const seen = new Map<string, BoardGroup>()
       for (const t of tasks) {
-        if (t.project) seen.set(t.project.id, { id: t.project.id, label: t.project.name, color: t.project.color })
+        if (t.project)
+          seen.set(t.project.id, {
+            id: t.project.id,
+            label: t.project.name,
+            color: t.project.color,
+          })
       }
       return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label)).concat(UNGROUPED)
     }
     if (groupBy === 'assignee') {
       const seen = new Map<string, BoardGroup>()
       for (const t of tasks) {
-        for (const a of t.assignees ?? []) seen.set(a.contact.id, { id: a.contact.id, label: a.contact.displayName })
+        for (const a of t.assignees ?? [])
+          seen.set(a.contact.id, { id: a.contact.id, label: a.contact.displayName })
       }
-      return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label))
+      return [...seen.values()]
+        .sort((a, b) => a.label.localeCompare(b.label))
         .concat({ id: '__none__', label: 'Unassigned' })
     }
     // undefined rather than a one-element array: the kit reads that as "not
@@ -85,26 +96,37 @@ export function Board({
    * twice under `assignee` grouping — that is why the kit keys draggables by
    * card rather than by item.
    */
-  const groupIdsOf = React.useCallback((task: any): string[] => {
-    if (groupBy === 'project') return [task.project?.id ?? '__none__']
-    if (groupBy === 'assignee') {
-      const ids = (task.assignees ?? []).map((a: any) => a.contact.id)
-      return ids.length ? ids : ['__none__']
-    }
-    return ['__all__']
-  }, [groupBy])
+  const groupIdsOf = React.useCallback(
+    (task: any): string[] => {
+      if (groupBy === 'project') return [task.project?.id ?? '__none__']
+      if (groupBy === 'assignee') {
+        const ids = (task.assignees ?? []).map((a: any) => a.contact.id)
+        return ids.length ? ids : ['__none__']
+      }
+      return ['__all__']
+    },
+    [groupBy],
+  )
 
-  const onMove = React.useCallback((
-    taskId: string, columnId: string, toIndex: number,
-    neighbours: { beforeId: string | null; afterId: string | null },
-  ) => {
-    setInFlight((n) => n + 1)
-    move.mutate({ taskId, columnId, toIndex, ...neighbours }, {
-      // Runs after the mutation's own onSettled has finished invalidating, so by
-      // now the server order reflects the move and is safe to adopt.
-      onSettled: () => setInFlight((n) => Math.max(0, n - 1)),
-    })
-  }, [move])
+  const onMove = React.useCallback(
+    (
+      taskId: string,
+      columnId: string,
+      toIndex: number,
+      neighbours: { beforeId: string | null; afterId: string | null },
+    ) => {
+      setInFlight((n) => n + 1)
+      move.mutate(
+        { taskId, columnId, toIndex, ...neighbours },
+        {
+          // Runs after the mutation's own onSettled has finished invalidating, so by
+          // now the server order reflects the move and is safe to adopt.
+          onSettled: () => setInFlight((n) => Math.max(0, n - 1)),
+        },
+      )
+    },
+    [move],
+  )
 
   return (
     <BoardKit<any, any>
@@ -126,11 +148,18 @@ export function Board({
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: accent }} />
             <h4 className="flex-1 truncate text-sm font-semibold">{column.name}</h4>
             <span
-              className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium',
-                overLimit ? 'bg-[var(--destructive)] text-white' : 'text-[var(--muted-foreground)]')}
-              style={overLimit ? undefined : { background: `color-mix(in oklch, ${accent} 14%, transparent)` }}
+              className={cn(
+                'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                overLimit ? 'bg-[var(--destructive)] text-white' : 'text-[var(--muted-foreground)]',
+              )}
+              style={
+                overLimit
+                  ? undefined
+                  : { background: `color-mix(in oklch, ${accent} 14%, transparent)` }
+              }
             >
-              {count}{column.wipLimit != null ? `/${column.wipLimit}` : ''}
+              {count}
+              {column.wipLimit != null ? `/${column.wipLimit}` : ''}
             </span>
           </div>
         )

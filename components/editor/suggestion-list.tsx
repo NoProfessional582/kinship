@@ -41,24 +41,31 @@ export const SuggestionList = React.forwardRef<SuggestionListHandle, Props>(
       el?.scrollIntoView({ block: 'nearest' })
     }, [selected])
 
-    React.useImperativeHandle(ref, () => ({
-      onKeyDown: (event: KeyboardEvent) => {
-        if (event.key === 'ArrowUp') {
-          setSelected((s) => (s + items.length - 1) % Math.max(1, items.length))
-          return true
-        }
-        if (event.key === 'ArrowDown') {
-          setSelected((s) => (s + 1) % Math.max(1, items.length))
-          return true
-        }
-        if (event.key === 'Enter' || event.key === 'Tab') {
-          const item = items[selected]
-          if (item) { command(item); return true }
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        onKeyDown: (event: KeyboardEvent) => {
+          if (event.key === 'ArrowUp') {
+            setSelected((s) => (s + items.length - 1) % Math.max(1, items.length))
+            return true
+          }
+          if (event.key === 'ArrowDown') {
+            setSelected((s) => (s + 1) % Math.max(1, items.length))
+            return true
+          }
+          if (event.key === 'Enter' || event.key === 'Tab') {
+            const item = items[selected]
+            if (item) {
+              command(item)
+              return true
+            }
+            return false
+          }
           return false
-        }
-        return false
-      },
-    }), [items, selected, command])
+        },
+      }),
+      [items, selected, command],
+    )
 
     if (!loading && items.length === 0) return null
 
@@ -87,17 +94,30 @@ export const SuggestionList = React.forwardRef<SuggestionListHandle, Props>(
                 type="button"
                 data-index={index}
                 onMouseEnter={() => setSelected(index)}
-                onMouseDown={(e) => { e.preventDefault(); command(item) }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  command(item)
+                }}
                 className={cn(
                   'flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors',
-                  index === selected ? 'bg-[var(--accent)] text-[var(--accent-foreground)]' : 'hover:bg-[var(--muted)]',
+                  index === selected
+                    ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
+                    : 'hover:bg-[var(--muted)]',
                 )}
               >
-                {isCreate
-                  ? <Plus className="h-3.5 w-3.5 shrink-0 text-[var(--pending)]" />
-                  : <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" />}
+                {isCreate ? (
+                  <Plus className="h-3.5 w-3.5 shrink-0 text-[var(--pending)]" />
+                ) : (
+                  <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                )}
                 <span className="min-w-0 flex-1 truncate">
-                  {isCreate ? <>Create {item.createAs} <span className="font-medium">“{item.label}”</span></> : item.label}
+                  {isCreate ? (
+                    <>
+                      Create {item.createAs} <span className="font-medium">“{item.label}”</span>
+                    </>
+                  ) : (
+                    item.label
+                  )}
                 </span>
                 {/* The cap is load-bearing. `shrink-0` here let a long role +
                     company string size the row past its own width, and the name

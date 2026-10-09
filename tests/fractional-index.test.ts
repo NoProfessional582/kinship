@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  STEP, GAP_EPSILON, positionBetween, positionForIndex,
-  needsRenormalize, renormalizedPositions,
+  STEP,
+  GAP_EPSILON,
+  positionBetween,
+  positionForIndex,
+  needsRenormalize,
+  renormalizedPositions,
 } from '@/lib/fractional-index'
 
 describe('positionBetween', () => {
