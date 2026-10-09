@@ -150,7 +150,13 @@ function TimezonePanel({ settings, commit }: any) {
   const [filter, setFilter] = React.useState('')
   const [detected, setDetected] = React.useState('UTC')
   const [now, setNow] = React.useState<Date | null>(null)
+  // The zone list and each zone's offset come from the runtime's time zone data,
+  // which the server and the browser need not share (they disagreed on Morocco's
+  // offset, a hydration error), so like `detected` and `now` they are built in
+  // the browser only.
+  const [allZones, setAllZones] = React.useState<string[]>([])
   React.useEffect(() => setDetected(browserTimezone()), [])
+  React.useEffect(() => setAllZones(allTimezones()), [])
   React.useEffect(() => {
     setNow(new Date())
     const t = setInterval(() => setNow(new Date()), 1000)
@@ -160,9 +166,8 @@ function TimezonePanel({ settings, commit }: any) {
   const effective = settings.timezone ?? detected
   const zones = React.useMemo(() => {
     const q = filter.trim().toLowerCase()
-    const all = allTimezones()
-    return (q ? all.filter((z) => z.toLowerCase().includes(q)) : all).slice(0, 80)
-  }, [filter])
+    return (q ? allZones.filter((z) => z.toLowerCase().includes(q)) : allZones).slice(0, 80)
+  }, [allZones, filter])
 
   return (
     <Panel icon={Globe} title="Timezone" hue="var(--hue-2)"
