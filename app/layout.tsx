@@ -1,6 +1,27 @@
 import type { Metadata } from 'next'
+import { DM_Mono, Manrope, Newsreader } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/shared/providers'
+
+const bodyFont = Manrope({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--kinship-body',
+  display: 'swap',
+})
+const displayFont = Newsreader({
+  subsets: ['latin'],
+  weight: 'variable',
+  axes: ['opsz'],
+  variable: '--kinship-display',
+  display: 'swap',
+})
+const monoFont = DM_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--kinship-mono',
+  display: 'swap',
+})
 
 /**
  * Static on purpose. `appTitle` is editable in settings, but reading it here
@@ -22,15 +43,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
-        />
-      </head>
+    <html
+      lang="en"
+      className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable}`}
+      suppressHydrationWarning
+    >
       <body>
         <Providers>{children}</Providers>
       </body>

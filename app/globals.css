@@ -87,9 +87,9 @@
   /* Mirrors Codex's --font-scale, driven by the Settings page. */
   --font-scale: 1;
 
-  --font-display: Newsreader, ui-serif, Georgia, serif;
-  --font-body: Manrope, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-display: var(--kinship-display), ui-serif, Georgia, serif;
+  --font-body: var(--kinship-body), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--kinship-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
 .dark {
