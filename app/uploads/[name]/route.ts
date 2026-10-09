@@ -54,7 +54,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ name: st
   // still inside the directory. The pattern above already makes this
   // unreachable; it costs one syscall-free comparison and it is what survives
   // if that pattern is ever loosened by someone adding an extension.
-  const full = path.resolve(directory, name)
+  // The comment keeps the build from tracing this run-time path (api/upload).
+  const full = path.resolve(/*turbopackIgnore: true*/ directory, name)
   if (path.dirname(full) !== path.resolve(directory)) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }

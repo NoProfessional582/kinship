@@ -81,7 +81,9 @@ export async function POST(req: Request) {
   try {
     const directory = ownerUploadDir(owner)
     await mkdir(directory, { recursive: true })
-    await writeFile(path.join(directory, name), bytes)
+    // The comment keeps the build from following a path it can only know at run
+    // time; without it, the build copies the whole project into the image.
+    await writeFile(path.join(/*turbopackIgnore: true*/ directory, name), bytes)
   } catch (err) {
     console.error('[upload]', err)
     return NextResponse.json({ error: 'Could not save the file' }, { status: 500 })

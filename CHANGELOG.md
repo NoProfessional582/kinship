@@ -42,6 +42,8 @@ All notable changes to Kinship are recorded here. The format follows
 
 - The settings page's time zone list no longer causes a hydration error when the
   server's and the browser's time zone data disagree.
+- The app image no longer carries the source code: two avatar file paths, known
+  only at run time, made the build copy the whole project into it.
 
 ### Security
 
