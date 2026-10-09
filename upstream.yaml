@@ -24,6 +24,17 @@ groups:
         pins:
           - { file: package.json, pattern: '"next": "(\S+)"' }
           - { file: package.json, pattern: '"eslint-config-next": "(\S+)"' }
+  playwright:
+    policy: upgrade # the test stack's browser image runs the same version as @playwright/test
+    items:
+      - name: playwright
+        source: { type: github-release, repo: microsoft/playwright }
+        pins:
+          - { file: package.json, pattern: '"@playwright/test": "(\S+)"' }
+          - {
+              file: tests/compose.test.yaml,
+              pattern: 'mcr\.microsoft\.com/playwright:v(\S+)-noble',
+            }
   dependencies:
     # package.json's `overrides` (mysql2, deepmerge-ts) patch advisories in Prisma 7's
     # command-line tool; they are fixed versions, and moving to Prisma 8 removes them.

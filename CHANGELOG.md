@@ -34,7 +34,8 @@ All notable changes to Kinship are recorded here. The format follows
   no Node on the host.
 - Prettier and ESLint (`npm run format`, `format:check`, `lint`). The whole
   repo was formatted once; `.git-blame-ignore-revs` lets `git blame` skip that.
-- `upstream.yaml` lists the pinned pieces: the Node image, Postgres, Next.js
+- `upstream.yaml` lists the pinned pieces: the Node image, Postgres, Next.js,
+  Playwright (the npm package and the test stack's browser image, together)
   and the npm lockfile.
 
 ### Changed
