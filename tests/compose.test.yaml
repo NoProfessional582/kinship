@@ -1,0 +1,59 @@
+# Test-only overlay: layered on compose.yaml by scripts/test-stack.sh, never used to run a
+# real stack. It keeps the database and the uploads in the run's private folder
+# (STACK_RUNTIME), uses the images the script built once instead of building, publishes no
+# port, and puts everything on an internal network: nothing reaches out or in. The
+# `browser` service runs Playwright against the app.
+#
+#   docker compose -p test-kinship --env-file "$STACK_RUNTIME/settings.env" \
+#     -f compose.yaml -f tests/compose.test.yaml --profile tests ...
+#
+# Paths below are relative to the repo root (the first file's directory).
+
+services:
+  db:
+    restart: 'no'
+    volumes: !override
+      - ${STACK_RUNTIME:?}/data/postgres:/var/lib/postgresql
+    healthcheck:
+      # Probe every second while starting instead of waiting for the 5 s interval.
+      start_interval: 1s
+
+  migrate:
+    image: test-kinship:builder
+    build: !reset null
+    volumes: !override
+      - ${STACK_RUNTIME:?}/data/uploads:/app/public/uploads
+
+  web:
+    image: test-kinship:app
+    build: !reset null
+    restart: 'no'
+    ports: !reset []
+    volumes: !override
+      - ${STACK_RUNTIME:?}/data/uploads:/app/public/uploads
+    healthcheck:
+      start_interval: 2s
+
+  # Runs the Playwright tests (playwright.config.ts) from the repo mounted at /w, as the
+  # host user, with the node_modules that scripts/node.sh installed. The image's version is
+  # @playwright/test's in package.json (upstream.yaml moves them together).
+  browser:
+    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    profiles: [tests]
+    restart: 'no'
+    user: '${HOST_UID:?}:${HOST_GID:?}'
+    working_dir: /w
+    environment:
+      HOME: /tmp
+      BASE_URL: http://web:3000
+      npm_config_update_notifier: 'false'
+    volumes:
+      - .:/w
+    # Chromium needs more shared memory than Docker's 64 MB default.
+    shm_size: 1gb
+    command: [npm, run, --silent, test:e2e]
+
+networks:
+  # The stack's own, internal: no way out, nothing published.
+  default:
+    internal: true

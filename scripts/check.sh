@@ -7,15 +7,16 @@
 #   scripts/check.sh quick privacy   only those parts
 #
 # Runs from any checkout of the repo. Needs bash 4 or later, git, Docker with Compose and
-# gitleaks on the host; Node runs in the pinned image (scripts/node.sh).
+# Buildx, and gitleaks on the host; Node runs in the pinned image (scripts/node.sh).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-PARTS=(quick privacy)
+PARTS=(quick privacy stack)
 declare -A ABOUT=(
   [quick]="format, lint, types, unit tests, dependency audit, compose ports"
   [privacy]="secret scans and the personal-data sweep, on the files and this branch's commits"
+  [stack]="image build, then a throwaway test stack: health, logs, database tests, CLI jobs, Playwright"
 )
 
 # The private list of what must never be published (names, emails, the home domain): one
@@ -149,6 +150,12 @@ private_sweep() {
     return 1
   fi
   echo "Nothing found in the files or in this branch's $(wc -w <<<"$commits") commits."
+}
+
+part_stack() {
+  # The image and the app running: scripts/test-stack.sh says what it covers, and removes
+  # everything it made, pass or fail.
+  scripts/test-stack.sh
 }
 
 usage() {

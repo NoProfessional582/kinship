@@ -22,7 +22,11 @@ All notable changes to Kinship are recorded here. The format follows
   failure. `quick`: format, lint, types, unit tests, the dependency audit, and
   that compose publishes ports on `127.0.0.1` only. `privacy`: gitleaks on the
   branch's commits and the working tree, and a sweep for personal data using a
-  private pattern list kept outside the repo.
+  private pattern list kept outside the repo. `stack` (`scripts/test-stack.sh`):
+  builds the image and runs the app in a throwaway test stack with its own
+  database, no published port and no way out, then checks health and logs and
+  runs the database tests, the command-line jobs (seed, export, import, LinkedIn
+  import) and the Playwright tests. It removes everything it made, pass or fail.
 - Playwright tests (`npm run test:e2e`, run inside the test stack): every page
   loads with no errors, the eleven desktop pages in Desktop Chrome and the same
   eleven under `/m` on a Pixel 7.
