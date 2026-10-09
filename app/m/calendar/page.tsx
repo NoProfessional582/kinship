@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useBrowserReady, subscribeBrowser } from '@/lib/hooks/platform'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -52,13 +53,34 @@ type View = 'week' | 'month'
  * desktop Today rail, because that is where the all-day-versus-instant sort is
  * worked out and a second copy would drift from it.
  */
+function storedView(): View {
+  try {
+    const view = localStorage.getItem(VIEW_KEY)
+    if (view === 'month') return view
+  } catch {
+    /* private mode */
+  }
+  return 'week'
+}
+
 export default function MobileCalendar() {
   const router = useRouter()
   const { timezone, fmt } = useTimezone()
   const { calendarWeekStart } = useSettings()
-  const [view, setView] = React.useState<View>('week')
+  const ready = useBrowserReady()
+  const stored = React.useSyncExternalStore(subscribeBrowser, storedView, () => 'week' as View)
+  const [viewChoice, setView] = React.useState<View | null>(null)
+  const view = viewChoice ?? stored
   /** Any day inside the period on screen. The period itself is derived. */
-  const [cursor, setCursor] = React.useState<Date | null>(null)
+  const initialCursor = React.useMemo(
+    () => (ready ? zonedToday(timezone) : null),
+    [ready, timezone],
+  )
+  const [cursorChoice, setCursorChoice] = React.useState<{ timezone: string; value: Date } | null>(
+    null,
+  )
+  const cursor = cursorChoice?.timezone === timezone ? cursorChoice.value : initialCursor
+  const setCursor = (value: Date) => setCursorChoice({ timezone, value })
   const [selected, setSelected] = React.useState<string | null>(null)
   const [openTask, setOpenTask] = React.useState<string | null>(null)
   const [creating, setCreating] = React.useState(false)
@@ -66,18 +88,12 @@ export default function MobileCalendar() {
 
   const weekStartsOn = calendarWeekStart === 'monday' ? 1 : 0
 
-  // Anchored after mount: today depends on the clock and on the pinned zone,
-  // neither of which the server render can know. The stored view is read here
-  // for the same reason — localStorage does not exist during that render.
-  React.useEffect(() => {
-    setCursor(zonedToday(timezone))
-    try {
-      const stored = localStorage.getItem(VIEW_KEY)
-      if (stored === 'week' || stored === 'month') setView(stored)
-    } catch {
-      /* private mode */
-    }
-  }, [timezone])
+  const [sourceZone, setSourceZone] = React.useState(timezone)
+  if (sourceZone !== timezone) {
+    setSourceZone(timezone)
+    setCursorChoice(null)
+    setView(null)
+  }
 
   const setViewPersisted = (next: View) => {
     setView(next)
@@ -141,19 +157,19 @@ export default function MobileCalendar() {
   // for no reason. Today when today is in view, the first of the month when it
   // is not — never a leading cell from the previous month, which is a day you
   // navigated away from.
-  React.useEffect(() => {
-    if (view !== 'month' || !cursor) return
+  if (view === 'month' && cursor) {
     const inView = days.some((d) => dayKeyOf(d) === selected && isSameMonth(d, cursor))
-    if (inView) return
-    setSelected(
-      isSameMonth(zonedToday(timezone), cursor) ? todayKey : dayKeyOf(startOfMonth(cursor)),
-    )
-  }, [view, cursor, days, selected, timezone, todayKey])
+    if (!inView)
+      setSelected(
+        isSameMonth(zonedToday(timezone), cursor) ? todayKey : dayKeyOf(startOfMonth(cursor)),
+      )
+  }
 
   const toggle = (c: string) =>
     setHidden((prev) => {
       const next = new Set(prev)
-      next.has(c) ? next.delete(c) : next.add(c)
+      if (next.has(c)) next.delete(c)
+      else next.add(c)
       return next
     })
 

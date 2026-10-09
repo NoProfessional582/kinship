@@ -49,7 +49,9 @@ export function RichEditor({
   const render = React.useMemo(() => createSuggestionRenderer(), [])
   // Kept in a ref so changing the handler never has to re-create the editor.
   const submitRef = React.useRef(onSubmit)
-  submitRef.current = onSubmit
+  React.useEffect(() => {
+    submitRef.current = onSubmit
+  }, [onSubmit])
 
   const editor = useEditor({
     // Next renders this on the server first; TipTap must not hydrate eagerly.

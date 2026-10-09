@@ -15,6 +15,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { ownerSubject } from './lib/identity'
 
 export function proxy(_req: NextRequest) {
+  void _req
   try {
     ownerSubject()
   } catch (err) {

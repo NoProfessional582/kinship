@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useBrowserReady } from '@/lib/hooks/platform'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -58,9 +59,11 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) =>
     href === '/' ? pathname === '/m' : pathname.startsWith(m(href))
 
-  React.useEffect(() => {
+  const [route, setRoute] = React.useState(pathname)
+  if (route !== pathname) {
+    setRoute(pathname)
     setMoreOpen(false)
-  }, [pathname])
+  }
 
   return (
     <div className="kb-m flex h-dvh flex-col overflow-hidden bg-[var(--background)]">
@@ -161,8 +164,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
 
 function ThemeRow() {
   const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
+  const mounted = useBrowserReady()
   const dark = mounted && resolvedTheme === 'dark'
 
   return (

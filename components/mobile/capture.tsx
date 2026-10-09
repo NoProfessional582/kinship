@@ -45,7 +45,6 @@ export function MobileCapture() {
     setTitle,
     occurredAt,
     setOccurredAt,
-    dateTouched,
     direction,
     setDirection,
     durationMin,
@@ -206,7 +205,6 @@ export function MobileCapture() {
                     type="datetime-local"
                     value={occurredAt}
                     onChange={(e) => {
-                      dateTouched.current = true
                       setOccurredAt(e.target.value)
                     }}
                     className="tabular"

@@ -113,8 +113,8 @@ export function CalendarView({
   // Held in a ref so toggling a chip never re-creates the fetcher; FullCalendar
   // would hold on to the old one anyway, so the refetch below is what applies it.
   const catsRef = React.useRef(categories)
-  catsRef.current = categories
   React.useEffect(() => {
+    catsRef.current = categories
     calRef.current?.getApi().refetchEvents()
   }, [categories])
 
@@ -126,7 +126,9 @@ export function CalendarView({
    */
   const selectedIso = selectedDate ? isoDay(selectedDate) : null
   const isoRef = React.useRef(selectedIso)
-  isoRef.current = selectedIso
+  React.useEffect(() => {
+    isoRef.current = selectedIso
+  }, [selectedIso])
 
   const paintSelection = React.useCallback(() => {
     const root = rootRef.current

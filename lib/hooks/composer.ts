@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useBrowserReady, subscribeBrowser } from './platform'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { Editor } from '@tiptap/core'
@@ -44,10 +45,10 @@ interface Draft {
 const store = (() => {
   const k = 'kb.composer.hero'
   return {
-    read(): Draft | null {
+    snapshot(): string | null {
       if (typeof window === 'undefined') return null
       try {
-        return JSON.parse(window.localStorage.getItem(k) ?? 'null')
+        return window.localStorage.getItem(k)
       } catch {
         return null
       }
@@ -93,7 +94,10 @@ export function useComposer(onSaved?: () => void) {
 
   const [kind, setKind] = React.useState<string>('NOTE')
   const [title, setTitle] = React.useState('')
-  const [occurredAt, setOccurredAt] = React.useState('')
+  const [chosenDate, setChosenDate] = React.useState('')
+  const [dateEdited, setDateEdited] = React.useState(false)
+  const ready = useBrowserReady()
+  const persistedDraft = React.useSyncExternalStore(subscribeBrowser, store.snapshot, () => null)
   const [direction, setDirection] = React.useState<'INBOUND' | 'OUTBOUND' | ''>('')
   const [durationMin, setDurationMin] = React.useState('')
   const [location, setLocation] = React.useState('')
@@ -107,15 +111,18 @@ export function useComposer(onSaved?: () => void) {
   const { timezone } = useTimezone()
   const { data: projects } = useProjects()
 
-  // Re-seeds whenever the zone changes, but never over a date someone chose.
-  // "Fill it once if blank" is not enough: useTimezone answers 'UTC' until the
-  // settings query lands, so the first render would stamp a UTC wall time into
-  // the field and the real zone would arrive too late to correct it.
-  const dateTouched = React.useRef(false)
-  React.useEffect(() => {
-    if (dateTouched.current) return
-    setOccurredAt(toLocalInputValue(new Date(), timezone))
-  }, [timezone])
+  // Defaults follow timezone changes until the user picks a date.
+  const [defaultDate, setDefaultDate] = React.useState('')
+  const [defaultSource, setDefaultSource] = React.useState({ ready: false, timezone })
+  if (ready && (!defaultSource.ready || defaultSource.timezone !== timezone)) {
+    setDefaultSource({ ready, timezone })
+    if (!dateEdited) setDefaultDate(toLocalInputValue(new Date(), timezone))
+  }
+  const occurredAt = dateEdited ? chosenDate : defaultDate
+  const setOccurredAt = (value: string) => {
+    setDateEdited(true)
+    setChosenDate(value)
+  }
   const editorRef = React.useRef<Editor | null>(null)
   const enqueue = useEnrichmentQueue((s) => s.enqueue)
   const qc = useQueryClient()
@@ -125,27 +132,34 @@ export function useComposer(onSaved?: () => void) {
     editorRef.current = e
   }, [])
 
-  // Any stored draft is pulled in before the editor mounts, so its content can
-  // be handed over as initial content rather than pushed in afterwards.
-  React.useEffect(() => {
-    const d = store.read()
-    if (!d) return
-    setRestored(d)
-    setHasDraft(true)
-    setKind(d.kind)
-    setTitle(d.title)
-    if (d.occurredAt) {
-      dateTouched.current = true
-      setOccurredAt(d.occurredAt)
+  // Seed this component once, after the server-compatible hydration snapshot.
+  const [restoredOnce, setRestoredOnce] = React.useState(false)
+  if (ready && !restoredOnce) {
+    setRestoredOnce(true)
+    let d: Draft | null = null
+    try {
+      d = JSON.parse(persistedDraft ?? 'null') as Draft | null
+    } catch {
+      /* edited draft */
     }
-    setDirection(d.direction)
-    setDurationMin(d.durationMin)
-    setLocation(d.location)
-    setTags(d.tags)
-    setFollowUpAt(d.followUpAt ?? '')
-    setProjectId(d.projectId ?? '')
-    setOpen(true)
-  }, [])
+    if (d) {
+      setRestored(d)
+      setHasDraft(true)
+      setKind(d.kind)
+      setTitle(d.title)
+      if (d.occurredAt) {
+        setDateEdited(true)
+        setChosenDate(d.occurredAt)
+      }
+      setDirection(d.direction)
+      setDurationMin(d.durationMin)
+      setLocation(d.location)
+      setTags(d.tags)
+      setFollowUpAt(d.followUpAt ?? '')
+      setProjectId(d.projectId ?? '')
+      setOpen(true)
+    }
+  }
 
   const persist = React.useCallback(() => {
     const doc = editorRef.current?.getJSON()
@@ -187,8 +201,9 @@ export function useComposer(onSaved?: () => void) {
     setFollowUpAt('')
     setProjectId('')
     setTags([])
-    dateTouched.current = false
-    setOccurredAt(toLocalInputValue(new Date(), timezone))
+    setDateEdited(false)
+    setChosenDate('')
+    setDefaultDate(toLocalInputValue(new Date(), timezone))
     setRestored(null)
     store.clear()
     setHasDraft(false)
@@ -253,7 +268,6 @@ export function useComposer(onSaved?: () => void) {
     setTitle,
     occurredAt,
     setOccurredAt,
-    dateTouched,
     direction,
     setDirection,
     durationMin,

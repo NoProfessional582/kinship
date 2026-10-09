@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useEnrichmentQueue } from '@/lib/store'
 import { api } from '@/lib/hooks/api'
+import type { CreatedEntity } from '@/lib/services/entries'
 import { ContactForm, blankContact, contactToPayload, type ContactFormValue } from './contact-form'
 import { TaskForm, blankTask, taskToPayload, type TaskFormValue } from './task-form'
 import { ProjectForm, blankProject, projectToPayload, type ProjectFormValue } from './project-form'
@@ -42,24 +43,25 @@ const META = {
  * dashboard's "Needs details" tray picks it up.
  */
 export function EnrichmentQueue() {
+  const current = useEnrichmentQueue((s) => s.queue[s.index])
+  if (!current) return null
+  return <EnrichmentItem key={`${current.type}:${current.id}:${current.label}`} current={current} />
+}
+
+function EnrichmentItem({ current }: { current: CreatedEntity }) {
   const { queue, index, advance, dismiss } = useEnrichmentQueue()
   const qc = useQueryClient()
-  const current = queue[index]
 
-  const [contact, setContact] = React.useState<ContactFormValue>(blankContact())
-  const [task, setTask] = React.useState<TaskFormValue>(blankTask())
-  const [project, setProject] = React.useState<ProjectFormValue>(blankProject())
+  const [contact, setContact] = React.useState<ContactFormValue>(() =>
+    blankContact(current.type === 'contact' ? current.label : ''),
+  )
+  const [task, setTask] = React.useState<TaskFormValue>(() =>
+    blankTask(current.type === 'task' ? current.label : ''),
+  )
+  const [project, setProject] = React.useState<ProjectFormValue>(() =>
+    blankProject(current.type === 'project' ? current.label : ''),
+  )
   const [saving, setSaving] = React.useState(false)
-
-  // Re-seed the form whenever the queue advances to a different entity.
-  React.useEffect(() => {
-    if (!current) return
-    if (current.type === 'contact') setContact(blankContact(current.label))
-    if (current.type === 'task') setTask(blankTask(current.label))
-    if (current.type === 'project') setProject(blankProject(current.label))
-  }, [current?.id, current?.type, current?.label])
-
-  if (!current) return null
 
   const meta = META[current.type]
   const Icon = meta.icon

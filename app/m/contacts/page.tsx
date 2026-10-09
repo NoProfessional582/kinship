@@ -1,6 +1,6 @@
 'use client'
 import * as React from 'react'
-import { Loader2, Search, Plus } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 import { MEmpty, MList, MRow, MTile } from '@/components/mobile/bits'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/misc'

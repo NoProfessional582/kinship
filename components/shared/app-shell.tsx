@@ -23,7 +23,7 @@ import { useUi } from '@/lib/store'
 import { CommandPalette } from './command-palette'
 import { EnrichmentQueue } from '@/components/entity-modal/enrichment-queue'
 import { useFontScale, useSettings } from '@/lib/hooks/settings'
-import { useModifierKey } from '@/lib/hooks/platform'
+import { useModifierKey, useBrowserReady, subscribeBrowser } from '@/lib/hooks/platform'
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, hue: 'var(--hue-1)' },
@@ -40,7 +40,7 @@ const STORE_KEY = 'kb.sidebar.collapsed'
 const NARROW = '(max-width: 1024px)'
 
 /**
- * `null` until the effect resolves the stored preference. Rendering a boolean
+ * `null` until the browser resolves the stored preference. Rendering a boolean
  * during SSR would mean guessing the viewport, so the first paint keeps the
  * pure-CSS behaviour (icons under `sm`, labels above) and the resolved state
  * takes over on mount.
@@ -58,6 +58,16 @@ function ownsKeystrokes(target: EventTarget | null): boolean {
   return !!el.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]')
 }
 
+function storedCollapsed(): boolean {
+  let stored: string | null = null
+  try {
+    stored = window.localStorage.getItem(STORE_KEY)
+  } catch {
+    /* private mode */
+  }
+  return window.matchMedia(NARROW).matches || stored === 'true'
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const setPaletteOpen = useUi((s) => s.setPaletteOpen)
@@ -65,21 +75,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const mod = useModifierKey()
   useFontScale()
 
-  const [collapsed, setCollapsed] = React.useState<Collapsed>(null)
-
-  React.useEffect(() => {
-    let stored: string | null = null
-    try {
-      stored = window.localStorage.getItem(STORE_KEY)
-    } catch {
-      /* private mode */
-    }
-    // The window wins on load. A stored "expanded" is a preference formed on a
-    // wide screen, and honouring it here is how an 820px window ends up
-    // spending a quarter of its width on navigation. It can still be expanded
-    // by hand once you are here.
-    setCollapsed(window.matchMedia(NARROW).matches || stored === 'true')
-  }, [])
+  const stored = React.useSyncExternalStore(subscribeBrowser, storedCollapsed, () => null)
+  const [choice, setCollapsed] = React.useState<Collapsed>(null)
+  const collapsed = choice ?? stored
 
   // Narrowing the window collapses the rail; widening it does not force it back
   // open, because by then the last explicit choice is the better guess.
@@ -93,16 +91,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [])
 
   const toggle = React.useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !(prev ?? false)
-      try {
-        window.localStorage.setItem(STORE_KEY, String(next))
-      } catch {
-        /* ignore */
-      }
-      return next
-    })
-  }, [])
+    const next = !(collapsed ?? false)
+    setCollapsed(next)
+    try {
+      window.localStorage.setItem(STORE_KEY, String(next))
+    } catch {
+      /* private mode */
+    }
+  }, [collapsed])
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -265,8 +261,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function ThemeToggle({ compact, labelClass }: { compact: boolean; labelClass: string }) {
   const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
+  const mounted = useBrowserReady()
 
   return (
     <button

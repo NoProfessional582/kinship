@@ -32,10 +32,13 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
   const [drill, setDrill] = React.useState<string | null>(null)
   const activeId = drill ?? taskId
 
-  React.useEffect(() => {
+  const [sourceId, setSourceId] = React.useState(taskId)
+  if (sourceId !== taskId) {
+    setSourceId(taskId)
     setDrill(null)
     setMode('view')
-  }, [taskId])
+    setForm(null)
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['task', activeId],
@@ -49,12 +52,7 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
     enabled: Boolean(activeId),
   })
 
-  // Reload the form whenever the record changes underneath it, including after
-  // a drill-down, so Edit never opens on the previous task's values.
-  React.useEffect(() => {
-    if (data) setForm(taskFromRecord(data))
-  }, [data?.id])
-
+  // Entering edit mode seeds the form from the current record in startEdit.
   const save = async () => {
     if (!form || !activeId) return
     setSaving(true)

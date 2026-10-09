@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useClockNow } from '@/lib/hooks/platform'
 import { CalendarClock, Link2, ListChecks, PenLine, Flag } from 'lucide-react'
 import { differenceInCalendarDays, format } from 'date-fns'
 import { Avatar } from '@/components/ui/misc'
@@ -30,6 +31,7 @@ export function TaskCardFace({
   // user's calendar. date-fns' isPast/isToday answer it in the browser's zone,
   // which is a different day for part of every night.
   const today = useZonedToday()
+  const now = useClockNow()
   const { fmt, timezone } = useTimezone()
   const allDay = task.allDay ?? true
   // Two different questions. An all-day deadline is overdue once the calendar
@@ -46,7 +48,9 @@ export function TaskCardFace({
   const overdue =
     task.status !== 'DONE' &&
     today !== null &&
-    (allDay ? dueInDays !== null && dueInDays < 0 : dueAt !== null && dueAt.getTime() < Date.now())
+    (allDay
+      ? dueInDays !== null && dueInDays < 0
+      : dueAt !== null && now !== null && dueAt.getTime() < now)
   const priority = PRIORITY[task.priority] ?? PRIORITY.MEDIUM
   const accent = task.project?.color ?? priority.color
 

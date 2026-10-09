@@ -1,9 +1,10 @@
 'use client'
 import * as React from 'react'
+import { useBrowserReady } from '@/lib/hooks/platform'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { addDays, startOfDay } from 'date-fns'
-import { zonedDayBounds, zonedDayBoundsFor, zonedDayOf, zonedToday } from '@/lib/format'
+import { zonedDayBounds, zonedDayBoundsFor, zonedToday } from '@/lib/format'
 import { ArrowRight, X } from 'lucide-react'
 import { Card } from '@/components/ui/misc'
 import { api } from '@/lib/hooks/api'
@@ -19,7 +20,7 @@ import { cn } from '@/lib/utils'
  */
 export function useToday(day?: Date | null) {
   const { timezone } = useTimezone()
-  const [range, setRange] = React.useState<{ start: string; end: string } | null>(null)
+  const ready = useBrowserReady()
   // A Date is a new object every render, so the effect keys off the calendar
   // day it represents — otherwise picking the same day would refetch forever.
   const dayKey = day ? startOfDay(day).getTime() : null
@@ -34,7 +35,8 @@ export function useToday(day?: Date | null) {
   // the 7th is 17:00 on the 6th in a zone behind the browser, so clicking a day
   // fetched the day before it and the rail came back empty. Only zones behind
   // the browser's were affected, which is why a Tokyo-pinned app looked fine.
-  React.useEffect(() => {
+  const range = React.useMemo(() => {
+    if (!ready) return null
     const marker = dayKey === null ? zonedToday(timezone) : new Date(dayKey)
     const { start, end } = zonedDayBoundsFor(
       marker.getFullYear(),
@@ -42,8 +44,8 @@ export function useToday(day?: Date | null) {
       marker.getDate(),
       timezone,
     )
-    setRange({ start: start.toISOString(), end: end.toISOString() })
-  }, [dayKey, timezone])
+    return { start: start.toISOString(), end: end.toISOString() }
+  }, [dayKey, timezone, ready])
 
   const query = useQuery({
     enabled: !!range,
@@ -80,16 +82,17 @@ export function useToday(day?: Date | null) {
  */
 export function useUpcoming(days = 45, limit = 4) {
   const { timezone } = useTimezone()
-  const [range, setRange] = React.useState<{ start: string; end: string } | null>(null)
+  const ready = useBrowserReady()
   // "Tomorrow" and "45 days out" are calendar-day questions, so the window is
   // cut on the user's calendar, not the browser's.
-  React.useEffect(() => {
+  const range = React.useMemo(() => {
+    if (!ready) return null
     const now = new Date()
-    setRange({
+    return {
       start: zonedDayBounds(addDays(now, 1), timezone).start.toISOString(),
       end: zonedDayBounds(addDays(now, days), timezone).end.toISOString(),
-    })
-  }, [days, timezone])
+    }
+  }, [days, timezone, ready])
 
   const query = useQuery({
     enabled: !!range,

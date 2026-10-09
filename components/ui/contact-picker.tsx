@@ -60,7 +60,11 @@ export function ContactPicker({
   const selected = new Set(value.map((v) => v.id))
   const results = (data ?? []).filter((r) => !selected.has(r.id))
 
-  React.useEffect(() => setActive(0), [debounced, open])
+  const [source, setSource] = React.useState({ debounced, open })
+  if (source.debounced !== debounced || source.open !== open) {
+    setSource({ debounced, open })
+    setActive(0)
+  }
 
   // Clicking away closes the menu; the picker sits inside a dialog that already
   // traps focus, so a pointerdown listener is enough.

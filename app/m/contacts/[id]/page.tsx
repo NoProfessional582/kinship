@@ -1,6 +1,5 @@
 'use client'
 import * as React from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
@@ -8,7 +7,6 @@ import {
   ArrowLeft,
   Loader2,
   Pencil,
-  Cake,
   MapPin,
   Phone,
   Mail,
@@ -16,7 +14,6 @@ import {
   Video,
   Building2,
   MessageSquare,
-  ExternalLink,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'

@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useClockNow } from '@/lib/hooks/platform'
 import Link from 'next/link'
 import { differenceInCalendarDays, format } from 'date-fns'
 import {
@@ -45,6 +46,7 @@ export function TaskView({
 }) {
   const { fmt, timezone } = useTimezone()
   const today = useZonedToday()
+  const now = useClockNow()
 
   const allDay = task.allDay ?? true
   const priority = PRIORITY[task.priority] ?? PRIORITY.MEDIUM
@@ -63,7 +65,9 @@ export function TaskView({
   const overdue =
     !done &&
     today !== null &&
-    (allDay ? dueInDays !== null && dueInDays < 0 : dueAt !== null && dueAt.getTime() < Date.now())
+    (allDay
+      ? dueInDays !== null && dueInDays < 0
+      : dueAt !== null && now !== null && dueAt.getTime() < now)
 
   // `calendarDate` returns null for an unparseable value, so neither label
   // assumes it got a date back.

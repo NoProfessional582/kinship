@@ -7,8 +7,8 @@ import { ArrowRight } from 'lucide-react'
 import { Card, Avatar } from '@/components/ui/misc'
 import { Inset } from './today-panel'
 import { api, useContacts } from '@/lib/hooks/api'
-import { useTimezone } from '@/lib/hooks/settings'
-import { nextAnniversary, zonedToday } from '@/lib/format'
+import { useZonedToday } from '@/lib/hooks/settings'
+import { nextAnniversary } from '@/lib/format'
 
 /**
  * The next birthday to fall due. Anything past the horizon is not a thing you
@@ -38,11 +38,9 @@ export function PeopleOrbit() {
     queryKey: ['cadence'],
     queryFn: () => api.get<any[]>('/api/cadence'),
   })
-  const { timezone } = useTimezone()
-  const [today, setToday] = React.useState<Date | null>(null)
-  React.useEffect(() => setToday(zonedToday(timezone)), [timezone])
+  const today = useZonedToday()
 
-  const list = contacts ?? []
+  const list = React.useMemo(() => contacts ?? [], [contacts])
 
   const stats = React.useMemo(() => {
     if (!today) return null

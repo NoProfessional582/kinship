@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { subscribeBrowser, useBrowserReady } from '@/lib/hooks/platform'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -58,10 +59,14 @@ export default function SettingsPage() {
       </header>
 
       <div className="flex flex-col gap-5">
-        <IdentityPanel settings={settings} commit={commit} />
+        <IdentityPanel
+          key={JSON.stringify([settings.userName, settings.appTitle, settings.tagline])}
+          settings={settings}
+          commit={commit}
+        />
         <DisplayPanel settings={settings} commit={commit} />
         <TimezonePanel settings={settings} commit={commit} />
-        <WeatherPanel settings={settings} commit={commit} />
+        <WeatherPanel key={settings.weatherLocation} settings={settings} commit={commit} />
         <ColumnsPanel />
         <DataPanel />
       </div>
@@ -102,16 +107,11 @@ function Panel({
 }
 
 function IdentityPanel({ settings, commit }: any) {
-  const [v, setV] = React.useState({ userName: '', appTitle: '', tagline: '' })
-  React.useEffect(
-    () =>
-      setV({
-        userName: settings.userName,
-        appTitle: settings.appTitle,
-        tagline: settings.tagline,
-      }),
-    [settings.userName, settings.appTitle, settings.tagline],
-  )
+  const [v, setV] = React.useState(() => ({
+    userName: settings.userName,
+    appTitle: settings.appTitle,
+    tagline: settings.tagline,
+  }))
 
   return (
     <Panel
@@ -204,19 +204,15 @@ function DisplayPanel({ settings, commit }: any) {
 
 function TimezonePanel({ settings, commit }: any) {
   const [filter, setFilter] = React.useState('')
-  const [detected, setDetected] = React.useState('UTC')
-  const [now, setNow] = React.useState<Date | null>(null)
-  // The zone list and each zone's offset come from the runtime's time zone data,
-  // which the server and the browser need not share (they disagreed on Morocco's
-  // offset, a hydration error), so like `detected` and `now` they are built in
-  // the browser only.
-  const [allZones, setAllZones] = React.useState<string[]>([])
-  React.useEffect(() => setDetected(browserTimezone()), [])
-  React.useEffect(() => setAllZones(allTimezones()), [])
+  const ready = useBrowserReady()
+  const detected = React.useSyncExternalStore(subscribeBrowser, browserTimezone, () => 'UTC')
+  const [clock, setClock] = React.useState(() => new Date())
+  const now = ready ? clock : null
+  // Runtime timezone data stays browser-only, including the initial hydration pass.
+  const allZones = React.useMemo(() => (ready ? allTimezones() : []), [ready])
   React.useEffect(() => {
-    setNow(new Date())
-    const t = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(t)
+    const timer = setInterval(() => setClock(new Date()), 1000)
+    return () => clearInterval(timer)
   }, [])
 
   const effective = settings.timezone ?? detected
@@ -281,8 +277,7 @@ function TimezonePanel({ settings, commit }: any) {
 }
 
 function WeatherPanel({ settings, commit }: any) {
-  const [location, setLocation] = React.useState('')
-  React.useEffect(() => setLocation(settings.weatherLocation), [settings.weatherLocation])
+  const [location, setLocation] = React.useState(settings.weatherLocation)
 
   return (
     <Panel

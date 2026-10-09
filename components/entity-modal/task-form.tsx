@@ -118,7 +118,7 @@ export function TaskForm({
     if (!value.columnId || !board.some((c: any) => c.id === value.columnId)) {
       onChange({ ...value, columnId: board[0].id })
     }
-  }, [board, value.columnId])
+  }, [board, value, onChange])
 
   return (
     <div className="flex flex-col gap-4">

@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useInitialNow } from '@/lib/hooks/platform'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
@@ -30,10 +31,7 @@ export default function MobileToday() {
   const { fmt } = useTimezone()
   const { data: weather } = useWeather()
   const [openTask, setOpenTask] = React.useState<string | null>(null)
-  const [now, setNow] = React.useState<Date | null>(null)
-  // After mount only: the greeting depends on the clock and would otherwise
-  // differ between the server and client renders.
-  React.useEffect(() => setNow(new Date()), [])
+  const now = useInitialNow()
 
   const { events, counts } = useToday()
   const nextUp = useUpcoming()

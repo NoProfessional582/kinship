@@ -19,28 +19,11 @@ import { CADENCE_LABEL } from '@/lib/cadence'
 export default function MobileSettings() {
   const settings = useSettings()
   const save = useSaveSettings()
-  const [v, setV] = React.useState(settings)
+  const [draft, setV] = React.useState(settings)
   const [dirty, setDirty] = React.useState(false)
 
-  // Re-seed when the query lands, but never over something being typed.
-  //
-  // The deps are the individual fields, not `settings`: useSettings spreads
-  // FALLBACK into the query data and so returns a new object on every render,
-  // which as a dependency re-runs this effect forever. Same pattern the desktop
-  // panels use.
-  React.useEffect(() => {
-    if (!dirty) setV(settings)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    dirty,
-    settings.userName,
-    settings.appTitle,
-    settings.calendarWeekStart,
-    settings.defaultCadence,
-    settings.weatherEnabled,
-    settings.weatherLocation,
-    settings.weatherUnit,
-  ])
+  // The query remains the source until the user starts editing.
+  const v = dirty ? draft : settings
 
   const set = (patch: Partial<typeof settings>) => {
     setDirty(true)

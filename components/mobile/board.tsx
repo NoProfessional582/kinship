@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { subscribeBrowser } from '@/lib/hooks/platform'
 import { toast } from 'sonner'
 import {
   ChevronDown,
@@ -41,6 +42,14 @@ const COLLAPSED_KEY = 'kb.m.board.collapsed'
  * TouchSensor with `{ delay: 250, tolerance: 5 }` and `touch-action: none` on a
  * dedicated handle — not the whole card.)
  */
+function storedColumns() {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY)
+  } catch {
+    return null
+  }
+}
+
 export function MobileBoard({
   columns,
   tasks,
@@ -52,20 +61,18 @@ export function MobileBoard({
   projectId: string | null
   onOpenTask: (id: string) => void
 }) {
-  const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set())
+  const raw = React.useSyncExternalStore(subscribeBrowser, storedColumns, () => null)
+  const saved = React.useMemo(() => {
+    try {
+      return new Set(JSON.parse(raw ?? '[]') as string[])
+    } catch {
+      return new Set<string>()
+    }
+  }, [raw])
+  const [choice, setCollapsed] = React.useState<Set<string> | null>(null)
+  const collapsed = choice ?? saved
   const [moving, setMoving] = React.useState<any | null>(null)
   const move = useMoveTask(projectId)
-
-  // Read after mount rather than in the initialiser: the server render has no
-  // localStorage, and seeding state from it would hydrate to a different tree.
-  React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(COLLAPSED_KEY)
-      if (raw) setCollapsed(new Set(JSON.parse(raw) as string[]))
-    } catch {
-      /* private mode, or someone hand-edited the value */
-    }
-  }, [])
 
   const persist = (next: Set<string>) => {
     setCollapsed(next)
@@ -78,7 +85,8 @@ export function MobileBoard({
 
   const toggle = (id: string) => {
     const next = new Set(collapsed)
-    next.has(id) ? next.delete(id) : next.add(id)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
     persist(next)
   }
 

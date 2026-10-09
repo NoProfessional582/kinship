@@ -22,7 +22,7 @@ import { useTimezone } from '@/lib/hooks/settings'
 import { Card, Badge, Avatar } from '@/components/ui/misc'
 import { EntryBody } from './entry-body'
 import { EntryEditDialog } from './entry-edit-dialog'
-import { cn, entryTitle } from '@/lib/utils'
+import { entryTitle } from '@/lib/utils'
 
 export const KIND_ICON: Record<string, any> = {
   NOTE: NotebookPen,

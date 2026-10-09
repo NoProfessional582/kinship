@@ -27,13 +27,18 @@ export function NewTaskDialog({
   onOpenChange: (v: boolean) => void
   projectId?: string
 }) {
-  const [form, setForm] = React.useState<TaskFormValue>(blankTask())
+  const [form, setForm] = React.useState<TaskFormValue>(() => ({
+    ...blankTask(),
+    projectId: projectId ?? '',
+  }))
   const [saving, setSaving] = React.useState(false)
   const qc = useQueryClient()
 
-  React.useEffect(() => {
+  const [source, setSource] = React.useState({ open, projectId })
+  if (source.open !== open || source.projectId !== projectId) {
+    setSource({ open, projectId })
     if (open) setForm({ ...blankTask(), projectId: projectId ?? '' })
-  }, [open, projectId])
+  }
 
   const save = async () => {
     if (!form.title.trim()) {

@@ -1,18 +1,7 @@
 'use client'
 import * as React from 'react'
 import { toast } from 'sonner'
-import {
-  Upload,
-  Star,
-  Plus,
-  X,
-  Briefcase,
-  Link2,
-  Flag,
-  MessageSquare,
-  HeartHandshake,
-  Layers,
-} from 'lucide-react'
+import { Upload, Star, Plus, X, Briefcase, Link2, Flag, MessageSquare, Layers } from 'lucide-react'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'

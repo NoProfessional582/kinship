@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { subscribeBrowser } from '@/lib/hooks/platform'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
@@ -50,32 +51,41 @@ const VIEWS: { value: CalendarViewName; label: string }[] = [
   { value: 'listWeek', label: 'List' },
 ]
 
+function storedCategories() {
+  try {
+    return window.localStorage.getItem(STORE_KEY)
+  } catch {
+    return null
+  }
+}
+
 export default function CalendarPage() {
   const router = useRouter()
   const controls = React.useRef<CalendarControls | null>(null)
   const [view, setView] = React.useState<CalendarViewName>('dayGridMonth')
   const [anchor, setAnchor] = React.useState<Date | null>(null)
-  const [active, setActive] = React.useState<Set<EventCategory>>(() => new Set(DEFAULT_CATEGORIES))
+  const saved = React.useSyncExternalStore(subscribeBrowser, storedCategories, () => null)
+  const storedActive = React.useMemo(() => {
+    try {
+      const value: unknown = JSON.parse(saved ?? 'null')
+      if (Array.isArray(value)) return new Set(value as EventCategory[])
+    } catch {
+      /* private mode or edited preference */
+    }
+    return new Set(DEFAULT_CATEGORIES)
+  }, [saved])
+  const [choice, setActive] = React.useState<Set<EventCategory> | null>(null)
+  const active = choice ?? storedActive
   // Null means "today", which is also what the rail falls back to — the day is
   // only pinned once you pick one.
   const [day, setDay] = React.useState<Date | null>(null)
   const [creating, setCreating] = React.useState(false)
 
-  // Read after mount: the server has no localStorage, and seeding state from it
-  // during render would mismatch hydration.
-  React.useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(STORE_KEY) ?? 'null')
-      if (Array.isArray(saved)) setActive(new Set(saved as EventCategory[]))
-    } catch {
-      /* private mode, or someone hand-edited it */
-    }
-  }, [])
-
   const toggle = (key: EventCategory) => {
     setActive((prev) => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
+      const next = new Set(prev ?? active)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       try {
         window.localStorage.setItem(STORE_KEY, JSON.stringify([...next]))
       } catch {

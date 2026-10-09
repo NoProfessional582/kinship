@@ -17,7 +17,9 @@ export function EntryBody({ doc, compact }: { doc: any; compact?: boolean }) {
   const [clipped, setClipped] = React.useState(false)
   const [open, setOpen] = React.useState(false)
   const openRef = React.useRef(open)
-  openRef.current = open
+  React.useEffect(() => {
+    openRef.current = open
+  }, [open])
 
   React.useEffect(() => {
     const el = ref.current

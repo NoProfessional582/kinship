@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useInitialNow } from '@/lib/hooks/platform'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
@@ -22,7 +23,7 @@ import { EmptyState } from '@/components/ui/misc'
 import { api, useDrafts } from '@/lib/hooks/api'
 import { useSettings, useTimezone, useWeather, weatherLabel } from '@/lib/hooks/settings'
 import { format } from 'date-fns'
-import { calendarDate, cn } from '@/lib/utils'
+import { calendarDate } from '@/lib/utils'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -30,10 +31,7 @@ export default function Dashboard() {
   const settings = useSettings()
   const { fmt } = useTimezone()
   const { data: weather } = useWeather()
-  const [now, setNow] = React.useState<Date | null>(null)
-  // After mount only: the greeting depends on the clock and would otherwise
-  // differ between server and client render.
-  React.useEffect(() => setNow(new Date()), [])
+  const now = useInitialNow()
 
   const { events, counts } = useToday()
 

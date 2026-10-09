@@ -178,8 +178,7 @@ export interface BoardProps<C extends BoardColumn, I extends BoardItem> {
   sortable?: boolean
   /**
    * True while a move is in flight or its refetch is outstanding. The board
-   * holds its local order until this clears — see the effect below, which is
-   * the single subtlest thing in this file.
+   * holds its local order until this clears, then resumes the server order.
    */
   settling?: boolean
   /** Rendered inside an empty column. */
@@ -202,12 +201,7 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
 }: BoardProps<C, I>) {
   const [activeId, setActiveId] = React.useState<string | null>(null)
 
-  // ⚠️ The fallback must be a constant, never a fresh `[UNGROUPED]`. `lanes` is
-  // a dependency of `serverZones`, which the effect below copies into state: a
-  // new array on every render made each render recompute the zones and set
-  // them again — an endless render loop (~1,300 commits/s) that pinned a CPU
-  // core and froze the page. It started on the first re-render after mount
-  // (opening the new-task dialog was enough) whenever the board was ungrouped.
+  // Keep the fallback stable so server-zone memoization survives unrelated renders.
   const lanes = groups && groups.length > 0 ? groups : UNGROUPED_LANES
   const grouped = groups != null && groups.length > 0
 
@@ -237,14 +231,15 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
     return map
   }, [columns, lanes, items, groupIdsOf])
 
-  const [zones, setZones] = React.useState<ZoneMap>(serverZones)
+  const [localZones, setZones] = React.useState<ZoneMap>(serverZones)
+  const zones = activeId || settling ? localZones : serverZones
 
   /**
    * Local order wins from the moment a drag starts until the server has both
    * accepted the move and been re-read.
    *
    * Without the guard there is a window right after the drop — `activeId`
-   * already cleared, the mutation not yet applied — where this effect sees the
+   * already cleared, the mutation not yet applied — where a reset sees the
    * PRE-MOVE server order and resets the board to it. The card lands, snaps
    * back, then jumps forward again once the response arrives, which reads as a
    * ghost returning to the old position.
@@ -254,9 +249,7 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
    * resolved. Getting that wrong reintroduces the snap-back, and it is the one
    * thing an app adopting this board most easily gets wrong.
    */
-  React.useEffect(() => {
-    if (!activeId && !settling) setZones(serverZones)
-  }, [serverZones, activeId, settling])
+  // Idle renders use the server directly; dragging/settling retain local order.
 
   const sensors = useSensors(
     // 5px of travel before a drag starts, so a plain click still reaches the
@@ -273,7 +266,10 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
     return over.data.current?.zone ?? null
   }
 
-  const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id))
+  const onDragStart = (e: DragStartEvent) => {
+    setZones(zones)
+    setActiveId(String(e.active.id))
+  }
 
   const onDragOver = (e: DragOverEvent) => {
     const { active, over } = e
