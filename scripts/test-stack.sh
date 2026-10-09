@@ -10,7 +10,7 @@
 #      nothing; `import -- --replace`, which brings back the same data; and a LinkedIn
 #      import of a made-up Connections.csv (tests/fixtures), twice.
 #   5. Playwright (playwright.config.ts) in the `browser` service, then health and the logs
-#      again, from the end of the database suite (whose tests make Postgres log refusals).
+#      again. Startup and page logs stay strict; the final check allows exact test refusals.
 #
 #   scripts/test-stack.sh
 #
@@ -95,16 +95,18 @@ healthy() {
 # check_logs LABEL [SINCE]: no line of any service's logs (since SINCE, if given) names an
 # error. pg's DeprecationWarning ("client.query() when the client is already executing a
 # query", from @prisma/adapter-pg) is known noise and matches none of the words: it is
-# counted, not hidden.
+# counted, not hidden. Only the final check passes --refusals to the checker.
 check_logs() {
-  local label=$1 since=${2:-} logs noise
-  logs=$("${compose[@]}" logs --no-color ${since:+--since "$since"})
-  if grep -inE 'error|exception|fatal|unhandled' <<<"$logs" >&2; then
-    echo "Errors in the stack's logs ($label), above." >&2
-    return 1
-  fi
-  noise=$(grep -c 'DeprecationWarning' <<<"$logs" || true)
-  echo "logs clean ($label); known noise: $noise pg DeprecationWarning line(s)"
+  local label=$1 since=${2:-} mode=${3:-} logs noise service
+  for service in db migrate web; do
+    logs=$("${compose[@]}" logs --no-color --no-log-prefix ${since:+--since "$since"} "$service")
+    if ! awk -v service="$service" -v refusals="${mode:+1}" -f scripts/check-stack-logs.awk <<<"$logs"; then
+      echo "Errors in $service logs ($label), above." >&2
+      return 1
+    fi
+    noise=$(grep -c 'DeprecationWarning' <<<"$logs" || true)
+    echo "$service logs clean ($label); known noise: $noise pg DeprecationWarning line(s)"
+  done
 }
 
 # cli COMMAND...: a one-off command in the builder image, the stack's migrate service.
@@ -151,6 +153,7 @@ step "Starting db, migrate and web"
 "${compose[@]}" up -d --wait --wait-timeout 180 db migrate web
 healthy
 check_logs "after start-up"
+startup_done=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)
 
 step "Vitest database suite, in the builder image"
 cli npm run --silent test:integration
@@ -197,9 +200,21 @@ test "$(sql "SELECT a.value FROM \"ContactAttribute\" a JOIN \"Contact\" c ON c.
 echo "both contacts are in, once each, with Otto's credentials split off"
 
 step "Playwright: every page, on a desktop and on a phone"
+# Page-sweep logs stay strict: run the pages before the deliberate API refusals.
+"${compose[@]}" run --rm --no-deps browser npm run --silent test:e2e -- pages.spec.ts --project=desktop --project=phone
+check_logs "after page sweep" "$suite_done"
+
+step "CLI: the legacy fixture's import dry run changes nothing"
+cli npm run --silent export >"$STACK_RUNTIME/before-legacy-dry-run.json"
+cli npm run --silent import <tests/fixtures/archive-v1.json 2>&1 | tee "$STACK_RUNTIME/legacy-dry-run.log"
+grep -qF 'Nothing was changed.' "$STACK_RUNTIME/legacy-dry-run.log"
+cli npm run --silent export >"$STACK_RUNTIME/after-legacy-dry-run.json"
+same_data "$STACK_RUNTIME/before-legacy-dry-run.json" "$STACK_RUNTIME/after-legacy-dry-run.json"
+
+step "Playwright: API refusals, desktop and phone flows, archive last"
 "${compose[@]}" run --rm --no-deps browser
 healthy
-check_logs "from the end of the database suite to after the page sweep" "$suite_done"
+check_logs "whole test run after strict start-up check" "$startup_done" refusals
 
 failed=0
 step "PASSED"

@@ -9,8 +9,10 @@
  *   answered here with an empty one: the pages fall back to their system fonts.
  */
 import { test as base, expect } from '@playwright/test'
+import { withCleanup, type Cleanup } from './api'
 
-export const test = base.extend<{ problems: string[] }>({
+export const test = base.extend<{ problems: string[]; cleanup: Cleanup }>({
+  cleanup: async ({ request }, use) => withCleanup(request, use),
   problems: [
     async ({ page, context }, use) => {
       const problems: string[] = []

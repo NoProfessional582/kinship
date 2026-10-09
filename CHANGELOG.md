@@ -8,6 +8,14 @@ All notable changes to Kinship are recorded here. The format follows
 
 ### Added
 
+- Browser flow tests on desktop and phone for contacts and avatars, tagged notes with
+  mentions, projects, board moves, calendar events, settings, search and trash. A CDP
+  CPU guard checks the board stays idle after closing New task.
+- Archive download/restore tests and a fictional legacy `kb-archive` v1 fixture, with a
+  command-line dry run that checks the database stays unchanged before import.
+- Strict per-service test log checks with exact allowances for intentional API and
+  database refusals; startup and page-sweep logs still allow no errors.
+
 - Kinship as a standalone app: one `compose.yaml` runs its own PostgreSQL 18
   database, a one-shot migration job and the web app, and keeps everything in
   `./data`.

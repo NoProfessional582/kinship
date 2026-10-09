@@ -23,6 +23,7 @@ export default defineConfig({
   outputDir: 'test-results',
   use: {
     baseURL: BASE_URL,
+    timezoneId: 'UTC',
     trace: 'retain-on-failure',
   },
   projects: [
