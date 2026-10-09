@@ -29,3 +29,9 @@ All notable changes to Kinship are recorded here. The format follows
 - Next.js 16.3.8 (from 16.3.3), which fixes a critical advisory in `next/og`
   ImageResponse, used to draw the app icons, and a high one in image
   optimization.
+- Dependency fixes inside their current version ranges: sharp 0.35.5 (a
+  librsvg advisory in its bundled libvips), source-map-js 1.2.2, fast-uri 3.1.8
+  and, for the tests only, undici 7.30.0.
+- npm `overrides` force mysql2 3.24.5 and deepmerge-ts 8.0.2 under the Prisma
+  7 command-line tool, which pins older versions with high advisories. They go
+  when Kinship moves to Prisma 8.
