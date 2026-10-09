@@ -2,7 +2,8 @@ node_modules
 .next
 .git
 .env
+.env.*
+data
 npm-debug.log
-README.md
 *.md
 scripts

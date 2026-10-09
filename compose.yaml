@@ -1,0 +1,83 @@
+# Kinship: one person's contacts, notes and tasks, on their own computer.
+#
+#   cp .env.example .env     # then fill it in
+#   docker compose up -d     # the first start builds the image and takes a few minutes
+#
+# Then open http://127.0.0.1:3000. Everything you store lives in ./data (README.md).
+name: kinship
+
+# How the app and the migrate job reach the database. The password goes into the
+# URL as-is, which is why .env.example asks for letters and digits only.
+x-database-url: &database-url postgresql://kinship:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/kinship
+
+services:
+  db:
+    image: postgres:18.6-trixie
+    environment:
+      POSTGRES_USER: kinship
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: kinship
+    volumes:
+      # Postgres 18 images keep the cluster in a versioned folder below this one
+      # (data/postgres/18/docker), which leaves room for a later major upgrade.
+      - ./data/postgres:/var/lib/postgresql
+    healthcheck:
+      # Over TCP on purpose: while the image initialises a new database it runs a
+      # temporary server on the socket only, and migrate connects over TCP.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U kinship -d kinship"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  # One-shot job: applies database migrations, then exits; `web` waits for it.
+  # It runs the image's builder stage, the only one with the Prisma CLI, which is
+  # also why the seed and archive commands run here (README.md).
+  migrate:
+    build:
+      context: .
+      target: builder
+    # Docker creates a missing ./data/uploads owned by root, and the web server
+    # runs as uid 1001 (Dockerfile), so it could not save avatars there. The guard
+    # (prisma/check-migrations.mjs) runs before any migration is applied.
+    command: >-
+      sh -c "chown -R 1001:1001 /app/public/uploads
+      || echo 'migrate: could not give data/uploads to uid 1001; avatar uploads may fail' >&2;
+      node prisma/check-migrations.mjs && node prisma/deploy-migrations.mjs"
+    environment:
+      DATABASE_URL: *database-url
+      KINSHIP_OWNER: ${KINSHIP_OWNER:?set KINSHIP_OWNER in .env}
+    volumes:
+      - ./data/uploads:/app/public/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+    environment:
+      DATABASE_URL: *database-url
+      KINSHIP_OWNER: ${KINSHIP_OWNER:?set KINSHIP_OWNER in .env}
+    ports:
+      # ⚠️ 127.0.0.1 only. Kinship has no sign-in: anyone who can reach this port
+      # can read and change everything in it.
+      - "127.0.0.1:${KINSHIP_PORT:-3000}:3000"
+    volumes:
+      - ./data/uploads:/app/public/uploads
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped

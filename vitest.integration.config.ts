@@ -1,7 +1,11 @@
 import { defineConfig } from 'vitest/config'
 import path from 'node:path'
 
-/** DB-backed suite. Requires a reachable DATABASE_URL. */
+/**
+ * DB-backed suite. Requires a reachable DATABASE_URL. With the compose stack
+ * running, this runs it inside the stack against its database:
+ *   docker compose run --rm migrate npm run test:integration
+ */
 export default defineConfig({
   test: {
     environment: 'node',

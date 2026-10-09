@@ -6,8 +6,8 @@ out
 coverage/
 
 # ---- Secrets & environment ----
-# .env holds the live DATABASE_URL. .env.example is the tracked template and is
-# deliberately re-included below.
+# .env holds your settings, including the database password. .env.example is the
+# tracked template and is deliberately re-included below.
 .env
 .env.*
 !.env.example
@@ -32,6 +32,8 @@ service-account*.json
 
 # ---- Personal / exported data ----
 # This is a personal CRM: uploads and exports contain real contact data.
+# compose.yaml keeps the database and the avatars in data/.
+/data/
 public/uploads/*
 !public/uploads/.gitkeep
 .linkedin-export/

@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1
 
+# Every stage runs on this one exact Node.js image.
+ARG NODE_IMAGE=node:24.21.0-alpine3.24
+
 # ---------- deps ----------
-FROM node:22-alpine AS deps
+FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund
@@ -9,7 +12,7 @@ RUN npm ci --no-audit --no-fund
 # ---------- builder ----------
 # Also serves as the image for the one-shot `migrate` service and for seeding,
 # because it is the only stage with the full toolchain (Prisma CLI, tsx).
-FROM node:22-alpine AS builder
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -20,7 +23,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate && npm run build
 
 # ---------- runner ----------
-FROM node:22-alpine AS runner
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -31,6 +34,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
+# uid 1001: compose.yaml's migrate job hands data/uploads to this user.
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
 COPY --from=builder /app/public ./public
