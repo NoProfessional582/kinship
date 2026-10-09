@@ -18,6 +18,23 @@ All notable changes to Kinship are recorded here. The format follows
   backups, restores and upgrades.
 - `GET /api/health`, used by the container health check.
 - MIT license.
+- `scripts/check.sh` runs the checks before a merge and stops at the first
+  failure. `quick`: format, lint, types, unit tests, the dependency audit, and
+  that compose publishes ports on `127.0.0.1` only. `privacy`: gitleaks on the
+  branch's commits and the working tree, and a sweep for personal data using a
+  private pattern list kept outside the repo.
+- `scripts/node.sh` runs npm in the Dockerfile's Node image, so the checks need
+  no Node on the host.
+- Prettier and ESLint (`npm run format`, `format:check`, `lint`). The whole
+  repo was formatted once; `.git-blame-ignore-revs` lets `git blame` skip that.
+- `upstream.yaml` lists the pinned pieces: the Node image, Postgres, Next.js
+  and the npm lockfile.
+
+### Changed
+
+- `npm run lint` runs ESLint 9 with Next.js's rules, since Next.js 16 no longer
+  has `next lint`.
+- `@types/node` 24, to match Node 24.
 
 ### Fixed
 
