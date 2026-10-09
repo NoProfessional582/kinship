@@ -54,9 +54,9 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  for (const f of await listUploads()) {
-    if (f.startsWith('__archtest_')) await rm(path.join(UPLOAD_DIR, f), { force: true })
-  }
+  // The whole folder belongs to this run's test owner, including any upload an
+  // import under test wrote with a name of its own choosing.
+  await rm(UPLOAD_DIR, { recursive: true, force: true })
   await prisma.$disconnect()
 })
 

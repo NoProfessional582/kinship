@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { prisma } from '@/lib/db'
 import { getBoard, getTask, moveTask } from '@/lib/services/tasks'
 import { restore, softDelete, deleteEdgesFor } from '@/lib/services/trash'
@@ -70,6 +70,14 @@ afterAll(async () => {
 })
 
 describe('moveTask — ordering on a filtered board (K05)', () => {
+  // Each spec gets a column of its own. They seed fixed positions (1000, 2000,
+  // ...), so in a shared column they tie with earlier specs' cards, Postgres
+  // returns equal positions in no fixed order, and a spec passed or failed by
+  // chance.
+  beforeEach(() => {
+    columnId = ''
+  })
+
   it('honours the drop slot when a hidden project interleaves the column', async () => {
     // Stored order: hidden, hidden, A, B. The board filtered to "visible" shows
     // only A then B, so dragging A below B is visible index 1.

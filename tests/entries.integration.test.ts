@@ -9,7 +9,7 @@ import { CONTACT_MENTION, ENTITY_REF } from '@/lib/tiptap/nodes'
 /**
  * Exercises the save transaction against a real database. Run inside the
  * compose network, where DATABASE_URL points at the db service:
- *   docker compose run --rm migrate npx vitest run tests/entries.integration.test.ts
+ *   docker compose run --rm migrate npm run test:integration -- tests/entries.integration.test.ts
  */
 const MARK = `__itest_${Date.now()}__`
 const OWNER = `${MARK}owner`
@@ -63,6 +63,9 @@ afterAll(async () => {
   await prisma.contact.deleteMany({ where: byName })
   await prisma.task.deleteMany({ where: byTitle })
   await prisma.project.deleteMany({ where: byProject })
+  // Creating a task also creates its owner's default board columns, and every
+  // column of this run's test owner is one this file made.
+  await prisma.boardColumn.deleteMany({ where: { owner: OWNER } })
 
   await Promise.all([
     deleteEdgesFor('entry', id(entries)),
