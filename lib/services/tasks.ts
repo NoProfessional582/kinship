@@ -3,9 +3,14 @@ import { uniqueSlug } from '../slug'
 import { positionBetween, positionForIndex } from '../fractional-index'
 import type { UpsertTaskInput } from '../validation'
 import { appendPosition, defaultColumnId, ensureColumns, renormalizeColumn } from './board'
-import type { TaskStatus } from '@prisma/client'
+import type { Prisma, TaskStatus } from '@prisma/client'
 import { resolveTagIds } from './tags'
 import { softDelete } from './trash'
+
+// Position, then id, like the board: two subtasks at one position always come
+// back in the same order. Typed outside `taskDetail`, whose `as const` would
+// make the list read-only, which Prisma does not accept.
+const subtaskOrder: Prisma.TaskOrderByWithRelationInput[] = [{ position: 'asc' }, { id: 'asc' }]
 
 export const taskDetail = {
   project: { select: { id: true, slug: true, name: true, color: true } },
@@ -21,7 +26,7 @@ export const taskDetail = {
     // looked at it. Trash still holds it, and restoring still brings it back.
     where: { deletedAt: null },
     select: { id: true, slug: true, title: true, status: true, dueDate: true, priority: true },
-    orderBy: { position: 'asc' as const },
+    orderBy: subtaskOrder,
   },
   _count: { select: { subtasks: { where: { deletedAt: null } }, refs: true } },
 } as const
@@ -78,7 +83,7 @@ export async function getBoard(owner: string, projectId: string | null) {
       ...(projectId ? { projectId } : {}),
     },
     include: taskDetail,
-    orderBy: { position: 'asc' },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
   })
   return { columns, tasks }
 }
@@ -193,7 +198,7 @@ export async function moveTask(
       await tx.project.findFirstOrThrow({ where: { id: projectId, owner }, select: { id: true } })
     const siblings = await tx.task.findMany({
       where: { owner, columnId, parentTaskId: null, deletedAt: null, NOT: { id: taskId } },
-      orderBy: { position: 'asc' },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
       select: { id: true, position: true },
     })
 

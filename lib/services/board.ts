@@ -30,7 +30,7 @@ export const DEFAULT_COLUMNS = [
 export async function ensureColumns(tx: Tx, owner: string) {
   const existing = await tx.boardColumn.findMany({
     where: { owner, projectId: null },
-    orderBy: { position: 'asc' },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
   })
   if (existing.length > 0) return existing
 
@@ -44,7 +44,7 @@ export async function ensureColumns(tx: Tx, owner: string) {
   })
   return tx.boardColumn.findMany({
     where: { owner, projectId: null },
-    orderBy: { position: 'asc' },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
   })
 }
 
@@ -58,7 +58,7 @@ export async function defaultColumnId(tx: Tx, owner: string): Promise<string> {
 export async function appendPosition(tx: Tx, owner: string, columnId: string): Promise<number> {
   const last = await tx.task.findFirst({
     where: { owner, columnId, deletedAt: null },
-    orderBy: { position: 'desc' },
+    orderBy: [{ position: 'desc' }, { id: 'desc' }],
     select: { position: true },
   })
   return last ? last.position + STEP : STEP
@@ -71,7 +71,7 @@ export async function appendPosition(tx: Tx, owner: string, columnId: string): P
 export async function renormalizeColumn(tx: Tx, owner: string, columnId: string): Promise<void> {
   const tasks = await tx.task.findMany({
     where: { owner, columnId, deletedAt: null },
-    orderBy: { position: 'asc' },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
     select: { id: true, position: true },
   })
   if (!needsRenormalize(tasks.map((t) => t.position))) return

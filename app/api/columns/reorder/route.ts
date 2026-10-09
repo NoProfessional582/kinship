@@ -17,7 +17,7 @@ export async function PATCH(req: Request) {
     )
     return prisma.boardColumn.findMany({
       where: { owner, projectId: null },
-      orderBy: { position: 'asc' },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
     })
   })
 }

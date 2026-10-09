@@ -47,6 +47,8 @@ All notable changes to Kinship are recorded here. The format follows
   server's and the browser's time zone data disagree.
 - The app image no longer carries the source code: two avatar file paths, known
   only at run time, made the build copy the whole project into it.
+- Board cards, subtasks and columns that share a position always come back in
+  the same order (by id), instead of whichever order the database chose.
 
 ### Security
 

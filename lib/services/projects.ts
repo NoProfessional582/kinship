@@ -62,9 +62,9 @@ export async function getProject(owner: string, idOrSlug: string) {
           },
           column: true,
         },
-        orderBy: { position: 'asc' },
+        orderBy: [{ position: 'asc' }, { id: 'asc' }],
       },
-      columns: { orderBy: { position: 'asc' } },
+      columns: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
     },
   })
 }

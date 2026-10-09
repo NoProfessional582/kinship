@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { prisma } from '@/lib/db'
+import { ensureColumns } from '@/lib/services/board'
 import { getBoard, getTask, moveTask } from '@/lib/services/tasks'
 import { restore, softDelete, deleteEdgesFor } from '@/lib/services/trash'
 
@@ -69,7 +70,7 @@ async function visibleOrder(projectKey: string) {
       deletedAt: null,
       parentTaskId: null,
     },
-    orderBy: { position: 'asc' },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
     select: { title: true },
   })
   return rows.map((r) => r.title.replace(MARK, ''))
@@ -206,5 +207,57 @@ describe('taskDetail — soft-deleted subtasks (K06)', () => {
     expect(card).toBeTruthy()
     expect(card!.subtasks).toHaveLength(0)
     expect(card!._count.subtasks).toBe(0)
+  })
+})
+
+describe('board order — equal positions', () => {
+  // Each spec stores two rows at one position, in the opposite order to their
+  // ids. Ordered by position alone, Postgres may return them either way, and
+  // usually returns them as stored; ordered by position then id, never.
+  beforeEach(() => {
+    columnId = ''
+  })
+
+  it('returns two cards at one position in id order', async () => {
+    const b = await task('tie-b', 1000, 'tie', { id: `${MARK}tie-b` })
+    const a = await task('tie-a', 1000, 'tie', { id: `${MARK}tie-a` })
+
+    const board = await getBoard(OWNER, await project('tie'))
+    const cards = board.tasks.filter((t) => t.columnId === columnId).map((t) => t.id)
+    expect(cards).toEqual([a.id, b.id])
+  })
+
+  it('returns two subtasks at one position in id order', async () => {
+    const parent = await task('tie-parent', 1000, 'tie')
+    const b = await task('tie-sub-b', 2000, 'tie', {
+      id: `${MARK}tie-sub-b`,
+      parentTaskId: parent.id,
+    })
+    const a = await task('tie-sub-a', 2000, 'tie', {
+      id: `${MARK}tie-sub-a`,
+      parentTaskId: parent.id,
+    })
+
+    const detail = await getTask(OWNER, parent.id)
+    expect(detail!.subtasks.map((s) => s.id)).toEqual([a.id, b.id])
+  })
+
+  it('returns two columns at one position in id order', async () => {
+    const owner = `${MARK}tie-columns`
+    for (const key of ['b', 'a']) {
+      await prisma.boardColumn.create({
+        data: {
+          id: `${MARK}tie-col-${key}`,
+          owner,
+          name: `${MARK}tie-col-${key}`,
+          status: 'TODO',
+          position: 1000,
+          projectId: null,
+        },
+      })
+    }
+
+    const columns = await ensureColumns(prisma, owner)
+    expect(columns.map((c) => c.id)).toEqual([`${MARK}tie-col-a`, `${MARK}tie-col-b`])
   })
 })
