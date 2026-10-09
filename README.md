@@ -1,278 +1,253 @@
-# Knowledge Base & Relationship Manager
+# Kinship
 
-A self-hosted, single-user web app that unifies three things that normally live in
-separate tools:
+A self-hosted, single-user web app that keeps three things together that normally
+live in separate tools:
 
-- **Who you know** — contact dossiers: channels with a preferred one, position history, milestones, links, personal context and notes
-- **What was said** — notes, calls, emails, texts and meetings in one typed timeline
-- **What's owed** — Kanban tasks nested under projects
+- **Who you know**: contact dossiers with channels (and a preferred one), position
+  history, milestones, links, personal context and notes
+- **What was said**: notes, calls, emails, texts and meetings in one timeline
+- **What's owed**: Kanban tasks, grouped into projects
 
-The binding mechanism is **inline tagging**. You write naturally, type `@` to
-reference a person and `[[` to reference a task or project. Tagging something
-that doesn't exist yet creates it on the spot, and a post-save modal queue walks
-you through filling in each new entity one at a time — so capture is never
+The glue is **inline tagging**. You write naturally, type `@` to mention a person
+and `[[` to reference a task or project. Tagging something that doesn't exist yet
+creates it on the spot, and after you save, a short queue walks you through
+filling in each new person, task or project, so capturing a thought is never
 interrupted by data entry.
 
 No cloud, no telemetry, no sign-in. Kinship is for one person on their own
-machine: everything is stored under the single owner named by `KINSHIP_OWNER`.
+computer: everything is stored under the single owner named by `KINSHIP_OWNER`.
 
-> **Pre-release.** This repo is not ready for use yet; the first release is 0.1.0.
->
+> **Pre-release.** Kinship is not ready for everyday use yet; the first release
+> will be 0.1.0.
+
 > **Never expose Kinship to a network.** It has no sign-in, so anyone who can
-> reach it has full access to your data. Keep its port on `127.0.0.1`.
+> reach it can read and change everything in it. It listens on `127.0.0.1` only;
+> keep it that way, and don't put it behind a reverse proxy or a tunnel.
 
-**Your data is not in git.** Nothing in this repo holds a contact, an entry or an
-avatar; see [Moving to another machine](#moving-to-another-machine) for the one
-thing that does.
+Screenshots will come with the first release.
 
 ---
 
-## Running it
+## Quick start
 
-Copy `.env.example` to `.env`, fill in `KINSHIP_OWNER` and `DATABASE_URL`, then
-start it with Docker Compose. Full setup instructions arrive with the first
-release.
-
-## Moving to another machine
-
-Your data lives in two places Docker owns: the `pgdata` volume and the `uploads`
-volume. An **archive** is one JSON file holding both — every row of every table,
-plus the avatar images, which sit on the filesystem rather than in the database
-and a database-only move would silently leave behind.
-
-> **A GitHub repo is not a backup of your data.** Cloning this repo onto a new
-> machine gives you a working app and an empty database. The archive below is
-> the only thing that carries your contacts, entries and avatars across, and it
-> is deliberately gitignored (`kb-archive-*.json`) so it can never be committed
-> by accident. Treat pushing code and exporting data as two separate habits.
-
-### The move, end to end
-
-1. **On the new machine**, get the code there and start it:
-
-   ```bash
-   git clone https://github.com/NoProfessional582/kinship.git
-   cd kinship
-   cp .env.example .env      # then fill it in, using the same KINSHIP_OWNER
-   docker compose up -d --build
-   ```
-
-   The database it creates is empty but fully migrated. Use the same
-   `KINSHIP_OWNER` as on the old machine: every record is stored under it.
-2. **On the old machine**, write the archive:
-   `npm run --silent export > kb-archive.json`
-3. Move that one file across however you like — `scp`, a USB stick, a synced
-   folder. It is plain JSON and holds everything.
-4. **On the new machine**, look before you leap, then restore:
-   `npm run import < kb-archive.json`, then
-   `npm run import -- --replace < kb-archive.json`
-5. Open `http://localhost:2002` and check the dashboard, a contact with a photo,
-   and a search. Then, and only then, retire the old machine.
-
-Do the import on the **new** machine. Nothing in the tooling can tell which end
-of the move you are standing on, and it replaces everything it finds.
-
-### The commands, in detail
-
-On the old machine:
+You need [Docker](https://docs.docker.com/get-docker/) with the Compose plugin
+(`docker compose`) and git.
 
 ```bash
-npm run --silent export > kb-archive.json
+git clone https://github.com/NoProfessional582/kinship.git
+cd kinship
+cp .env.example .env
 ```
 
-`--silent` is load-bearing: without it npm prints its banner to stdout and into
-the file. The archive travels on stdout rather than to a path argument because a
-path would be a path *inside the container*, and anything the container wrote to
-a bind mount would come out root-owned. Redirecting
-on the host means your shell creates the file, so you own it.
-
-On the new machine, bring the stack up first so the migrations run, then restore:
+Open `.env` and fill in the two required settings (see [Settings](#settings)):
 
 ```bash
-docker compose up -d --build
-npm run import < kb-archive.json                  # says what it would do, changes nothing
-npm run import -- --replace < kb-archive.json     # does it
+POSTGRES_PASSWORD=   # letters and digits; `openssl rand -hex 24` makes a good one
+KINSHIP_OWNER=me     # any fixed name; keep it once you start
 ```
 
-Or do the same thing from **Settings → Data** in the browser: *Download archive*
-on the old machine, then *Choose archive* on the new one, type `replace`, and
-*Replace everything*.
-
-Both flags together, for the case where the two machines are on different
-migrations and you have decided to proceed anyway:
+Then start it:
 
 ```bash
-npm run import -- --replace --force < kb-archive.json
+docker compose up -d
 ```
 
-### Over HTTP, if you would rather script it
+The first start builds the app from source, which takes a few minutes. When
+`docker compose ps` shows `db` and `web` as healthy, open
+**http://127.0.0.1:3000**. (`migrate` is a one-shot job: it sets up the database,
+then exits, so it isn't listed.)
+
+To look around with some demo people, notes and tasks first:
+
+```bash
+docker compose run --rm migrate npm run db:seed
+```
+
+The seed only fills an empty database; it does nothing once you have contacts.
+
+Stop Kinship with `docker compose down`. Your data stays in `./data` and is
+there again on the next `docker compose up -d`.
+
+## Settings
+
+All settings live in `.env`, next to `compose.yaml`.
+
+| Setting | Required | What it does |
+|---|---|---|
+| `POSTGRES_PASSWORD` | yes | Password for Kinship's own database. Use letters and digits only: it goes into a connection string as-is. The database keeps the password it was created with, so set it before the first start (to change it later, see below). |
+| `KINSHIP_OWNER` | yes | The single owner's name, for example `me`. Every record is stored under it, so changing it later hides your existing data rather than moving it. Kinship refuses to start without it. |
+| `KINSHIP_PORT` | no | The port Kinship answers on, on this computer only. Default `3000`. It is always bound to `127.0.0.1`. |
+
+Time zones need no setting: times show in your browser's zone, or in the zone you
+pick under **Settings → Timezone**. The containers run on UTC on purpose.
+
+To change the database password after the first start, change it inside the
+database too, then restart:
+
+```bash
+docker compose exec db psql -U kinship -d kinship -c "ALTER USER kinship PASSWORD 'new-password'"
+# put the same value in .env as POSTGRES_PASSWORD, then:
+docker compose up -d
+```
+
+## Where your data lives
+
+| Folder | Holds |
+|---|---|
+| `data/postgres` | the database |
+| `data/uploads` | contact photos |
+
+Both belong to the containers' users, not to you, so reading or deleting them
+directly needs `sudo`. `docker compose down` never touches them. Deleting
+`data/` (with Kinship stopped) deletes everything.
+
+**Your data is never in git.** `data/` and archives are in `.gitignore`. Pushing
+code and backing up data are two separate habits.
+
+## Backups and restores
+
+The simplest backup is an **archive**: one JSON file holding every record and
+every contact photo. Photos sit on disk rather than in the database, so a
+database-only backup would leave them behind.
+
+### Make an archive
+
+From the `kinship` folder:
+
+```bash
+docker compose run --rm -T migrate npm run --silent export > kinship-archive-$(date +%F).json
+```
+
+`--silent` and `-T` keep npm's banner and terminal control characters out of the
+file. Or use **Settings → Data → Download archive** in the browser.
+
+### Restore an archive
+
+**A restore replaces everything** stored under your `KINSHIP_OWNER` with the
+archive's contents. Look first, then restore:
+
+```bash
+# says what it would replace, changes nothing
+docker compose run --rm -T migrate npm run --silent import < kinship-archive-2026-10-09.json
+
+# does it
+docker compose run --rm -T migrate npm run --silent import -- --replace < kinship-archive-2026-10-09.json
+
+# hands the restored photos to the web server, which cannot save new ones until then
+docker compose up -d
+```
+
+Or use **Settings → Data → Choose archive** in the browser, type `replace`, and
+choose *Replace everything*.
+
+Both sides have to be on the same database migrations. The archive records which
+ones it was made with, and a restore that does not match refuses and names the
+difference. Adding `--force` (or *Import anyway* in the browser) restores anyway:
+columns added since the export take their defaults, and columns dropped since
+are discarded.
+
+### Over HTTP, from the same computer
 
 The browser panel is a thin wrapper over two routes, and `curl` can drive them:
 
 ```bash
-curl -sO -J http://localhost:2002/api/export        # -J takes the filename from the response
+curl -sOJ http://127.0.0.1:3000/api/export     # saves the archive under its suggested name
 
-curl -X POST 'http://localhost:2002/api/import?confirm=replace' \
+curl -X POST 'http://127.0.0.1:3000/api/import?confirm=replace' \
      -H 'Content-Type: application/json' \
-     --data-binary @kb-archive.json
+     --data-binary @kb-archive-2026-10-09-12-00-00.json
 ```
 
-The body is the archive and nothing else, so the file goes up as-is. Add
-`&force=1` to waive the migration check.
+`confirm=replace` is required and cannot be turned off: with no sign-in, the only
+thing between a stray POST and all your data is that the caller had to spell out
+what it was asking for. Add `&force=1` to waive the migration check.
 
-`confirm=replace` is required and there is no way to turn it off. This app has
-no authentication — it is not meant to — so the only thing between a stray POST
-and every row in the database is that the caller had to spell out what it was
-asking for.
+### Moving to another computer
 
-### What import does
+1. On the new computer, follow the [Quick start](#quick-start). The database it
+   creates is empty but fully set up.
+2. On the old computer, [make an archive](#make-an-archive) and copy the file
+   across however you like.
+3. On the new computer, [restore it](#restore-an-archive). Everything is stored
+   under the new computer's `KINSHIP_OWNER`.
+4. Check a contact with a photo and a search, and only then retire the old
+   computer.
 
-**It replaces everything.** Every table is truncated and rebuilt inside one
-transaction, so a failure part-way leaves the database exactly as it was — but a
-success leaves nothing of whatever was there before.
+Do the restore on the **new** computer: nothing can tell which end of the move
+you are on, and a restore replaces what it finds.
 
-There is no merge mode, and that is deliberate. Rows keep their original ids, so
-every `@mention`, every `[[ref]]` and every `EntityEdge` endpoint — which is a
-bare `(type, id)` pair with no foreign key behind it — still points at the same
-thing on the far side. No blend of two databases can honour that.
+### Copying the data folder instead
 
-Both sides have to be on the same migrations. The archive records which ones the
-old machine had applied; an import that does not match refuses and names the
-difference. `--force`, or *Import anyway* in the UI, overrides that: columns
-added since the export take their defaults, and columns dropped since are
-discarded.
-
-Uploads are written before the transaction opens, on purpose. A crash between
-the two leaves unreferenced images on disk, which cost a few kilobytes; the
-other order leaves restored contacts pointing at avatars that were never
-written. For the same reason, files already on the new machine that the archive
-does not mention are left alone rather than swept.
-
-### What it does not carry, and why that is right
-
-The `searchVector` columns, the GIN and trigram indexes, and the
-`_prisma_migrations` ledger are all absent from the archive. They belong to the
-migrations rather than to the data: `searchVector` is `GENERATED ALWAYS`, so
-Postgres refuses a value for it and repopulates it from the restored rows on its
-own. Full-text search works on the new machine the moment the import finishes —
-see [Full-text search](#full-text-search).
-
-`pg_dump` is the alternative, and a reasonable one between identical Postgres
-versions, but it carries none of the avatars and the `uploads` volume then has
-to be moved by hand.
-
-### Verifying a restore without risking real data
-
-The archive round trip can be checked end to end against a scratch database in
-the same Postgres container, leaving `kb` untouched:
+A full copy of `data/` also works, as long as Kinship is stopped while you copy
+it:
 
 ```bash
-docker compose exec db psql -U kb -d postgres -c 'CREATE DATABASE kb_check OWNER kb;'
-SCRATCH='postgresql://kb:kb@db:5432/kb_check'
-docker compose run --rm --no-deps -T -e DATABASE_URL="$SCRATCH" migrate npx prisma migrate deploy
-
-npm run --silent export > /tmp/a.json
-docker compose run --rm --no-deps -T -e DATABASE_URL="$SCRATCH" \
-  -v "$PWD/lib":/app/lib -v "$PWD/prisma":/app/prisma \
-  migrate npx tsx prisma/archive.ts import --replace < /tmp/a.json
-docker compose run --rm --no-deps -T -e DATABASE_URL="$SCRATCH" \
-  -v "$PWD/lib":/app/lib -v "$PWD/prisma":/app/prisma \
-  migrate npx tsx prisma/archive.ts export > /tmp/b.json
-
-diff <(grep -v exportedAt /tmp/a.json) <(grep -v exportedAt /tmp/b.json) && echo identical
+docker compose down
+sudo tar -czf kinship-data-$(date +%F).tar.gz data
+docker compose up -d
 ```
 
-Rows come out of an export in a stable order precisely so that this diff is
-meaningful. Drop the database again with
-`docker compose exec db psql -U kb -d postgres -c 'DROP DATABASE kb_check;'`.
+Restore it by stopping Kinship, replacing `data/` with the copy, and starting it
+again. Unlike an archive, this only works with the same database version and the
+same `KINSHIP_OWNER`.
 
-There is no browser suite for import, and there should not be: every other suite
-in this repo is written to coexist with real data, and one that truncates every
-table cannot be.
+## Upgrading
 
----
+```bash
+docker compose run --rm -T migrate npm run --silent export > kinship-archive-before-upgrade.json
+git pull
+docker compose up -d --build
+docker compose logs migrate
+```
 
-## Event categories
+Database changes apply by themselves on every `docker compose up`, before the app
+starts, and keep your data. The last command shows what was applied ("No pending migrations"
+when nothing was). Read `CHANGELOG.md` before upgrading across a major version.
 
-`occurredAt` answers two different questions. On a note typed just now it is a
-filing date; on a meeting next Tuesday it is an appointment. Treating both as
-calendar events is what put every note on the grid.
+## Development
 
-`lib/calendar-categories.ts` is the single vocabulary — six categories, one
-label and one colour each — shared by the month grid, the Today brief, the
-dashboard's Next up and the contact dossier:
+You need Node.js 24 and a Postgres you can reach. The compose stack does not
+publish its database port, so for `npm run dev` use a Postgres of your own, with
+`DATABASE_URL` and `KINSHIP_OWNER` in your environment or in `.env`.
 
-| Category | What lands in it |
-| --- | --- |
-| `scheduled` | **Any** entry dated in the future, whatever its kind |
-| `meeting` | A past meeting, call or in-person — it occupied a slot |
-| `followup` | An entry's `followUpAt` |
-| `deadline` | A task's due date, and a project's start/target dates |
-| `milestone` | Birthdays and dated personal milestones |
-| `log` | A past note, email, text or DM — a record, not an appointment |
+```bash
+npm ci
+npm run dev          # http://127.0.0.1:3000
+npm run typecheck
+npm test             # unit tests, no database needed
+```
 
-`log` is the only category off by default on the calendar, and the only one the
-day views never show. The chip choice persists in `kb.calendar.categories`.
+The integration tests need a database. With the stack running, this runs them
+inside it, against its database:
 
-Hovering a month cell tints it; clicking one pins the right-hand rail to that
-day, which is why the rail heading becomes the weekday and offers a way back to
-today. The ring is painted straight onto the cell's `data-date`, not through
-`dayCellClassNames` — FullCalendar only re-runs that hook when it re-renders the
-view, so a prop change alone would leave the ring on the previous day.
+```bash
+docker compose build migrate     # after changing code: the tests run from that image
+docker compose run --rm migrate npm run test:integration
+```
 
-That module deliberately imports nothing. It used to live in
-`lib/services/calendar.ts` next to the Prisma queries, and importing a category
-name from a client component pulled `pg` into the browser bundle — the build
-fails with `Module not found: Can't resolve 'dns'`.
+They create and remove their own records under throwaway owners, but run them
+against a development copy, not the database holding your real data.
 
----
-
-## Architecture
+### Architecture
 
 | Layer | Choice |
 |---|---|
 | Framework | Next.js 16.3 App Router, `output: 'standalone'` |
 | UI | React 19.2, Tailwind CSS v4, Radix primitives |
-| Data | Prisma 7.9 + PostgreSQL 17 (via `@prisma/adapter-pg`) |
-| Editor | TipTap 3.30 with two `@tiptap/suggestion` instances |
-| Drag & drop | dnd-kit |
+| Data | Prisma 7.9 and PostgreSQL 18 (through `@prisma/adapter-pg`) |
+| Editor | TipTap 3.31 with two `@tiptap/suggestion` instances |
+| Drag and drop | dnd-kit |
 | Calendar | FullCalendar 6.1.21 |
+
+`compose.yaml` runs three services: `db` (Postgres), `migrate` (a one-shot job
+that applies migrations, then exits) and `web` (the app), which starts only after
+`migrate` has finished successfully.
 
 ### One pinning hazard
 
 **FullCalendar must stay at 6.1.21 across every package.** `core` and `react`
-publish a 7.x `latest`, but `daygrid`/`timegrid`/`list`/`interaction` do not, and
-FullCalendar fails at runtime on mixed versions.
-
-### One measure, one rail, one board, one composer
-
-Four things are deliberately singular, because each of them was previously two:
-
-- **Page width.** Every page sits on `--page-max` (`app/globals.css`). Notes,
-  settings and trash used to have a narrower "reading" measure of their own,
-  which meant the content edge moved when you switched pages.
-- **The shell.** The sidebar is *inside* the centred block, not pinned to the
-  window (`.kb-shell`, sized to `--page-max + --rail-w`). On an ultrawide the
-  app centres as one piece rather than stranding navigation on the far bezel.
-- **The board.** There is one set of `BoardColumn` rows, all with
-  `projectId: null`; a project page is that board filtered to the project's
-  cards. Per-project column sets were the bug behind "no tasks in this project
-  yet" on a project whose cards the board was showing at the time — the cards
-  sat in global columns while the project page created empty ones of its own.
-  `BoardColumn.projectId` still exists in the schema, unused, so removing it
-  needs no migration (see the FTS warning below for why that matters).
-- **The composer.** `UnifiedComposer` renders the dark capture card everywhere.
-  It used to take a `variant`, and the light "panel" skin on the notes page made
-  one feature look like two. Both places share the draft under
-  `kb.composer.hero`.
-
-### Native dropdowns need explicit colours
-
-A `<select>` popup is painted by the browser out of the control's own
-background and colour, so the translucent field skin on the dark capture card
-came out as white text on a white menu. `:root`/`.dark` declare `color-scheme`,
-and `select option` is given an opaque background and colour explicitly —
-Tailwind classes on the `<select>` cannot reach inside the popup.
+publish a 7.x `latest`, but `daygrid`, `timegrid`, `list` and `interaction` do
+not, and FullCalendar fails at runtime on mixed versions.
 
 ### How inline tagging works
 
@@ -287,13 +262,13 @@ On save, `lib/services/entries.ts` runs one transaction that:
 3. inserts the entry, its mentions and its refs
 4. moves `lastContactAt` forward (never backward) for mentioned contacts
 
-Doing the rewrite server-side *inside* the transaction is what guarantees a
+Doing the rewrite on the server, *inside* the transaction, is what guarantees a
 failed save leaves no orphan contacts and no body pointing at rolled-back rows.
 `tests/entries.integration.test.ts` asserts exactly that.
 
 Typing `@Sarah` twice and choosing "create" both times reuses the same
-provisional id — one contact, two mentions — by reading it back off the
-document, which stays correct across undo, redo and paste.
+provisional id (one contact, two mentions) by reading it back off the document,
+which stays correct across undo, redo and paste.
 
 ### Contact dossier
 
@@ -303,65 +278,94 @@ adding a channel is data rather than a migration. At most one channel per contac
 carries `isPreferred`, enforced in the service rather than by a constraint.
 
 Positions are the source of truth for what someone does now: the one flagged
-`isCurrent` is what `company`/`jobTitle` on Contact are derived from on every
-write. Those columns stay denormalized because the FTS vector, the contact list
-and the mention dropdown all read them as single-table lookups.
+`isCurrent` is what `company` and `jobTitle` on Contact are derived from on every
+write. Those columns stay denormalized because the search vector, the contact
+list and the mention dropdown all read them as single-table lookups.
 
-### Dates and timezones
+### One measure, one rail, one board, one composer
+
+Four things are deliberately singular, because each of them was once two:
+
+- **Page width.** Every page sits on `--page-max` (`app/globals.css`).
+- **The shell.** The sidebar is *inside* the centred block, not pinned to the
+  window (`.kb-shell`, sized to `--page-max + --rail-w`), so on an ultrawide the
+  app centres as one piece.
+- **The board.** There is one set of `BoardColumn` rows, all with
+  `projectId: null`; a project page is that board filtered to the project's
+  cards. `BoardColumn.projectId` still exists in the schema, unused, so removing
+  it needs no migration (see the search warning below for why that matters).
+- **The composer.** `UnifiedComposer` renders the dark capture card everywhere,
+  and both places share the draft under `kb.composer.hero`.
+
+A `<select>` popup is painted by the browser from the control's own background
+and colour, so the translucent field skin on the dark capture card came out as
+white text on a white menu. `:root` and `.dark` declare `color-scheme`, and
+`select option` gets an opaque background and colour explicitly.
+
+### Event categories
+
+`occurredAt` answers two different questions. On a note typed just now it is a
+filing date; on a meeting next Tuesday it is an appointment.
+`lib/calendar-categories.ts` is the single vocabulary, shared by the month grid,
+the Today brief, the dashboard's Next up and the contact dossier:
+
+| Category | What lands in it |
+| --- | --- |
+| `scheduled` | **Any** entry dated in the future, whatever its kind |
+| `meeting` | A past meeting, call or in-person: it occupied a slot |
+| `followup` | An entry's `followUpAt` |
+| `deadline` | A task's due date, and a project's start and target dates |
+| `milestone` | Birthdays and dated personal milestones |
+| `log` | A past note, email, text or DM: a record, not an appointment |
+
+`log` is the only category off by default on the calendar, and the only one the
+day views never show. That module deliberately imports nothing: importing a
+category name from a client component once pulled `pg` into the browser bundle.
+
+### Dates and time zones
 
 Every timestamp is stored in UTC (`timestamp without time zone`, written as UTC
 by Prisma; both containers run UTC). Display is a separate concern, controlled
-by a single-row `Settings.timezone` — null means "follow the browser", which is
-right for one person on one machine, while pinning an IANA zone matters when
-travelling or when the server does date maths on your behalf.
+by `Settings.timezone`: empty means "follow the browser", while pinning a zone
+matters when travelling.
 
 The distinction that matters is **instants versus calendar dates**:
 
-- *Instants* — `occurredAt`, `createdAt`, `lastContactAt`, `completedAt` — are
-  moments on the world clock, rendered *in* a zone via `formatInstant`. The same
-  stored instant reads as Aug 21 12:46 in Sydney and Aug 20 19:46 in Los Angeles.
-- *Calendar dates* — birthdays, position start/end, milestones, due dates — are
+- *Instants* (`occurredAt`, `createdAt`, `lastContactAt`, `completedAt`) are
+  moments on the world clock, rendered *in* a zone through `formatInstant`.
+- *Calendar dates* (birthdays, position start and end, milestones, due dates) are
   days on a wall calendar, with no time and no zone. They go through
-  `calendarDate`, which reads the Y/M/D parts directly. Zone-converting these is
-  exactly what once rendered a June 14th birthday as the 13th.
+  `calendarDate`, which reads the year, month and day directly. Converting these
+  between zones is exactly what once showed a June 14th birthday as the 13th.
 
-The trap is the third case: a **calendar-day question about now**. "Is this
-overdue", "how many days until", "is it today". `isPast` / `isToday` /
-`differenceInCalendarDays` against a bare `new Date()` answer in the *browser's*
-zone, which is a different day for part of every night. Use `useZonedToday()`:
-it returns today as a local-midnight `Date` — the same shape `calendarDate`
-produces, so the two compare directly. It is `null` until mounted; render
-nothing rather than guess.
+The trap is a **calendar-day question about now** ("is this overdue", "is it
+today"): `isPast`, `isToday` or `differenceInCalendarDays` against a bare
+`new Date()` answer in the *browser's* zone. Use `useZonedToday()`, which returns
+today as a local-midnight `Date`, the same shape `calendarDate` produces.
 
-A `datetime-local` input has no zone at all. It is wall time, and the browser
-neither knows nor cares whose wall. Both directions go through
-`toLocalInputValue` / `fromLocalInputValue`. Seeding one is also a race:
-`useTimezone()` answers `'UTC'` until the settings query lands, so a field
-filled once on first render keeps a UTC wall time forever — re-seed on zone
-change, guarded by a "has the writer touched it" ref.
+A `datetime-local` input has no zone at all, so both directions go through
+`toLocalInputValue` and `fromLocalInputValue`. FullCalendar needs
+`@fullcalendar/luxon3` to honour a named zone; without it, it silently falls back
+to UTC.
 
-FullCalendar needs `@fullcalendar/luxon3` to honour a named zone. Without it,
-handed `America/Los_Angeles` it silently falls back to UTC and draws every event
-at its UTC wall time — a 6:24pm call on the 11th shows up on the 12th.
-
-`npm run test:tz` guards all of it by driving the app with the browser in Los
-Angeles and the app pinned to Tokyo, sixteen hours apart.
+Anything that depends on the runtime's time zone data (the list of zones, a
+zone's current offset) is computed in the browser only: the server and the
+browser can disagree, which breaks hydration.
 
 ### Full-text search
 
 `Contact.searchVector` and `Entry.searchVector` are `GENERATED ALWAYS` tsvector
-columns with GIN indexes, plus `pg_trgm` indexes for fuzzy name matching — a
+columns with GIN indexes, plus `pg_trgm` indexes for fuzzy name matching, so a
 misspelled name still finds the right record. `array_to_string` is `STABLE`, not
-immutable, so Postgres rejects it in a generated column; the migration defines a
+immutable, so Postgres rejects it in a generated column; the migrations define a
 narrow `kb_array_to_string(text[])` wrapper, which genuinely is immutable.
 
 ### `prisma migrate dev` will try to drop full-text search
 
-Read this before generating a migration. `searchVector` on `Contact` and
-`Entry` is a `GENERATED ALWAYS` tsvector column created by hand in `0_init`,
-and the schema can only describe it as `Unsupported("tsvector")?`. Prisma
-therefore sees the column defaults, the two GIN indexes and the three trigram
-indexes as **drift**, and every generated migration begins by dropping them:
+Read this before generating a migration. The schema can only describe
+`searchVector` as `Unsupported("tsvector")?`, so Prisma sees the column defaults,
+the GIN indexes and the trigram indexes as **drift**, and every generated
+migration begins by dropping them:
 
 ```sql
 DROP INDEX "Contact_search_idx";
@@ -371,21 +375,22 @@ ALTER TABLE "Contact" ALTER COLUMN "searchVector" DROP DEFAULT;   -- fails
 ```
 
 The last statement errors (`column "searchVector" is a generated column`), so
-the migration fails — but the `DROP INDEX`es ahead of it are **not** rolled
-back, and neither is an `ALTER TYPE ... ADD VALUE`. That is how
-`5_restore_search_indexes` came to exist.
+the migration fails, but the `DROP INDEX`es ahead of it are **not** rolled back,
+and neither is an `ALTER TYPE ... ADD VALUE`. That is how
+`20260821194100_restore_search_indexes` came to exist.
 
 So: run `npm run db:migrate:create -- --name <slug>` (which is
-`prisma migrate dev --create-only`), delete everything from the generated SQL
-except the change you actually meant, and only then `migrate deploy`.
+`prisma migrate dev --create-only` and needs a disposable `SHADOW_DATABASE_URL`),
+delete everything from the generated SQL except the change you actually meant,
+and only then apply it.
 
-**This is now enforced, not just advised.** `prisma/check-migrations.mjs` runs
-inside the `migrate` container ahead of `prisma migrate deploy`, so a migration
-that drops any of the two generated columns, the six custom indexes, the
-`kb_array_to_string` function or the `pg_trgm` extension — without putting it
-back in the same migration — is refused before anything is applied, in dev, in
-CI and in production alike. Run it yourself with `npm run db:migrate:check`. Enum additions want `ADD VALUE IF NOT EXISTS`, since a
-retry after a failed migration otherwise hits `42710 enum label already
+**This is enforced, not just advised.** `prisma/check-migrations.mjs` runs in the
+`migrate` container ahead of `prisma migrate deploy`, so a migration that drops
+either generated column, any of the custom indexes, the `kb_array_to_string`
+function or the `pg_trgm` extension without putting it back in the same
+migration is refused before anything is applied. Run it yourself with
+`npm run db:migrate:check`. Enum additions want `ADD VALUE IF NOT EXISTS`, since
+a retry after a failed migration otherwise hits `42710 enum label already
 exists`. Afterwards, confirm the indexes are still there:
 
 ```bash
@@ -394,33 +399,34 @@ docker compose run --rm migrate \
     where indexname ilike '%search%' or indexname ilike '%trgm%';"
 ```
 
-### The archive is three modules, not one
+### The archive is three modules
 
-`lib/archive-format.ts` is the wire contract — the format marker, the version, and
+`lib/archive-format.ts` is the wire contract: the format marker, the version, and
 the shape of an import's answer. It imports nothing, because the settings page is
 a client component and can have neither a database nor `node:fs` in its bundle.
 
 `lib/archive-rows.ts` knows the schema: which tables in which foreign-key order,
 which columns are instants, which task has to be written before which. It reads
-its column lists from `Prisma.dmmf` rather than repeating them, so a column added
-to the schema is exported the day it lands — and it asserts that every model in
-the schema is accounted for, because a table forgotten there would be dropped
-from every archive without a word. Being free of both the database and the
-filesystem, it is covered by the ordinary unit suite (`tests/archive-rows.test.ts`).
+its column lists from `Prisma.dmmf`, so a column added to the schema is exported
+the day it lands, and it asserts that every model is accounted for. It is covered
+by the unit suite (`tests/archive-rows.test.ts`).
 
-`lib/services/archive.ts` knows the machine: it queries, truncates, and reads and
-writes the uploads directory.
-
-One ordering is hand-written rather than derived, and deliberately so: Prisma 7's
-slimmed DMMF no longer exposes `relationFromFields`, so the foreign-key dependency
-graph cannot be reconstructed at runtime. `MODEL_ORDER` states it, and a unit test
-checks the dependencies it claims.
+`lib/services/archive.ts` knows the machine: it queries, deletes the owner's rows
+and rebuilds them inside one transaction, and reads and writes the uploads
+folder. Uploads are written under fresh names before the transaction opens, and
+the restored contacts are pointed at them, so a failure part-way leaves the old
+data and the old photos exactly as they were. The `searchVector` columns, the
+indexes and the `_prisma_migrations` ledger are not in the archive: they belong
+to the migrations, and Postgres rebuilds `searchVector` from the restored rows.
 
 ### Migrations
 
-Migrations run as a one-shot `migrate` compose service built from the `builder`
-stage, which `web` waits on via `service_completed_successfully`. That keeps the
-Prisma CLI out of the runtime image instead of hand-picking its dependencies in.
+Migrations run in the one-shot `migrate` service, built from the image's
+`builder` stage, which `web` waits on (`service_completed_successfully`). That
+keeps the Prisma CLI out of the runtime image. Prisma 7 moved the database URL
+out of `schema.prisma` into `prisma.config.ts` and no longer loads `.env` by
+itself, which is why that file imports `dotenv/config`.
 
-Prisma 7 moved the datasource URL out of `schema.prisma` into `prisma.config.ts`
-and no longer auto-loads `.env`, which is why that file imports `dotenv/config`.
+## License
+
+[MIT](LICENSE)
