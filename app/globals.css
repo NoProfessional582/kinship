@@ -1,0 +1,772 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Every native control -- a select's popup, a date picker, a scrollbar -- is
+     painted by the browser rather than by us, and without a declared scheme the
+     browser assumes light: near-black menu text dropped onto our dark card. */
+  color-scheme: light;
+
+  /* Codex's Kinship palette: warm paper rather than white, terracotta as the
+     single accent, with moss and ochre for secondary signals. */
+  --paper: #f5f2eb;
+  --panel: #fcfaf6;
+  --line: #ddd8ce;
+  --soft: #ebe6dc;
+  --ink-raw: #22231f;
+  --muted-raw: #74746c;
+  --terracotta: #bd5b3f;
+  --terracotta-dark: #95432e;
+  --moss: #697760;
+  --ochre: #ba8a42;
+
+  --background: var(--paper);
+  --foreground: var(--ink-raw);
+  --card: var(--panel);
+  --card-foreground: var(--ink-raw);
+  --muted: var(--soft);
+  --muted-foreground: var(--muted-raw);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--terracotta);
+
+  --primary: var(--terracotta);
+  --primary-foreground: #fcfaf6;
+  --accent: #efe7de;
+  --accent-foreground: var(--terracotta-dark);
+
+  --destructive: #a8412c;
+  --success: var(--moss);
+  --warning: var(--ochre);
+  --pending: var(--ochre);
+
+  --tag-contact: #4a6572;
+  --tag-task: var(--moss);
+  --tag-project: var(--terracotta-dark);
+
+  /* Section accents, drawn from the same warm family so nothing shouts. */
+  --hue-1: var(--terracotta);
+  --hue-2: #4a6572;
+  --hue-3: var(--moss);
+  --hue-4: var(--ochre);
+  --hue-5: #8c5a4a;
+  --hue-6: #7a6a86;
+
+  /* ------------------------------------------------------------ Page width
+     One measure for the whole app. Notes, settings and trash used to sit on a
+     narrower reading measure, which meant the content edge jumped every time
+     you moved between them and the dashboard. A page is a floor, a fluid
+     middle, and a ceiling.
+
+     The fluid term is what stops an ultrawide monitor being mostly margin.
+     At 50vw the page takes *half* of every pixel the window gains and leaves
+     the other half as whitespace — filling the void completely would stretch a
+     three-column grid into billboards, and filling none of it is the problem
+     being fixed. The rem constant is tuned so the formula lands on the old
+     fixed widths at a ~1440px window: nothing moves on a laptop.
+
+     The floor is a guard, not a layout: a page is a block element, so below it
+     the page is simply as wide as the space it has and the max-width never
+     applies. That is what keeps narrow screens working.
+
+     The sidebar sits *inside* this measure (see --rail-w), so what an ultrawide
+     monitor centres is the whole app rather than a page with a navigation rail
+     stranded against the far edge. */
+  --page-max: clamp(60rem, 50vw + 31.5rem, 132rem);
+
+  /* The navigation rail's two widths, mirrored from the classes on the aside so
+     the shell around it can size itself to page + rail. */
+  --rail-collapsed: 3.5rem;
+  --rail-expanded: 13rem;
+
+  --radius: 0.875rem;
+  --shadow-card: 0 1px 2px rgba(50, 43, 31, .05), 0 6px 20px rgba(50, 43, 31, .07);
+  --shadow-lift: 0 2px 6px rgba(50, 43, 31, .1), 0 20px 60px rgba(50, 43, 31, .16);
+
+  /* Mirrors Codex's --font-scale, driven by the Settings page. */
+  --font-scale: 1;
+
+  --font-display: Newsreader, ui-serif, Georgia, serif;
+  --font-body: Manrope, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* The same world after dark: warm browns, never cold slate. */
+  --paper: #1e1c18;
+  --panel: #272420;
+  --line: #3c3830;
+  --soft: #322e28;
+  --ink-raw: #f1ece2;
+  --muted-raw: #a49c8e;
+  --terracotta: #d9825f;
+  --terracotta-dark: #e8a184;
+  --moss: #8fa383;
+  --ochre: #d6a75c;
+
+  --background: var(--paper);
+  --foreground: var(--ink-raw);
+  --card: var(--panel);
+  --card-foreground: var(--ink-raw);
+  --muted: var(--soft);
+  --muted-foreground: var(--muted-raw);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--terracotta);
+
+  --primary: var(--terracotta);
+  --primary-foreground: #1e1c18;
+  --accent: #3a342c;
+  --accent-foreground: var(--terracotta-dark);
+
+  --destructive: #e07a63;
+  --success: var(--moss);
+  --warning: var(--ochre);
+  --pending: var(--ochre);
+
+  --tag-contact: #8fb0c2;
+  --tag-task: var(--moss);
+  --tag-project: var(--terracotta-dark);
+
+  --hue-1: var(--terracotta);
+  --hue-2: #8fb0c2;
+  --hue-3: var(--moss);
+  --hue-4: var(--ochre);
+  --hue-5: #c98f7c;
+  --hue-6: #b3a3c0;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 20px rgba(0, 0, 0, .28);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, .4), 0 20px 60px rgba(0, 0, 0, .38);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-pending: var(--pending);
+  --breakpoint-3xl: 128rem;
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 7px);
+}
+
+* { border-color: var(--border); }
+
+html, body { height: 100%; }
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-size: calc(16px * var(--font-scale));
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Newsreader carries the headings; Manrope everything else. The serif is what
+   makes the app feel written-in rather than filled-in. */
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+.font-mono, code, kbd, .tabular {
+  font-family: var(--font-mono);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in oklch, var(--muted-foreground) 55%, transparent); background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* --------------------------------------------------------------- app shell */
+/* The rail's width, restated as a token so the shell can be exactly as wide as
+   page + rail. The bare value matches the aside's pure-CSS first paint (icons
+   under sm, labels above); the data attribute pins it once the stored
+   preference has resolved. */
+.kb-shell { --rail-w: var(--rail-collapsed); }
+@media (min-width: 40rem) { .kb-shell { --rail-w: var(--rail-expanded); } }
+.kb-shell[data-collapsed="true"] { --rail-w: var(--rail-collapsed); }
+.kb-shell[data-collapsed="false"] { --rail-w: var(--rail-expanded); }
+
+/* ------------------------------------------------------------ native menus */
+/* A select's popup is drawn by the browser out of the *control's* own colours,
+   and a translucent or dark background there lands as unreadable rows: on the
+   dark capture card the list came out white-on-white. Naming the option colours
+   is the only way to reach inside that menu. */
+select option,
+select optgroup {
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+/* ------------------------------------------------------------------ editor */
+
+.kb-editor .ProseMirror {
+  min-height: 9rem;
+  outline: none;
+  line-height: 1.7;
+}
+.kb-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.kb-editor .ProseMirror h1 { font-size: 1.5rem; font-weight: 650; margin: 0.8em 0 0.3em; }
+.kb-editor .ProseMirror h2 { font-size: 1.25rem; font-weight: 650; margin: 0.8em 0 0.3em; }
+.kb-editor .ProseMirror h3 { font-size: 1.1rem; font-weight: 600; margin: 0.7em 0 0.3em; }
+.kb-editor .ProseMirror p { margin: 0.4em 0; }
+.kb-editor .ProseMirror ul { list-style: disc; padding-left: 1.4em; margin: 0.4em 0; }
+.kb-editor .ProseMirror ol { list-style: decimal; padding-left: 1.4em; margin: 0.4em 0; }
+.kb-editor .ProseMirror blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.9em;
+  color: var(--muted-foreground);
+  margin: 0.6em 0;
+}
+.kb-editor .ProseMirror code {
+  background: var(--muted);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.kb-editor .ProseMirror pre {
+  background: var(--muted);
+  padding: 0.8em 1em;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin: 0.6em 0;
+}
+.kb-editor .ProseMirror pre code { background: none; padding: 0; }
+.kb-editor .ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
+.kb-editor .ProseMirror ul[data-type="taskList"] li { display: flex; gap: 0.5em; align-items: flex-start; }
+
+/* Inline tags. Pending entities are dashed until the enrichment modal saves them. */
+.kb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+  padding: 0.05em 0.4em;
+  border-radius: 0.4em;
+  font-weight: 500;
+  font-size: 0.95em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* Hue carries the entity type; the dashed underline carries "not saved yet".
+   Keeping them on separate channels means a pending tag still reads as a
+   person or a task, rather than every pending tag looking alike. */
+.kb-tag {
+  --tag-hue: var(--primary);
+  background: color-mix(in oklch, var(--tag-hue) 16%, transparent);
+  color: var(--tag-hue);
+}
+.kb-tag[data-type="contact-mention"] { --tag-hue: var(--tag-contact); }
+.kb-tag[data-type="entity-ref"][data-kind="task"] { --tag-hue: var(--tag-task); }
+.kb-tag[data-type="entity-ref"][data-kind="project"] { --tag-hue: var(--tag-project); }
+
+.kb-tag[data-pending="true"] {
+  background: color-mix(in oklch, var(--tag-hue) 10%, transparent);
+  border-bottom: 1.5px dashed currentColor;
+  border-radius: 0.4em 0.4em 0 0;
+}
+
+/* --------------------------------------------------------------- calendar */
+
+.fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: transparent;
+  --fc-today-bg-color: transparent;
+  --fc-neutral-bg-color: transparent;
+  font-size: 0.875rem;
+}
+.fc a { color: inherit; text-decoration: none; }
+/* No overflow/radius on the scrollgrid itself: FullCalendar distributes row
+   height through this table, and clipping it stops the last row filling. */
+.fc .fc-scrollgrid, .fc .fc-scrollgrid-section > * { border-left-width: 0; border-top-width: 0; }
+
+/* Weekday rail: a quiet label row, not a header bar. */
+.fc .fc-col-header-cell {
+  background: var(--muted);
+  padding: 0.5rem 0;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.fc .fc-daygrid-day-frame {
+  padding: 0.15rem;
+  /* Tracks the page's own growth so a day cell keeps its proportions. Width
+     already scales -- the grid divides the container by seven -- so pinning the
+     height is what made a wide month view draw as squat letterbox rows. */
+  min-height: clamp(6.2rem, 5vw + 2.4rem, 12rem);
+}
+/* FullCalendar reverses this row so the number sits right; the date reads
+   better where the eye starts. */
+.fc .fc-daygrid-day-top { flex-direction: row; padding: 0.15rem 0.15rem 0.25rem; }
+.fc .fc-daygrid-day-number {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  padding: 0;
+  min-width: 1.35rem;
+  text-align: center;
+}
+/* Days from the neighbouring month recede by weight alone. Tinting the cell
+   turned two whole rows into what looked like a selection. */
+.fc .fc-day-other .fc-daygrid-day-number { opacity: 0.4; }
+
+/* Today is called out twice: the date becomes a filled marker, and the cell
+   keeps a ring, so the day is findable whether you scan numbers or shapes. */
+.fc .fc-day-today .fc-daygrid-day-number {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 999px;
+  line-height: 1.35rem;
+  height: 1.35rem;
+  font-weight: 600;
+}
+/* Softer than the selection ring on purpose: today already announces itself
+   with the filled number, so a solid primary ring can mean one thing only —
+   this is the day the rail is reading. */
+.fc .fc-daygrid-day.fc-day-today {
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--primary) 38%, transparent);
+}
+
+/* A month cell is a target, so it has to behave like one. The tint follows the
+   pointer; the ring marks the day the rail is currently reading. Scoped to the
+   month grid — in the time views a column-wide wash would follow the pointer
+   across the whole day every time you reached for an event. */
+.fc .fc-daygrid-day {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.fc .fc-daygrid-day:hover {
+  background: color-mix(in oklch, var(--foreground) 4.5%, transparent);
+}
+/* Later than the today rule, so a selected today reads as selected. */
+.fc .fc-daygrid-day.kb-day-selected {
+  background: color-mix(in oklch, var(--primary) 9%, transparent);
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+.fc .fc-daygrid-day.kb-day-selected:hover {
+  background: color-mix(in oklch, var(--primary) 13%, transparent);
+}
+/* In the time views the selection lands on the column header instead. */
+.fc .fc-col-header-cell.kb-day-selected {
+  background: color-mix(in oklch, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+/* Events paint themselves from --ev; FullCalendar draws no fill of its own. */
+.fc .fc-event {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0 0.15rem 2px;
+  cursor: pointer;
+  box-shadow: none;
+}
+.fc .fc-event:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.fc .fc-daygrid-event-harness { margin-top: 1px; }
+
+.kb-ev {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+  min-width: 0;
+  padding: 0.16rem 0.4rem;
+  border-radius: 5px;
+  border-left: 2px solid var(--ev);
+  /* Fill and text move together. The tint is fixed server-side rather than
+     themed, so a heavier fill closes on the label from both sides and dark
+     mode runs out of contrast first: at the old 15%/78% pair the worst chip
+     measured 3.38:1 on dark, already under AA for text this small. Pulling the
+     label toward --foreground buys back more than the fill costs — 30%/48%
+     measures 5.81 light and 5.02 dark. The hue still reads: it is carried by
+     the fill and the 2px rule, not by the letters. Re-measure both themes
+     before moving either number. */
+  background: color-mix(in oklch, var(--ev) 30%, transparent);
+  color: color-mix(in oklch, var(--ev) 48%, var(--foreground));
+  font-size: 0.73rem;
+  line-height: 1.35;
+  transition: background-color 120ms ease;
+}
+.fc .fc-event:hover .kb-ev { background: color-mix(in oklch, var(--ev) 40%, transparent); }
+.kb-ev-time { font-family: var(--font-mono); font-size: 0.66rem; opacity: 0.75; flex-shrink: 0; }
+.kb-ev-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Overlapping events divide the day column between them, so a block can end up
+   a couple of dozen pixels wide. Nothing may paint outside its own shape. */
+.kb-ev { overflow: hidden; }
+
+/* In the time views the block's height *is* its duration, and the pill is the
+   only thing that paints — FullCalendar's own fill is off. Without this the
+   pill takes its natural one-line height, so the grid sized a 2-hour meeting
+   at 88px and then drew a 21px chip inside it: every event, whatever its
+   length, read as a single 30-minute slot. The chain above it
+   (harness > .fc-timegrid-event > .fc-event-main) is already full-height, so
+   claiming the last link is all this needs. Month cells are excluded on
+   purpose — there a day is a list of chips, not a scale. */
+.fc .fc-timegrid-event .kb-ev { height: 100%; }
+
+/* Below these widths there is no room for both parts, and a clipped clock time
+   reads as noise rather than information — the tooltip carries it instead.
+   The harness is the element FullCalendar sizes, so it is the container. */
+.fc-timegrid-event-harness, .fc-daygrid-event-harness { container-type: inline-size; }
+@container (max-width: 72px) {
+  .kb-ev-time { display: none; }
+}
+@container (max-width: 34px) {
+  .kb-ev { padding-inline: 0.15rem; }
+  .kb-ev-title { display: none; }
+}
+
+/* Floor every block at one 30-minute slot. A 20-minute call would otherwise
+   render 14px tall — a sliver too short to hold its own title.
+
+   The floor lives here rather than in FullCalendar's `eventMinHeight` because
+   that option is folded into the pixel span the library does *overlap
+   detection* with, so a floor a hair taller than a slot makes a 9:00 event
+   collide with the 9:30 after it and the pair splits the column. CSS applies
+   after the positioning is settled and cannot do that.
+
+   1.5em is FullCalendar's own slot height and +1px its border, both read at
+   the .fc font size, so the floor tracks the slot pitch at any root font size
+   instead of pinning the 22px that only holds at exactly 16px. */
+.fc-timegrid-event-harness { min-height: calc(1.5em + 1px); }
+
+/* Only the time views size a block by its duration, so only there is height
+   worth asking about — `size` rather than `inline-size` makes it queryable.
+   Month harnesses keep inline-size: they have no definite height, and the
+   height query below simply never matches for them. */
+.fc-timegrid-event-harness { container-type: size; }
+/* A block two slots tall has room for two lines, and needs them: on one row an
+   interval like "10:00am - 12:00pm" eats the whole column and squeezes the
+   title out entirely, so a 2-hour workshop announced itself as a clock and
+   nothing else. Stacked, the time keeps its line and the title gets the full
+   width plus however many lines the block's real duration bought it. Below the
+   threshold two lines would not fit, so those blocks stay on one row. */
+@container (min-height: 40px) {
+  .kb-ev { flex-direction: column; align-items: stretch; gap: 0; }
+  .kb-ev-title { white-space: normal; overflow-wrap: anywhere; }
+}
+
+/* ---------------------------------------------------------------- tooltips */
+.kb-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  max-width: min(22rem, 70vw);
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-lift);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+.kb-tip-title { font-weight: 600; overflow-wrap: anywhere; }
+.kb-tip-meta { margin-top: 0.1rem; color: var(--muted-foreground); font-family: var(--font-mono); font-size: 0.7rem; }
+
+.fc .fc-daygrid-more-link {
+  display: block;
+  margin: 1px 0.3rem 0;
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+.fc .fc-daygrid-more-link:hover { color: var(--foreground); }
+.fc .fc-popover {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+}
+.fc .fc-popover-header { background: var(--muted); font-size: 0.75rem; padding: 0.4rem 0.6rem; }
+
+/* Week and list views inherit the same quiet chrome. */
+.fc .fc-timegrid-slot-label, .fc .fc-timegrid-axis {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted-foreground);
+}
+.fc .fc-timegrid-now-indicator-line { border-color: var(--primary); }
+.fc .fc-timegrid-now-indicator-arrow { border-color: var(--primary); color: var(--primary); }
+.fc .fc-list { border-radius: var(--radius-md); overflow: hidden; }
+.fc .fc-list-day-cushion { background: var(--muted); font-size: 0.8rem; }
+.fc .fc-list-event:hover td { background: var(--accent); }
+.fc .fc-list-event-time { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted-foreground); }
+.fc .fc-list-empty { background: transparent; color: var(--muted-foreground); font-size: 0.85rem; }
+
+/* ------------------------------------------------- read-only entry content */
+/* Mirrors the editor's content styles so a saved note looks the same in the
+   feed as it did while being written. */
+
+.kb-prose > :first-child { margin-top: 0; }
+.kb-prose > :last-child { margin-bottom: 0; }
+.kb-prose p { margin: 0.4em 0; }
+.kb-prose h1 { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; margin: 0.7em 0 0.3em; }
+.kb-prose h2 { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; margin: 0.7em 0 0.3em; }
+.kb-prose h3 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; margin: 0.6em 0 0.3em; }
+.kb-prose ul { list-style: disc; padding-left: 1.4em; margin: 0.4em 0; }
+.kb-prose ol { list-style: decimal; padding-left: 1.4em; margin: 0.4em 0; }
+.kb-prose li { margin: 0.15em 0; }
+.kb-prose li::marker { color: var(--muted-foreground); }
+.kb-prose blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.9em;
+  color: var(--muted-foreground);
+  margin: 0.6em 0;
+}
+.kb-prose code {
+  background: var(--muted);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: var(--font-mono);
+}
+.kb-prose pre {
+  background: var(--muted);
+  padding: 0.8em 1em;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin: 0.6em 0;
+}
+.kb-prose pre code { background: none; padding: 0; }
+.kb-prose a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.kb-prose strong { font-weight: 650; }
+.kb-prose ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
+.kb-prose ul[data-type="taskList"] li { display: flex; gap: 0.5em; align-items: flex-start; }
+.kb-prose ul[data-type="taskList"] li input { margin-top: 0.35em; }
+.kb-prose hr { border: 0; border-top: 1px solid var(--border); margin: 0.9em 0; }
+
+/* Compact feed cards: clamp the height and fade the cut, rather than dropping
+   the formatting to make it fit. */
+.kb-prose-clamp {
+  position: relative;
+  max-height: 7.5em;
+  overflow: hidden;
+}
+.kb-prose-clamp[data-clipped]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2.2em;
+  background: linear-gradient(to bottom, transparent, var(--card));
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------- capture hero */
+/* Codex opens the dashboard with a dark card that asks a question rather than
+   presenting a form. The inversion is what makes capture feel like the point
+   of the page instead of one panel among several. */
+
+.kb-hero {
+  --hero-ink: #f7f4ee;
+  --hero-muted: #b8b2a6;
+  --hero-line: #4a463e;
+  --hero-soft: rgba(255, 255, 255, .06);
+  background: #2b2823;
+  color: var(--hero-ink);
+}
+
+/* After dark the page itself is already the dark card's color, so the
+   inversion above would vanish into the background. Dark mode inverts the
+   other way instead: the capture card goes light so it still reads as the
+   one thing on the page that's asking for your attention. */
+.dark .kb-hero {
+  --hero-ink: #221f1a;
+  --hero-muted: #6b6459;
+  --hero-line: #d0b98c;
+  --hero-soft: rgba(255, 255, 255, .45);
+  --tag-contact: #4a6572;
+  --tag-task: #697760;
+  --tag-project: #95432e;
+  background: #e0cfa8;
+}
+.dark .kb-hero .kb-tag { filter: none; }
+.dark .kb-hero .kb-chips > span { background: rgba(0, 0, 0, .08); }
+.dark .kb-hero select { color-scheme: light; }
+.dark .kb-hero input[type="datetime-local"] { color-scheme: light; }
+.dark .kb-hero::after { color: rgba(0, 0, 0, .035); }
+
+.kb-hero .kb-editor .ProseMirror { color: var(--hero-ink); }
+.kb-hero .kb-editor .ProseMirror p.is-editor-empty:first-child::before { color: var(--hero-muted); }
+.kb-hero .kb-editor > div:first-child { border-color: var(--hero-line); }
+.kb-hero .kb-editor button { color: var(--hero-muted); }
+.kb-hero .kb-editor button:hover { background: var(--hero-soft); color: var(--hero-ink); }
+.kb-hero label { color: var(--hero-muted); }
+.kb-hero input::placeholder { color: var(--hero-muted); }
+.kb-hero .kb-tag { filter: brightness(1.45) saturate(.9); }
+
+/* Every control on the dark card wears the same skin. Left alone, the chip
+   input keeps its light card background and reads as a hole in the panel. */
+.kb-hero .kb-chips {
+  background: var(--hero-soft);
+  border-color: var(--hero-line);
+  color: var(--hero-ink);
+}
+.kb-hero .kb-chips input::placeholder { color: var(--hero-muted); }
+.kb-hero .kb-chips > span {
+  background: rgba(255, 255, 255, .12);
+  color: var(--hero-ink);
+}
+.kb-hero select { color-scheme: dark; }
+.kb-hero select option,
+.kb-hero select optgroup {
+  background-color: #2b2823;
+  color: var(--hero-ink);
+}
+.dark .kb-hero select option,
+.dark .kb-hero select optgroup { background-color: #e0cfa8; color: var(--hero-ink); }
+
+/* ------------------------------------------------------- framed editor */
+/* Inside the capture card the editor sits in its own well: toolbar on a rail
+   across the top, body padded beneath it. Outside a frame the editor stays
+   flush, so the note pages read as a document rather than a widget. */
+
+.kb-editor-framed > div:first-child {
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.kb-editor-framed .ProseMirror {
+  min-height: 11rem;
+  padding: 0.85rem 0.9rem;
+}
+
+/* The @ and [[ affordances. They read as keys rather than buttons, because
+   what they do is type a character you could have typed yourself. */
+.kb-trigger { color: var(--muted-foreground); }
+.kb-trigger:hover { background: var(--muted); color: var(--foreground); }
+.kb-trigger-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+}
+.kb-hero .kb-trigger:hover { background: var(--hero-soft); color: var(--hero-ink); }
+.kb-hero .kb-trigger-key { background: var(--hero-soft); border-color: var(--hero-line); }
+.kb-hero .kb-editor-framed > div:first-child { border-bottom-color: var(--hero-line); }
+.kb-hero input[type="datetime-local"] { color-scheme: dark; }
+
+/* The watermark Codex puts behind the capture card. Purely a texture — it sits
+   under the content and never intercepts a click.
+   Kept fully inside the card: the card clips its overflow, so a letter hanging
+   past the top edge renders as a sliced glyph rather than as texture. */
+.kb-hero::after {
+  content: attr(data-mark);
+  position: absolute;
+  right: 2rem;
+  top: 0.25rem;
+  font-family: var(--font-display);
+  font-size: 9.5rem;
+  line-height: 1;
+  font-weight: 600;
+  color: rgba(255, 255, 255, .032);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------ mobile shell */
+/* The phone GUI at /m. None of this is reachable from the desktop tree — the
+   two are separate routes, so these rules only ever apply under `app/m`.
+
+   Design target is a Galaxy S25 Ultra in Chrome: 412 x 915 CSS px at DPR 3.5.
+   Everything below is written to hold from 360px (a small Android) upward, and
+   the layout is capped so a tablet or a desktop window opening /m gets a phone-
+   width column rather than a stretched one. */
+.kb-m {
+  /* The home-indicator gap, which is 0 on anything that has no such gutter.
+     Read once here and consumed by the bottom bar and by any sheet that sits
+     on it, so a phone with gesture navigation does not put a tap target under
+     the system's own. */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --m-topbar: 3.25rem;
+  --m-tabbar: 3.5rem;
+  /* Bottom bar plus its safe-area gutter: what any scrolling region has to
+     clear so its last row is not permanently behind the navigation. */
+  --m-bottom: calc(var(--m-tabbar) + var(--safe-b));
+}
+
+/* A phone-width measure. On a phone this is simply the viewport; the cap only
+   bites when /m is opened on a tablet or a desktop browser, which is exactly
+   how this GUI gets built and reviewed without a phone in hand. */
+.kb-m-page { width: 100%; max-width: 34rem; margin-inline: auto; }
+
+/* Touch targets. The desktop rail uses 24-32px controls, which are fine with a
+   mouse and are not fine with a thumb; 44px is the floor both platform HIGs
+   land on. Scoped to the mobile tree so the desktop keeps its own density. */
+.kb-m .kb-tap { min-height: 2.75rem; min-width: 2.75rem; }
+
+/* Inside a mobile sheet the editor fills whatever height the sheet has left,
+   rather than sitting at the desktop's fixed 11rem floor with dead space under
+   it. It shrinks to its own floor when Details is opened, and the body scrolls
+   from there. */
+.kb-m .kb-editor-framed { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.kb-m .kb-editor-framed > div:first-child { flex: none; }
+.kb-m .kb-editor-framed .ProseMirror { flex: 1; min-height: 6rem; overflow-y: auto; }
+
+/* Touch floor for the shared primitives.
+   `Button` is h-9 (36px) and h-8 (32px), which are right for a pointer and
+   under the 44px both platform guidelines ask of a finger. Overriding `height`
+   rather than setting `min-height` is deliberate: Tailwind's h-9 is a fixed
+   height, and min-height cannot win against it. Scoped to .kb-m, so the
+   desktop rail keeps its own density. Icon-only buttons grow in both axes so
+   they stay square. */
+.kb-m button.h-9:not(.w-9), .kb-m a.h-9:not(.w-9) { height: 2.75rem; }
+.kb-m button.h-8:not(.w-8), .kb-m a.h-8:not(.w-8) { height: 2.5rem; }
+.kb-m button.h-9.w-9, .kb-m a.h-9.w-9 { height: 2.75rem; width: 2.75rem; }
+.kb-m button.h-8.w-8, .kb-m a.h-8.w-8 { height: 2.5rem; width: 2.5rem; }
+
+/* A text link or chip that has to be tappable without becoming a block. */
+.kb-m .kb-tap-inline { display: inline-flex; align-items: center; min-height: 2.5rem; }
+
+/* The capture hero, at phone size. The desktop watermark is a 9.5rem glyph
+   positioned for a 6rem-tall card; on a card a third of that height it would
+   hang past both edges and render as two sliced strokes rather than texture.
+   Same rule as the desktop one it overrides: the letter stays fully inside. */
+.kb-m .kb-hero::after {
+  right: 1rem;
+  top: 0.35rem;
+  font-size: 4.5rem;
+}
+

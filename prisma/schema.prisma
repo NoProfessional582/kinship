@@ -1,0 +1,509 @@
+// Personal Knowledge Base & Relationship Manager
+// One Entry table discriminated by `kind` carries both notes and communications.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EntryKind {
+  NOTE
+  CALL
+  EMAIL
+  TEXT
+  MEETING
+  IN_PERSON
+  /// A DM or reply on a social platform. Distinct from TEXT because the channel
+  /// is public-adjacent and the reply expectations are different.
+  SOCIAL
+  /// Something on the calendar that is not a communication with anyone — an
+  /// appointment, a game, a flight. It occupies a slot and a place, so it keeps
+  /// `durationMin` and `location`, but `direction` is meaningless for it.
+  /// Last in the enum because Postgres appends new labels to the end.
+  EVENT
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+/// Antigravity's four-tier model: how much of your attention someone warrants.
+enum ContactTier {
+  TIER_1
+  TIER_2
+  TIER_3
+  TIER_4
+}
+
+/// How often you intend to reach out. Drives the "worth reconnecting" panel.
+enum CheckInCadence {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  BIANNUAL
+  ANNUAL
+  NONE
+}
+
+enum ChannelType {
+  PHONE
+  EMAIL
+  SLACK
+  TEAMS
+  LINKEDIN
+  OTHER
+}
+
+enum RefTargetType {
+  TASK
+  PROJECT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  ARCHIVED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ---------------------------------------------------------------- Contacts
+
+model Contact {
+  id          String  @id @default(cuid())
+  owner       String
+  slug        String
+  displayName String
+  firstName   String?
+  lastName    String?
+  nickname    String?
+  pronouns    String?
+  avatarUrl   String?
+
+  /// Short tagline shown under the name, e.g. "Infra lead, ex-Stripe".
+  headline String?
+
+  /// Denormalized from the position marked current, so list views, the mention
+  /// dropdown and the FTS vector stay single-table lookups.
+  company  String?
+  jobTitle String?
+  location String?
+
+  birthday DateTime? @db.Date
+  howWeMet String?
+  bio      String?   @db.Text
+
+  /// Partner, children, pets, hometown -- the things worth remembering.
+  personalContext String? @db.Text
+  /// Running freeform notes, kept separate from the biographical summary.
+  notes           String? @db.Text
+
+  interests    String[] @default([])
+  customFields Json     @default("{}")
+
+  /// Relationship tier and intended contact rhythm.
+  tier    ContactTier    @default(TIER_3)
+  cadence CheckInCadence @default(NONE)
+
+  isDraft       Boolean   @default(false)
+  /// Soft delete: set instead of removing the row, so a misclick is recoverable.
+  deletedAt     DateTime?
+  lastContactAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channels    ContactChannel[]
+  attributes  ContactAttribute[]
+  positions   ContactPosition[]
+  milestones  ContactMilestone[]
+  links       ContactLink[]
+  mentions    Mention[]
+  assignments TaskAssignee[]
+  tags        ContactTag[]
+
+  searchVector Unsupported("tsvector")?
+
+  @@unique([owner, slug])
+  @@index([displayName])
+  @@index([isDraft])
+  @@index([deletedAt])
+  @@index([tier])
+  @@index([lastContactAt(sort: Desc)])
+}
+
+/// Free-form dossier fields, so a new one is data entry rather than a migration.
+model ContactAttribute {
+  id        String @id @default(cuid())
+  contactId String
+  /// Grouping shown as a heading on the dossier, e.g. "Preferences", "Health".
+  category  String
+  key       String
+  value     String @db.Text
+  position  Int    @default(0)
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+  @@index([category])
+}
+
+/// Generalised relationship between any two entities, replacing the
+/// contact-only Relationship table. Lets a person be linked to a project or an
+/// entry, not just to another person.
+model EntityEdge {
+  id         String   @id @default(cuid())
+  owner      String
+  sourceType String
+  sourceId   String
+  targetType String
+  targetId   String
+  relation   String
+  weight     Int      @default(1)
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@unique([sourceType, sourceId, targetType, targetId, relation])
+  @@index([owner])
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+}
+
+model ContactChannel {
+  id          String      @id @default(cuid())
+  contactId   String
+  type        ChannelType
+  /// The handle, username, address or number for this channel.
+  value       String
+  /// Free label such as "work", "personal", "on-call".
+  label       String?
+  /// Exactly one channel per contact should carry this; enforced in the service.
+  isPreferred Boolean     @default(false)
+  position    Int         @default(0)
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
+model ContactPosition {
+  id           String    @id @default(cuid())
+  contactId    String
+  role         String
+  organization String?
+  team         String?
+  startDate    DateTime? @db.Date
+  endDate      DateTime? @db.Date
+  /// A current position is what company/jobTitle on Contact are derived from.
+  isCurrent    Boolean   @default(false)
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
+model ContactMilestone {
+  id        String    @id @default(cuid())
+  contactId String
+  title     String
+  date      DateTime? @db.Date
+  note      String?
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
+model ContactLink {
+  id        String  @id @default(cuid())
+  contactId String
+  label     String
+  url       String
+  position  Int     @default(0)
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
+model Entry {
+  id       String    @id @default(cuid())
+  owner    String
+  kind     EntryKind @default(NOTE)
+  title    String?
+  bodyJson Json
+  bodyText String    @db.Text
+
+  occurredAt  DateTime   @default(now())
+  direction   Direction?
+  durationMin Int?
+  location    String?
+
+  /// Optional home for the entry. Distinct from an inline [[project]] mention:
+  /// a mention says the project came up, this says the entry belongs to it.
+  projectId String?
+
+  /// Soft delete: recoverable from the trash.
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  mentions Mention[]
+  refs     EntityRef[]
+  tags     EntryTag[]
+
+  searchVector Unsupported("tsvector")?
+
+  @@index([owner])
+  @@index([occurredAt(sort: Desc)])
+  @@index([kind])
+  @@index([projectId])
+  /// Declared so `prisma migrate dev` stops proposing to DROP it. The index is
+  /// real and has been in the database since 20260821194100_restore_search_indexes;
+  /// it was simply never written down here, so every generated diff read it as
+  /// drift and dropped it. See prisma/check-migrations.mjs.
+  @@index([deletedAt])
+}
+
+model Mention {
+  id        String @id @default(cuid())
+  entryId   String
+  contactId String
+
+  entry   Entry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, contactId])
+  @@index([contactId])
+  @@index([entryId])
+}
+
+model EntityRef {
+  id         String        @id @default(cuid())
+  entryId    String
+  targetType RefTargetType
+  taskId     String?
+  projectId  String?
+
+  entry   Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([entryId])
+  @@index([taskId])
+  @@index([projectId])
+}
+
+// ------------------------------------------------------- Projects & Tasks
+
+model Project {
+  id          String     @id @default(cuid())
+  owner       String
+  slug        String
+  name        String
+  description String?    @db.Text
+  color       String?
+  status      TaskStatus @default(TODO)
+  startDate   DateTime?
+  targetDate  DateTime?
+  /// See Task.allDay.
+  allDay      Boolean    @default(true)
+  isDraft     Boolean    @default(false)
+
+  /// Soft delete: recoverable from the trash.
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks   Task[]
+  refs    EntityRef[]
+  columns BoardColumn[]
+  entries Entry[]
+
+  @@unique([owner, slug])
+  @@index([status])
+  /// Declared so `prisma migrate dev` stops proposing to DROP it. The index is
+  /// real and has been in the database since 20260821194100_restore_search_indexes;
+  /// it was simply never written down here, so every generated diff read it as
+  /// drift and dropped it. See prisma/check-migrations.mjs.
+  @@index([deletedAt])
+}
+
+model BoardColumn {
+  id       String  @id @default(cuid())
+  owner    String
+  name     String
+  position Float
+  color    String?
+  wipLimit Int?
+
+  /// The workflow state a card takes on by sitting here. The column is the
+  /// single source of truth for a task's status; moving a card is what changes
+  /// it. Several columns may share a status (Backlog and To Do are both TODO).
+  status TaskStatus @default(TODO)
+
+  projectId String? // null => the global board
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId, position])
+  @@index([owner])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  owner       String
+  slug        String
+  title       String
+  description String?    @db.Text
+  status      TaskStatus @default(TODO)
+  priority    Priority   @default(MEDIUM)
+
+  projectId    String?
+  parentTaskId String?
+  columnId     String
+  position     Float
+
+  startDate   DateTime?
+  dueDate     DateTime?
+  /// Whether the dates above are calendar days or instants. A deadline is often
+  /// a time — "by noon tomorrow" — but just as often a whole day, and midnight
+  /// cannot stand in for "no particular time" without making an actual midnight
+  /// deadline unexpressible. All-day rows keep their dates at UTC midnight.
+  allDay      Boolean   @default(true)
+  completedAt DateTime?
+  isDraft     Boolean   @default(false)
+  /// Soft delete: recoverable from the trash.
+  deletedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  parent   Task?       @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks Task[]      @relation("Subtasks")
+  column   BoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  assignees TaskAssignee[]
+  refs      EntityRef[]
+  tags      TaskTag[]
+
+  @@unique([owner, slug])
+  @@index([columnId, position])
+  @@index([projectId])
+  @@index([parentTaskId])
+  @@index([dueDate])
+  @@index([isDraft])
+  /// Declared so `prisma migrate dev` stops proposing to DROP it. The index is
+  /// real and has been in the database since 20260821194100_restore_search_indexes;
+  /// it was simply never written down here, so every generated diff read it as
+  /// drift and dropped it. See prisma/check-migrations.mjs.
+  @@index([deletedAt])
+}
+
+model TaskAssignee {
+  id        String  @id @default(cuid())
+  taskId    String
+  contactId String
+  role      String?
+
+  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, contactId])
+  @@index([contactId])
+}
+
+// -------------------------------------------------------------------- Tags
+
+/// Uniqueness is per owner and case/whitespace-insensitive: the hand-written
+/// `Tag_name_normalized_key` index on (owner, normalized name), which the schema
+/// cannot express. See 20260915020000_add_owner_contract.
+model Tag {
+  id    String  @id @default(cuid())
+  owner String
+  name  String
+  color String?
+
+  contacts ContactTag[]
+  entries  EntryTag[]
+  tasks    TaskTag[]
+}
+
+model ContactTag {
+  contactId String
+  tagId     String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+  @@index([tagId])
+}
+
+model EntryTag {
+  entryId String
+  tagId   String
+  entry   Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, tagId])
+  @@index([tagId])
+}
+
+model TaskTag {
+  taskId String
+  tagId  String
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@index([tagId])
+}
+
+// ---------------------------------------------------------------- Settings
+
+/// One settings row per authenticated owner. Existing legacy `id=singleton`
+/// remains valid; new rows use generated ids and owner is the singleton key.
+model Settings {
+  id    String @id @default(cuid())
+  owner String @unique
+
+  /// Identity shown in the sidebar and the dashboard greeting.
+  userName String @default("You")
+  appTitle String @default("Kinship")
+  tagline  String @default("Personal knowledge & relationships")
+
+  /// Ambient weather on the dashboard, via open-meteo. Off by default: it is
+  /// the only feature that reaches outside the machine.
+  weatherEnabled  Boolean @default(false)
+  weatherLocation String  @default("San Francisco, CA")
+  weatherUnit     String  @default("fahrenheit")
+
+  calendarWeekStart String @default("monday")
+  /// Multiplies the base type size, mirroring Codex's --font-scale.
+  fontScale         Float  @default(1)
+  defaultCadence    CheckInCadence @default(MONTHLY)
+
+  /// IANA zone used to render every instant. Null means "follow the browser",
+  /// which is right for a single user on one machine; pinning a zone matters
+  /// when travelling, or when the server does date maths on the user's behalf.
+  timezone String?
+
+  updatedAt DateTime @updatedAt
+}

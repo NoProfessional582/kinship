@@ -1,0 +1,66 @@
+# ---- Dependencies & build output ----
+node_modules
+.next
+out
+*.tsbuildinfo
+coverage/
+
+# ---- Secrets & environment ----
+# .env holds the live DATABASE_URL. .env.example is the tracked template and is
+# deliberately re-included below.
+.env
+.env.*
+!.env.example
+
+# Keys, certificates and credential files. Nothing legitimate in this repo
+# matches these -- Prisma's migrations are *.sql and stay tracked on purpose.
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.keystore
+id_rsa*
+id_ed25519*
+.netrc
+.npmrc
+credentials.json
+service-account*.json
+*secret*.json
+*.secret
+
+# ---- Personal / exported data ----
+# This is a personal CRM: uploads and exports contain real contact data.
+public/uploads/*
+!public/uploads/.gitkeep
+.linkedin-export/
+/backups/
+*.dump
+*.sqlite
+*.sqlite3
+*.db
+
+# ---- Logs & runtime noise ----
+*.log
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---- Local tooling & editors ----
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Test artifacts ----
+shots/
+test-results/
+playwright-report/
+
+# Claude Code scratch worktrees — local only, and each is its own git repo.
+.claude/worktrees/
+
+# Archives are a full copy of your data — never commit one.
+kb-archive-*.json
