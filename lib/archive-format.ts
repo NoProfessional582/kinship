@@ -8,6 +8,11 @@
  * handful of values both sides share live here on their own.
  */
 
+/**
+ * The marker every archive carries. It keeps the name from before the app was
+ * Kinship, so archives move both ways between the old app and Kinship; only
+ * the download's filename changed (`kinship-archive-…json`).
+ */
 export const ARCHIVE_FORMAT = 'kb-archive'
 
 /**

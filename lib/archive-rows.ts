@@ -119,7 +119,7 @@ export function orderBy(model: ModelName) {
 
 /** A filename for the download, stamped so two archives never collide. */
 export function archiveFilename(at = new Date()): string {
-  return `kb-archive-${at.toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`
+  return `kinship-archive-${at.toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`
 }
 
 // -------------------------------------------------------------- Reading one
@@ -150,7 +150,7 @@ const uploadSchema = z.object({
  */
 export const archiveSchema = z.object({
   format: z.literal(ARCHIVE_FORMAT, {
-    message: 'Not a knowledge-base archive (missing the "kb-archive" marker)',
+    message: 'Not a Kinship archive (missing the "kb-archive" marker)',
   }),
   version: z.number().int().positive(),
   exportedAt: z.string().optional(),

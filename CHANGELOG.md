@@ -37,6 +37,9 @@ All notable changes to Kinship are recorded here. The format follows
 - `@types/node` 24, to match Node 24.
 - The single-user gate is `proxy.ts`, Next.js 16's new name for
   `middleware.ts`, and now runs in the Node.js runtime.
+- Archive downloads are named `kinship-archive-<time>.json`, and a file that is
+  not an archive is refused as "Not a Kinship archive". The marker inside stays
+  `kb-archive`, so archives move both ways between the old app and Kinship.
 
 ### Fixed
 

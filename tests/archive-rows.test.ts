@@ -165,6 +165,19 @@ describe('archiveSchema', () => {
     expect(archiveSchema.safeParse({ hello: 'world' }).success).toBe(false)
   })
 
+  it('says so when the marker is missing', () => {
+    const result = archiveSchema.safeParse({ ...valid, format: 'something-else' })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe(
+      'Not a Kinship archive (missing the "kb-archive" marker)',
+    )
+  })
+
+  it("keeps the old app's marker, so archives move both ways", () => {
+    expect(ARCHIVE_FORMAT).toBe('kb-archive')
+    expect(archiveSchema.safeParse({ ...valid, format: 'kb-archive' }).success).toBe(true)
+  })
+
   it.each(['../escape.png', 'nested/escape.png', '..\\escape.png', '.hidden'])(
     'refuses the upload name %s',
     (name) => {
@@ -196,9 +209,9 @@ describe('archiveSchema', () => {
 })
 
 describe('archiveFilename', () => {
-  it('is sortable, stamped, and free of characters a filesystem dislikes', () => {
+  it('is named for Kinship, sortable, stamped, and free of characters a filesystem dislikes', () => {
     const name = archiveFilename(new Date('2026-08-29T12:34:56.000Z'))
-    expect(name).toBe('kb-archive-2026-08-29-12-34-56.json')
+    expect(name).toBe('kinship-archive-2026-08-29-12-34-56.json')
     expect(name).not.toMatch(/[:]/)
   })
 })

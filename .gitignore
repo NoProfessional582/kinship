@@ -64,5 +64,7 @@ playwright-report/
 # Claude Code scratch worktrees — local only, and each is its own git repo.
 .claude/worktrees/
 
-# Archives are a full copy of your data — never commit one.
+# Archives are a full copy of your data — never commit one. kb-archive-* is the
+# name the app used before it was Kinship.
+kinship-archive-*.json
 kb-archive-*.json

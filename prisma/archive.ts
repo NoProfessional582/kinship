@@ -11,9 +11,9 @@ import { requireConfiguredOwner } from '../lib/identity'
 /**
  * Command-line half of the archive, for moving this app between machines.
  *
- *   npm run export > kb-archive.json                  # this machine, to a file
- *   npm run import < kb-archive.json                  # dry run: says what it would do
- *   npm run import -- --replace < kb-archive.json     # actually does it
+ *   npm run export > kinship-archive.json                  # this machine, to a file
+ *   npm run import < kinship-archive.json                  # dry run: says what it would do
+ *   npm run import -- --replace < kinship-archive.json     # actually does it
  *
  * The archive travels on stdout and stdin rather than through a path argument.
  * A path would be a path *inside the container*, which is a trap, and anything
@@ -28,8 +28,8 @@ const say = (...args: unknown[]) => console.error(...args)
 const owner = requireConfiguredOwner()
 
 const USAGE = `Usage:
-  npm run export > kb-archive.json
-  npm run import [-- --replace] [--force] < kb-archive.json
+  npm run export > kinship-archive.json
+  npm run import [-- --replace] [--force] < kinship-archive.json
 
   --replace   Actually restore. Without it, import only reports the plan.
   --force     Restore even if the archive and this database are on different

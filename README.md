@@ -155,7 +155,7 @@ curl -sOJ http://127.0.0.1:3000/api/export     # saves the archive under its sug
 
 curl -X POST 'http://127.0.0.1:3000/api/import?confirm=replace' \
      -H 'Content-Type: application/json' \
-     --data-binary @kb-archive-2026-10-09-12-00-00.json
+     --data-binary @kinship-archive-2026-10-09-12-00-00.json
 ```
 
 `confirm=replace` is required and cannot be turned off: with no sign-in, the only
