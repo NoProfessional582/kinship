@@ -1,0 +1,15 @@
+package-lock.json
+*.md
+compose.yaml
+
+# Written by Next.js.
+next-env.d.ts
+
+# Applied as written: Prisma keeps each migration's checksum in the database.
+prisma/migrations
+
+# Build output, local data and test reports (also in .gitignore).
+.next
+data
+test-results
+playwright-report
