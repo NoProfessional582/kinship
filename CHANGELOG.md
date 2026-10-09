@@ -23,6 +23,9 @@ All notable changes to Kinship are recorded here. The format follows
   that compose publishes ports on `127.0.0.1` only. `privacy`: gitleaks on the
   branch's commits and the working tree, and a sweep for personal data using a
   private pattern list kept outside the repo.
+- Playwright tests (`npm run test:e2e`, run inside the test stack): every page
+  loads with no errors, the eleven desktop pages in Desktop Chrome and the same
+  eleven under `/m` on a Pixel 7.
 - `scripts/node.sh` runs npm in the Dockerfile's Node image, so the checks need
   no Node on the host.
 - Prettier and ESLint (`npm run format`, `format:check`, `lint`). The whole

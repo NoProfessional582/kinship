@@ -7,3 +7,5 @@ data
 npm-debug.log
 *.md
 scripts
+test-results
+playwright-report
