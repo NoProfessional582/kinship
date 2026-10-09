@@ -23,3 +23,9 @@ All notable changes to Kinship are recorded here. The format follows
 
 - The settings page's time zone list no longer causes a hydration error when the
   server's and the browser's time zone data disagree.
+
+### Security
+
+- Next.js 16.3.8 (from 16.3.3), which fixes a critical advisory in `next/og`
+  ImageResponse, used to draw the app icons, and a high one in image
+  optimization.
