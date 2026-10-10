@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { NextRequest } from 'next/server'
 import { ConfigurationError } from '@/lib/errors'
-import { OWNER_MISSING_MESSAGE, ownerSubject, requireConfiguredOwner, requireIdentity } from '@/lib/identity'
-import { middleware } from '@/middleware'
+import {
+  OWNER_MISSING_MESSAGE,
+  ownerSubject,
+  requireConfiguredOwner,
+  requireIdentity,
+} from '@/lib/identity'
+import { proxy } from '@/proxy'
 
 const URL_ = 'http://localhost/api/contacts'
 let saved: string | undefined
@@ -31,14 +36,18 @@ describe('identity with KINSHIP_OWNER set', () => {
   it('ignores identity headers a client sends', () => {
     process.env.KINSHIP_OWNER = 'me'
     const claimed = new Request(URL_, {
-      headers: { 'X-Remote-User': 'someone-else', 'Remote-User': 'intruder', 'X-Forwarded-User': 'other' },
+      headers: {
+        'X-Remote-User': 'someone-else',
+        'Remote-User': 'intruder',
+        'X-Forwarded-User': 'other',
+      },
     })
     expect(requireIdentity(claimed).subject).toBe('me')
   })
 
-  it('lets the middleware pass, whatever headers arrive', () => {
+  it('lets the proxy pass, whatever headers arrive', () => {
     process.env.KINSHIP_OWNER = 'me'
-    const res = middleware(new NextRequest(URL_, { headers: { 'Remote-User': 'intruder' } }))
+    const res = proxy(new NextRequest(URL_, { headers: { 'Remote-User': 'intruder' } }))
     expect(res.status).toBe(200)
     expect(res.headers.get('x-middleware-next')).toBe('1')
   })
@@ -61,12 +70,14 @@ describe.each([
   })
 
   it('does not fall back to an identity header', () => {
-    const claimed = new Request(URL_, { headers: { 'X-Remote-User': 'someone', 'Remote-User': 'someone' } })
+    const claimed = new Request(URL_, {
+      headers: { 'X-Remote-User': 'someone', 'Remote-User': 'someone' },
+    })
     expect(() => requireIdentity(claimed)).toThrow(OWNER_MISSING_MESSAGE)
   })
 
-  it('makes the middleware refuse every request with the message', async () => {
-    const res = middleware(new NextRequest(URL_, { headers: { 'X-Forwarded-User': 'someone' } }))
+  it('makes the proxy refuse every request with the message', async () => {
+    const res = proxy(new NextRequest(URL_, { headers: { 'X-Forwarded-User': 'someone' } }))
     expect(res.status).toBe(500)
     expect(await res.json()).toEqual({ error: OWNER_MISSING_MESSAGE })
   })

@@ -12,7 +12,8 @@ import { STEP } from '@/lib/fractional-index'
  */
 const MARK = `__coltest_${Date.now()}__`
 const OWNER = `${MARK}owner`
-const updateOwnedColumn = (id: string, patch: any) => updateColumn(OWNER, id, patch)
+const updateOwnedColumn = (id: string, patch: Parameters<typeof updateColumn>[2]) =>
+  updateColumn(OWNER, id, patch)
 const deleteOwnedColumn = (id: string) => deleteColumn(OWNER, id)
 
 const makeColumn = (name: string, status: 'TODO' | 'DONE' = 'TODO') =>
@@ -35,9 +36,16 @@ const makeTask = (columnId: string, title: string, extra: Record<string, unknown
 afterAll(async () => {
   // Edges carry bare ids with no foreign key behind them, so the sweep has to
   // collect them before the rows go. See lib/services/trash.ts.
-  const tasks = await prisma.task.findMany({ where: { title: { startsWith: MARK } }, select: { id: true } })
+  const tasks = await prisma.task.findMany({
+    where: { title: { startsWith: MARK } },
+    select: { id: true },
+  })
   await prisma.task.deleteMany({ where: { title: { startsWith: MARK } } })
-  await deleteEdgesFor(OWNER, 'task', tasks.map((t) => t.id))
+  await deleteEdgesFor(
+    OWNER,
+    'task',
+    tasks.map((t) => t.id),
+  )
   await prisma.boardColumn.deleteMany({ where: { name: { startsWith: MARK } } })
   await prisma.$disconnect()
 })

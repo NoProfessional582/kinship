@@ -1,13 +1,22 @@
 'use client'
 import * as React from 'react'
-import { useEditor, EditorContent, type Editor } from '@tiptap/react'
+import { useEditor, EditorContent, type Content, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import {
-  Bold, Italic, Strikethrough, Code, List, ListOrdered,
-  Quote, Heading2, ListChecks, Undo2, Redo2,
+  Bold,
+  Italic,
+  Strikethrough,
+  Code,
+  List,
+  ListOrdered,
+  Quote,
+  Heading2,
+  ListChecks,
+  Undo2,
+  Redo2,
 } from 'lucide-react'
 import { ContactMention, EntityRef } from '@/lib/tiptap/extensions'
 import { createSuggestionRenderer } from '@/lib/tiptap/renderer'
@@ -17,7 +26,7 @@ interface Props {
   onReady?: (editor: Editor) => void
   placeholder?: string
   className?: string
-  content?: any
+  content?: Content
   editable?: boolean
   autoFocus?: boolean
   /** Adds the @ / [[ trigger buttons to the right of the toolbar. */
@@ -27,13 +36,22 @@ interface Props {
 }
 
 export function RichEditor({
-  onReady, placeholder, className, content, editable = true,
-  autoFocus, mentionShortcuts, onUpdate, onSubmit,
+  onReady,
+  placeholder,
+  className,
+  content,
+  editable = true,
+  autoFocus,
+  mentionShortcuts,
+  onUpdate,
+  onSubmit,
 }: Props) {
   const render = React.useMemo(() => createSuggestionRenderer(), [])
   // Kept in a ref so changing the handler never has to re-create the editor.
   const submitRef = React.useRef(onSubmit)
-  submitRef.current = onSubmit
+  React.useEffect(() => {
+    submitRef.current = onSubmit
+  }, [onSubmit])
 
   const editor = useEditor({
     // Next renders this on the server first; TipTap must not hydrate eagerly.
@@ -48,7 +66,7 @@ export function RichEditor({
         link: { openOnClick: false, autolink: true },
       }),
       Placeholder.configure({
-        placeholder: placeholder ?? "Write freely — type @ for a person, [[ for a task or project…",
+        placeholder: placeholder ?? 'Write freely — type @ for a person, [[ for a task or project…',
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -75,7 +93,11 @@ export function RichEditor({
   }, [editor, onReady])
 
   if (!editor) {
-    return <div className={cn('kb-editor min-h-36 animate-pulse rounded-md bg-[var(--muted)]', className)} />
+    return (
+      <div
+        className={cn('kb-editor min-h-36 animate-pulse rounded-md bg-[var(--muted)]', className)}
+      />
+    )
   }
 
   return (
@@ -100,16 +122,61 @@ function Toolbar({ editor, mentionShortcuts }: { editor: Editor; mentionShortcut
   }, [editor])
 
   const items = [
-    { icon: Bold, label: 'Bold', run: () => editor.chain().focus().toggleBold().run(), active: editor.isActive('bold') },
-    { icon: Italic, label: 'Italic', run: () => editor.chain().focus().toggleItalic().run(), active: editor.isActive('italic') },
-    { icon: Strikethrough, label: 'Strikethrough', run: () => editor.chain().focus().toggleStrike().run(), active: editor.isActive('strike') },
-    { icon: Code, label: 'Code', run: () => editor.chain().focus().toggleCode().run(), active: editor.isActive('code') },
+    {
+      icon: Bold,
+      label: 'Bold',
+      run: () => editor.chain().focus().toggleBold().run(),
+      active: editor.isActive('bold'),
+    },
+    {
+      icon: Italic,
+      label: 'Italic',
+      run: () => editor.chain().focus().toggleItalic().run(),
+      active: editor.isActive('italic'),
+    },
+    {
+      icon: Strikethrough,
+      label: 'Strikethrough',
+      run: () => editor.chain().focus().toggleStrike().run(),
+      active: editor.isActive('strike'),
+    },
+    {
+      icon: Code,
+      label: 'Code',
+      run: () => editor.chain().focus().toggleCode().run(),
+      active: editor.isActive('code'),
+    },
     { sep: true },
-    { icon: Heading2, label: 'Heading', run: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), active: editor.isActive('heading', { level: 2 }) },
-    { icon: List, label: 'Bullet list', run: () => editor.chain().focus().toggleBulletList().run(), active: editor.isActive('bulletList') },
-    { icon: ListOrdered, label: 'Numbered list', run: () => editor.chain().focus().toggleOrderedList().run(), active: editor.isActive('orderedList') },
-    { icon: ListChecks, label: 'Task list', run: () => editor.chain().focus().toggleTaskList().run(), active: editor.isActive('taskList') },
-    { icon: Quote, label: 'Quote', run: () => editor.chain().focus().toggleBlockquote().run(), active: editor.isActive('blockquote') },
+    {
+      icon: Heading2,
+      label: 'Heading',
+      run: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+      active: editor.isActive('heading', { level: 2 }),
+    },
+    {
+      icon: List,
+      label: 'Bullet list',
+      run: () => editor.chain().focus().toggleBulletList().run(),
+      active: editor.isActive('bulletList'),
+    },
+    {
+      icon: ListOrdered,
+      label: 'Numbered list',
+      run: () => editor.chain().focus().toggleOrderedList().run(),
+      active: editor.isActive('orderedList'),
+    },
+    {
+      icon: ListChecks,
+      label: 'Task list',
+      run: () => editor.chain().focus().toggleTaskList().run(),
+      active: editor.isActive('taskList'),
+    },
+    {
+      icon: Quote,
+      label: 'Quote',
+      run: () => editor.chain().focus().toggleBlockquote().run(),
+      active: editor.isActive('blockquote'),
+    },
     { sep: true },
     { icon: Undo2, label: 'Undo', run: () => editor.chain().focus().undo().run(), active: false },
     { icon: Redo2, label: 'Redo', run: () => editor.chain().focus().redo().run(), active: false },
@@ -121,7 +188,11 @@ function Toolbar({ editor, mentionShortcuts }: { editor: Editor; mentionShortcut
     const { from } = editor.state.selection
     const before = from > 1 ? editor.state.doc.textBetween(from - 1, from) : ''
     const lead = before && before !== ' ' ? ' ' : ''
-    editor.chain().focus().insertContent(lead + chars).run()
+    editor
+      .chain()
+      .focus()
+      .insertContent(lead + chars)
+      .run()
   }
 
   return (

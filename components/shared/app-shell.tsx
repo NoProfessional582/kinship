@@ -4,16 +4,26 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
-  LayoutDashboard, NotebookPen, Users, KanbanSquare,
-  CalendarDays, Search, Moon, Sun, FolderKanban, Settings, Trash2,
-  PanelLeftClose, PanelLeftOpen,
+  LayoutDashboard,
+  NotebookPen,
+  Users,
+  KanbanSquare,
+  CalendarDays,
+  Search,
+  Moon,
+  Sun,
+  FolderKanban,
+  Settings,
+  Trash2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUi } from '@/lib/store'
 import { CommandPalette } from './command-palette'
 import { EnrichmentQueue } from '@/components/entity-modal/enrichment-queue'
 import { useFontScale, useSettings } from '@/lib/hooks/settings'
-import { useModifierKey } from '@/lib/hooks/platform'
+import { useModifierKey, useBrowserReady, subscribeBrowser } from '@/lib/hooks/platform'
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, hue: 'var(--hue-1)' },
@@ -30,7 +40,7 @@ const STORE_KEY = 'kb.sidebar.collapsed'
 const NARROW = '(max-width: 1024px)'
 
 /**
- * `null` until the effect resolves the stored preference. Rendering a boolean
+ * `null` until the browser resolves the stored preference. Rendering a boolean
  * during SSR would mean guessing the viewport, so the first paint keeps the
  * pure-CSS behaviour (icons under `sm`, labels above) and the resolved state
  * takes over on mount.
@@ -48,6 +58,16 @@ function ownsKeystrokes(target: EventTarget | null): boolean {
   return !!el.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]')
 }
 
+function storedCollapsed(): boolean {
+  let stored: string | null = null
+  try {
+    stored = window.localStorage.getItem(STORE_KEY)
+  } catch {
+    /* private mode */
+  }
+  return window.matchMedia(NARROW).matches || stored === 'true'
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const setPaletteOpen = useUi((s) => s.setPaletteOpen)
@@ -55,44 +75,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const mod = useModifierKey()
   useFontScale()
 
-  const [collapsed, setCollapsed] = React.useState<Collapsed>(null)
-
-  React.useEffect(() => {
-    let stored: string | null = null
-    try { stored = window.localStorage.getItem(STORE_KEY) } catch { /* private mode */ }
-    // The window wins on load. A stored "expanded" is a preference formed on a
-    // wide screen, and honouring it here is how an 820px window ends up
-    // spending a quarter of its width on navigation. It can still be expanded
-    // by hand once you are here.
-    setCollapsed(window.matchMedia(NARROW).matches || stored === 'true')
-  }, [])
+  const stored = React.useSyncExternalStore(subscribeBrowser, storedCollapsed, () => null)
+  const [choice, setCollapsed] = React.useState<Collapsed>(null)
+  const collapsed = choice ?? stored
 
   // Narrowing the window collapses the rail; widening it does not force it back
   // open, because by then the last explicit choice is the better guess.
   React.useEffect(() => {
     const mq = window.matchMedia(NARROW)
-    const onChange = (e: MediaQueryListEvent) => { if (e.matches) setCollapsed(true) }
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) setCollapsed(true)
+    }
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
   const toggle = React.useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !(prev ?? false)
-      try { window.localStorage.setItem(STORE_KEY, String(next)) } catch { /* ignore */ }
-      return next
-    })
-  }, [])
+    const next = !(collapsed ?? false)
+    setCollapsed(next)
+    try {
+      window.localStorage.setItem(STORE_KEY, String(next))
+    } catch {
+      /* private mode */
+    }
+  }, [collapsed])
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return
       const key = e.key.toLowerCase()
-      if (key === 'k') { e.preventDefault(); setPaletteOpen(true) }
+      if (key === 'k') {
+        e.preventDefault()
+        setPaletteOpen(true)
+      }
       // Cmd+B is the composer's own bold shortcut. ProseMirror handles it on the
       // editor element and lets it bubble, so an unguarded window listener
       // collapsed the sidebar on every bold keystroke — and persisted it.
-      if (key === 'b' && !ownsKeystrokes(e.target)) { e.preventDefault(); toggle() }
+      if (key === 'b' && !ownsKeystrokes(e.target)) {
+        e.preventDefault()
+        toggle()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -166,24 +188,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Search className="h-3.5 w-3.5 shrink-0" />
             <span className={cn('flex-1 text-left', label)}>Search…</span>
-            <kbd className={cn('rounded border border-[var(--border)] px-1 text-[10px]', label)}>{mod}K</kbd>
+            <kbd className={cn('rounded border border-[var(--border)] px-1 text-[10px]', label)}>
+              {mod}K
+            </kbd>
           </button>
 
           <nav className={cn('flex flex-1 flex-col gap-0.5', narrow && 'items-center')}>
             {NAV.map((item) => {
-              const active =
-                item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+              const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   title={item.label}
-                  style={active ? { background: `color-mix(in oklch, ${item.hue} 14%, transparent)`, color: item.hue } : undefined}
+                  style={
+                    active
+                      ? {
+                          background: `color-mix(in oklch, ${item.hue} 14%, transparent)`,
+                          color: item.hue,
+                        }
+                      : undefined
+                  }
                   className={cn(
                     'flex items-center gap-2.5 rounded-[var(--radius-md)] text-sm transition-colors',
                     narrow ? 'h-9 w-9 justify-center' : 'px-2.5 py-2',
-                    active ? 'font-semibold'
-                           : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]',
+                    active
+                      ? 'font-semibold'
+                      : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]',
                   )}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
@@ -230,8 +261,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function ThemeToggle({ compact, labelClass }: { compact: boolean; labelClass: string }) {
   const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
+  const mounted = useBrowserReady()
 
   return (
     <button
@@ -242,9 +272,11 @@ function ThemeToggle({ compact, labelClass }: { compact: boolean; labelClass: st
       )}
       title="Toggle theme"
     >
-      {mounted && resolvedTheme === 'dark'
-        ? <Sun className="h-4 w-4 shrink-0" />
-        : <Moon className="h-4 w-4 shrink-0" />}
+      {mounted && resolvedTheme === 'dark' ? (
+        <Sun className="h-4 w-4 shrink-0" />
+      ) : (
+        <Moon className="h-4 w-4 shrink-0" />
+      )}
       <span className={labelClass}>Theme</span>
     </button>
   )

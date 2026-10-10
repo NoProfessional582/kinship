@@ -1,17 +1,16 @@
 'use client'
 import * as React from 'react'
+import { useBrowserReady } from '@/lib/hooks/platform'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { addDays, startOfDay } from 'date-fns'
-import { zonedDayBounds, zonedDayBoundsFor, zonedDayOf, zonedToday } from '@/lib/format'
+import { zonedDayBounds, zonedDayBoundsFor, zonedToday } from '@/lib/format'
 import { ArrowRight, X } from 'lucide-react'
 import { Card } from '@/components/ui/misc'
 import { api } from '@/lib/hooks/api'
 import { useTimezone } from '@/lib/hooks/settings'
 import { type CalendarEvent } from '@/lib/calendar-categories'
-import {
-  SOURCE_LABEL, dayKeyOf, byWhen, withinDays, agendaOnly,
-} from '@/lib/calendar-agenda'
+import { SOURCE_LABEL, dayKeyOf, byWhen, withinDays, agendaOnly } from '@/lib/calendar-agenda'
 import { cn } from '@/lib/utils'
 
 /**
@@ -21,7 +20,7 @@ import { cn } from '@/lib/utils'
  */
 export function useToday(day?: Date | null) {
   const { timezone } = useTimezone()
-  const [range, setRange] = React.useState<{ start: string; end: string } | null>(null)
+  const ready = useBrowserReady()
   // A Date is a new object every render, so the effect keys off the calendar
   // day it represents — otherwise picking the same day would refetch forever.
   const dayKey = day ? startOfDay(day).getTime() : null
@@ -36,20 +35,25 @@ export function useToday(day?: Date | null) {
   // the 7th is 17:00 on the 6th in a zone behind the browser, so clicking a day
   // fetched the day before it and the rail came back empty. Only zones behind
   // the browser's were affected, which is why a Tokyo-pinned app looked fine.
-  React.useEffect(() => {
+  const range = React.useMemo(() => {
+    if (!ready) return null
     const marker = dayKey === null ? zonedToday(timezone) : new Date(dayKey)
     const { start, end } = zonedDayBoundsFor(
-      marker.getFullYear(), marker.getMonth(), marker.getDate(), timezone,
+      marker.getFullYear(),
+      marker.getMonth(),
+      marker.getDate(),
+      timezone,
     )
-    setRange({ start: start.toISOString(), end: end.toISOString() })
-  }, [dayKey, timezone])
+    return { start: start.toISOString(), end: end.toISOString() }
+  }, [dayKey, timezone, ready])
 
   const query = useQuery({
     enabled: !!range,
     queryKey: ['calendar', 'today', range?.start],
-    queryFn: () => api.get<CalendarEvent[]>(
-      `/api/calendar?start=${encodeURIComponent(range!.start)}&end=${encodeURIComponent(range!.end)}`,
-    ),
+    queryFn: () =>
+      api.get<CalendarEvent[]>(
+        `/api/calendar?start=${encodeURIComponent(range!.start)}&end=${encodeURIComponent(range!.end)}`,
+      ),
   })
 
   const dayIso = React.useMemo(
@@ -58,14 +62,16 @@ export function useToday(day?: Date | null) {
   )
 
   const events = React.useMemo(
-    () => withinDays(agendaOnly(query.data ?? []), dayIso, dayIso)
-      .sort(byWhen(timezone)),
+    () => withinDays(agendaOnly(query.data ?? []), dayIso, dayIso).sort(byWhen(timezone)),
     [query.data, dayIso, timezone],
   )
-  const counts = React.useMemo(() => ({
-    comms: events.filter((e) => e.source === 'entry').length,
-    tasks: events.filter((e) => e.source === 'task').length,
-  }), [events])
+  const counts = React.useMemo(
+    () => ({
+      comms: events.filter((e) => e.source === 'entry').length,
+      tasks: events.filter((e) => e.source === 'task').length,
+    }),
+    [events],
+  )
 
   return { events, counts, isLoading: !range || query.isLoading }
 }
@@ -76,23 +82,25 @@ export function useToday(day?: Date | null) {
  */
 export function useUpcoming(days = 45, limit = 4) {
   const { timezone } = useTimezone()
-  const [range, setRange] = React.useState<{ start: string; end: string } | null>(null)
+  const ready = useBrowserReady()
   // "Tomorrow" and "45 days out" are calendar-day questions, so the window is
   // cut on the user's calendar, not the browser's.
-  React.useEffect(() => {
+  const range = React.useMemo(() => {
+    if (!ready) return null
     const now = new Date()
-    setRange({
+    return {
       start: zonedDayBounds(addDays(now, 1), timezone).start.toISOString(),
       end: zonedDayBounds(addDays(now, days), timezone).end.toISOString(),
-    })
-  }, [days, timezone])
+    }
+  }, [days, timezone, ready])
 
   const query = useQuery({
     enabled: !!range,
     queryKey: ['calendar', 'upcoming', range?.start, range?.end, days],
-    queryFn: () => api.get<CalendarEvent[]>(
-      `/api/calendar?start=${encodeURIComponent(range!.start)}&end=${encodeURIComponent(range!.end)}`,
-    ),
+    queryFn: () =>
+      api.get<CalendarEvent[]>(
+        `/api/calendar?start=${encodeURIComponent(range!.start)}&end=${encodeURIComponent(range!.end)}`,
+      ),
   })
 
   const window = React.useMemo(() => {
@@ -103,18 +111,27 @@ export function useUpcoming(days = 45, limit = 4) {
     }
   }, [timezone, days])
 
-  return React.useMemo(() => (
-    withinDays(query.data ?? [], window.from, window.to)
-      // Milestones have their own home in People in orbit; repeating a birthday
-      // here would push out the things you actually owe someone.
-      .filter((e) => e.category !== 'log' && e.category !== 'milestone')
-      .sort(byWhen(timezone))
-      .slice(0, limit)
-  ), [query.data, limit, window, timezone])
+  return React.useMemo(
+    () =>
+      withinDays(query.data ?? [], window.from, window.to)
+        // Milestones have their own home in People in orbit; repeating a birthday
+        // here would push out the things you actually owe someone.
+        .filter((e) => e.category !== 'log' && e.category !== 'milestone')
+        .sort(byWhen(timezone))
+        .slice(0, limit),
+    [query.data, limit, window, timezone],
+  )
 }
 
 export function TodayPanel({
-  events, onOpen, className, dateLabel, heading = 'Today', emptyText, onClearDay, children,
+  events,
+  onOpen,
+  className,
+  dateLabel,
+  heading = 'Today',
+  emptyText,
+  onClearDay,
+  children,
 }: {
   events: CalendarEvent[]
   onOpen?: (source: string, entityId: string) => void
@@ -150,7 +167,10 @@ export function TodayPanel({
             </span>
           )
         ) : (
-          <Link href="/calendar" className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]">
+          <Link
+            href="/calendar"
+            className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]"
+          >
             Open calendar <ArrowRight className="h-3 w-3" />
           </Link>
         )}
@@ -176,7 +196,9 @@ export function TodayPanel({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium leading-snug">{e.title}</span>
                 <span className="mt-0.5 block truncate text-[11px] text-[var(--muted-foreground)]">
-                  {String((e.meta?.kind as string) ?? SOURCE_LABEL[e.source] ?? e.source).toLowerCase().replace('_', ' ')}
+                  {String((e.meta?.kind as string) ?? SOURCE_LABEL[e.source] ?? e.source)
+                    .toLowerCase()
+                    .replace('_', ' ')}
                   {e.meta?.project ? ` · ${e.meta.project}` : ''}
                 </span>
               </span>
@@ -187,9 +209,15 @@ export function TodayPanel({
             i > 0 && 'border-t border-[var(--border)]',
             clickable && 'transition-opacity hover:opacity-70',
           )
-          return clickable
-            ? <button key={e.id} className={cls} onClick={() => onOpen!(e.source, e.entityId)}>{inner}</button>
-            : <div key={e.id} className={cls}>{inner}</div>
+          return clickable ? (
+            <button key={e.id} className={cls} onClick={() => onOpen!(e.source, e.entityId)}>
+              {inner}
+            </button>
+          ) : (
+            <div key={e.id} className={cls}>
+              {inner}
+            </div>
+          )
         })}
       </div>
 
@@ -203,16 +231,31 @@ export function TodayPanel({
  * the rail reading as a stack of identical tiles — the card is the subject, the
  * insets are what it currently has to say.
  */
-export function Inset({ label, meta, children, className }: {
-  label: string; meta?: React.ReactNode; children: React.ReactNode; className?: string
+export function Inset({
+  label,
+  meta,
+  children,
+  className,
+}: {
+  label: string
+  meta?: React.ReactNode
+  children: React.ReactNode
+  className?: string
 }) {
   return (
-    <div className={cn('mx-3 mb-3 rounded-[var(--radius-md)] bg-[var(--muted)] px-3 py-2.5', className)}>
+    <div
+      className={cn(
+        'mx-3 mb-3 rounded-[var(--radius-md)] bg-[var(--muted)] px-3 py-2.5',
+        className,
+      )}
+    >
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
         <span className="font-mono text-[10px] uppercase tracking-[0.13em] text-[var(--primary)]">
           {label}
         </span>
-        {meta && <span className="shrink-0 text-[11px] text-[var(--muted-foreground)]">{meta}</span>}
+        {meta && (
+          <span className="shrink-0 text-[11px] text-[var(--muted-foreground)]">{meta}</span>
+        )}
       </div>
       {children}
     </div>

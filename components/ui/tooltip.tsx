@@ -32,7 +32,9 @@ export function useHoverTip() {
       ref.current.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
       ref.current.style.opacity = '1'
     })
-    return () => { alive = false }
+    return () => {
+      alive = false
+    }
   }, [tip])
 
   // Anything that scrolls the anchor out from under the pointer should dismiss
@@ -49,7 +51,9 @@ export function useHoverTip() {
   }, [tip])
 
   const node = tip ? (
-    <div ref={ref} className="kb-tip" role="tooltip">{tip.content}</div>
+    <div ref={ref} className="kb-tip" role="tooltip">
+      {tip.content}
+    </div>
   ) : null
 
   return {

@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     const unit = settings.weatherUnit === 'celsius' ? 'celsius' : 'fahrenheit'
     const res = await fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
-      `&current=temperature_2m,weather_code&temperature_unit=${unit}&timezone=auto`,
+        `&current=temperature_2m,weather_code&temperature_unit=${unit}&timezone=auto`,
       { next: { revalidate: 900 } },
     )
     const data = await res.json()

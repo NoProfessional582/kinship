@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { subscribeBrowser } from '@/lib/hooks/platform'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
@@ -50,31 +51,46 @@ const VIEWS: { value: CalendarViewName; label: string }[] = [
   { value: 'listWeek', label: 'List' },
 ]
 
+function storedCategories() {
+  try {
+    return window.localStorage.getItem(STORE_KEY)
+  } catch {
+    return null
+  }
+}
+
 export default function CalendarPage() {
   const router = useRouter()
   const controls = React.useRef<CalendarControls | null>(null)
   const [view, setView] = React.useState<CalendarViewName>('dayGridMonth')
   const [anchor, setAnchor] = React.useState<Date | null>(null)
-  const [active, setActive] = React.useState<Set<EventCategory>>(() => new Set(DEFAULT_CATEGORIES))
+  const saved = React.useSyncExternalStore(subscribeBrowser, storedCategories, () => null)
+  const storedActive = React.useMemo(() => {
+    try {
+      const value: unknown = JSON.parse(saved ?? 'null')
+      if (Array.isArray(value)) return new Set(value as EventCategory[])
+    } catch {
+      /* private mode or edited preference */
+    }
+    return new Set(DEFAULT_CATEGORIES)
+  }, [saved])
+  const [choice, setActive] = React.useState<Set<EventCategory> | null>(null)
+  const active = choice ?? storedActive
   // Null means "today", which is also what the rail falls back to — the day is
   // only pinned once you pick one.
   const [day, setDay] = React.useState<Date | null>(null)
   const [creating, setCreating] = React.useState(false)
 
-  // Read after mount: the server has no localStorage, and seeding state from it
-  // during render would mismatch hydration.
-  React.useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(STORE_KEY) ?? 'null')
-      if (Array.isArray(saved)) setActive(new Set(saved as EventCategory[]))
-    } catch { /* private mode, or someone hand-edited it */ }
-  }, [])
-
   const toggle = (key: EventCategory) => {
     setActive((prev) => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      try { window.localStorage.setItem(STORE_KEY, JSON.stringify([...next])) } catch { /* ignore */ }
+      const next = new Set(prev ?? active)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      try {
+        window.localStorage.setItem(STORE_KEY, JSON.stringify([...next]))
+      } catch {
+        /* ignore */
+      }
       return next
     })
   }
@@ -97,7 +113,9 @@ export default function CalendarPage() {
   }
 
   const title = anchor
-    ? view === 'dayGridMonth' ? format(anchor, 'MMMM yyyy') : format(anchor, "'Week of' MMMM d")
+    ? view === 'dayGridMonth'
+      ? format(anchor, 'MMMM yyyy')
+      : format(anchor, "'Week of' MMMM d")
     : ''
 
   return (
@@ -119,8 +137,8 @@ export default function CalendarPage() {
             </p>
             <h1 className="mt-1 min-h-[1.1em] text-[2.6rem] leading-[1.08]">{title}</h1>
             <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
-              Click a day to read it in the rail; drag anything to reschedule it.
-              New events land on the selected day.
+              Click a day to read it in the rail; drag anything to reschedule it. New events land on
+              the selected day.
             </p>
           </div>
 
@@ -153,7 +171,10 @@ export default function CalendarPage() {
                 <ChevronLeft className="h-4 w-4" />
               </NavButton>
               <button
-                onClick={() => { controls.current?.today(); setDay(null) }}
+                onClick={() => {
+                  controls.current?.today()
+                  setDay(null)
+                }}
                 className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] px-3.5 py-2 text-xs font-medium transition-colors hover:bg-[var(--muted)]"
               >
                 Today
@@ -184,10 +205,14 @@ export default function CalendarPage() {
                     ? 'font-medium text-[var(--foreground)]'
                     : 'border-[var(--border)] text-[var(--muted-foreground)] opacity-60 hover:opacity-100',
                 )}
-                style={on ? {
-                  borderColor: `color-mix(in oklch, ${c.tint} 55%, transparent)`,
-                  background: `color-mix(in oklch, ${c.tint} 13%, transparent)`,
-                } : undefined}
+                style={
+                  on
+                    ? {
+                        borderColor: `color-mix(in oklch, ${c.tint} 55%, transparent)`,
+                        background: `color-mix(in oklch, ${c.tint} 13%, transparent)`,
+                      }
+                    : undefined
+                }
               >
                 <span
                   className="h-1.5 w-1.5 rounded-full"
@@ -200,7 +225,7 @@ export default function CalendarPage() {
         </div>
 
         <Card className="kb-cal overflow-hidden p-1.5 lg:col-start-1 lg:row-start-3">
-          <div className={view === "dayGridMonth" ? "" : "h-[calc(100vh-15rem)] min-h-[34rem]"}>
+          <div className={view === 'dayGridMonth' ? '' : 'h-[calc(100vh-15rem)] min-h-[34rem]'}>
             <CalendarView
               view={view}
               categories={active}
@@ -219,9 +244,11 @@ export default function CalendarPage() {
           heading={isToday || !shown ? 'Today' : format(shown, 'EEEE')}
           dateLabel={shown ? format(shown, 'MMM d') : undefined}
           onClearDay={isToday ? undefined : () => setDay(null)}
-          emptyText={isToday || !shown
-            ? 'Nothing on the calendar today.'
-            : `Nothing on the calendar for ${format(shown, 'MMMM d')}.`}
+          emptyText={
+            isToday || !shown
+              ? 'Nothing on the calendar today.'
+              : `Nothing on the calendar for ${format(shown, 'MMMM d')}.`
+          }
           className="lg:sticky lg:top-8 lg:col-start-2 lg:row-start-3"
         />
       </div>
@@ -238,8 +265,14 @@ export default function CalendarPage() {
   )
 }
 
-function NavButton({ label, onClick, children }: {
-  label: string; onClick: () => void; children: React.ReactNode
+function NavButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  children: React.ReactNode
 }) {
   return (
     <button

@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConflictError } from '@/lib/errors'
 import { STEP } from '@/lib/fractional-index'
+import type { TrashKind } from '@/lib/services/trash'
+
+/** Read by the mocked client below; vi.hoisted makes it reachable from the hoisted mock. */
+const edgeDeletes = vi.hoisted(() => ({ fail: false }))
 
 /**
  * Trash, purge and empty-trash against a real database (K01-K04).
@@ -30,8 +34,8 @@ vi.mock('@/lib/db', async () => {
   const prisma = base.$extends({
     query: {
       entityEdge: {
-        async deleteMany({ args, query }: any) {
-          if ((globalThis as any).__failEdgeDeletes) {
+        async deleteMany({ args, query }) {
+          if (edgeDeletes.fail) {
             throw new Error('injected edge-delete failure')
           }
           return query(args)
@@ -47,12 +51,15 @@ const trash = await import('@/lib/services/trash')
 
 const MARK = `__trashtest_${Date.now()}__`
 const OWNER = `${MARK}owner`
-const deleteEdgesFor = (kind: any, ids: string[]) => trash.deleteEdgesFor(OWNER, kind, ids)
+const deleteEdgesFor = (kind: TrashKind, ids: string[]) => trash.deleteEdgesFor(OWNER, kind, ids)
 const emptyTrash = () => trash.emptyTrash(OWNER)
-const purge = (kind: any, id: string, expected?: Date | string | null) => trash.purge(OWNER, kind, id, expected)
-const softDelete = (kind: any, id: string) => trash.softDelete(OWNER, kind, id)
-const restore = (kind: any, id: string) => trash.restore(OWNER, kind, id)
-const failEdges = (on: boolean) => { (globalThis as any).__failEdgeDeletes = on }
+const purge = (kind: TrashKind, id: string, expected?: Date | string | null) =>
+  trash.purge(OWNER, kind, id, expected)
+const softDelete = (kind: TrashKind, id: string) => trash.softDelete(OWNER, kind, id)
+const restore = (kind: TrashKind, id: string) => trash.restore(OWNER, kind, id)
+const failEdges = (on: boolean) => {
+  edgeDeletes.fail = on
+}
 
 let columnId: string
 
@@ -81,23 +88,47 @@ async function makeTask(title: string, extra: Record<string, unknown> = {}) {
 
 async function makeContact(name: string) {
   return prisma.contact.create({
-    data: { owner: OWNER, slug: `${MARK}${name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'), displayName: `${MARK}${name}` },
+    data: {
+      owner: OWNER,
+      slug: `${MARK}${name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      displayName: `${MARK}${name}`,
+    },
   })
 }
 
 /** An edge in both directions' reach: this entity as source, and as target. */
 async function makeEdges(kind: string, id: string) {
   await prisma.entityEdge.create({
-    data: { owner: OWNER, sourceType: kind, sourceId: id, targetType: 'contact', targetId: `${MARK}far`, relation: `${MARK}out` },
+    data: {
+      owner: OWNER,
+      sourceType: kind,
+      sourceId: id,
+      targetType: 'contact',
+      targetId: `${MARK}far`,
+      relation: `${MARK}out`,
+    },
   })
   await prisma.entityEdge.create({
-    data: { owner: OWNER, sourceType: 'contact', sourceId: `${MARK}far`, targetType: kind, targetId: id, relation: `${MARK}in` },
+    data: {
+      owner: OWNER,
+      sourceType: 'contact',
+      sourceId: `${MARK}far`,
+      targetType: kind,
+      targetId: id,
+      relation: `${MARK}in`,
+    },
   })
 }
 
 const edgeCount = (kind: string, id: string) =>
   prisma.entityEdge.count({
-    where: { owner: OWNER, OR: [{ sourceType: kind, sourceId: id }, { targetType: kind, targetId: id }] },
+    where: {
+      owner: OWNER,
+      OR: [
+        { sourceType: kind, sourceId: id },
+        { targetType: kind, targetId: id },
+      ],
+    },
   })
 
 beforeEach(() => failEdges(false))
@@ -239,10 +270,14 @@ describe('emptyTrash — all or nothing (K04)', () => {
     // here, so clear them before exercising a global sweep. (That the sweep
     // refused because of them is itself the policy working — see K03.)
     const tasks = await prisma.task.findMany({
-      where: { title: { startsWith: MARK } }, select: { id: true },
+      where: { title: { startsWith: MARK } },
+      select: { id: true },
     })
     await prisma.task.deleteMany({ where: { title: { startsWith: MARK } } })
-    await deleteEdgesFor('task', tasks.map((t) => t.id))
+    await deleteEdgesFor(
+      'task',
+      tasks.map((t) => t.id),
+    )
   })
 
   it('rolls the whole sweep back when edge cleanup fails', async () => {
@@ -289,6 +324,8 @@ describe('emptyTrash — all or nothing (K04)', () => {
     expect(await edgeCount('contact', c.id)).toBe(0)
     expect(await edgeCount('task', t.id)).toBe(0)
     // Owner-scoped: another subject's trash is not this caller's to empty.
-    expect(await prisma.contact.count({ where: { owner: OWNER, deletedAt: { not: null } } })).toBe(0)
+    expect(await prisma.contact.count({ where: { owner: OWNER, deletedAt: { not: null } } })).toBe(
+      0,
+    )
   })
 })

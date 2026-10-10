@@ -34,12 +34,23 @@ export type EventCategory =
   | 'log'
 
 export const EVENT_CATEGORIES: EventCategory[] = [
-  'event', 'scheduled', 'meeting', 'followup', 'deadline', 'milestone', 'log',
+  'event',
+  'scheduled',
+  'meeting',
+  'followup',
+  'deadline',
+  'milestone',
+  'log',
 ]
 
 /** Everything except the filing noise. What the day views subscribe to. */
 export const AGENDA_CATEGORIES: EventCategory[] = [
-  'event', 'scheduled', 'meeting', 'followup', 'deadline', 'milestone',
+  'event',
+  'scheduled',
+  'meeting',
+  'followup',
+  'deadline',
+  'milestone',
 ]
 
 /**
@@ -47,15 +58,16 @@ export const AGENDA_CATEGORIES: EventCategory[] = [
  * dashboard's Next up and the dossier's upcoming block. A follow-up is ochre
  * everywhere or the colour stops meaning anything.
  */
-export const CATEGORY_META: Record<EventCategory, { label: string; short: string; tint: string }> = {
-  event: { label: 'Events', short: 'Event', tint: '#5b7f8c' },
-  scheduled: { label: 'Scheduled', short: 'Scheduled', tint: '#4a6572' },
-  meeting: { label: 'Meetings', short: 'Meeting', tint: '#8c5a4a' },
-  followup: { label: 'Follow-ups', short: 'Follow-up', tint: '#ba8a42' },
-  deadline: { label: 'Deadlines', short: 'Deadline', tint: '#697760' },
-  milestone: { label: 'Milestones', short: 'Milestone', tint: '#a06a86' },
-  log: { label: 'Notes & messages', short: 'Logged', tint: '#7a6a86' },
-}
+export const CATEGORY_META: Record<EventCategory, { label: string; short: string; tint: string }> =
+  {
+    event: { label: 'Events', short: 'Event', tint: '#5b7f8c' },
+    scheduled: { label: 'Scheduled', short: 'Scheduled', tint: '#4a6572' },
+    meeting: { label: 'Meetings', short: 'Meeting', tint: '#8c5a4a' },
+    followup: { label: 'Follow-ups', short: 'Follow-up', tint: '#ba8a42' },
+    deadline: { label: 'Deadlines', short: 'Deadline', tint: '#697760' },
+    milestone: { label: 'Milestones', short: 'Milestone', tint: '#a06a86' },
+    log: { label: 'Notes & messages', short: 'Logged', tint: '#7a6a86' },
+  }
 
 export interface CalendarEvent {
   id: string

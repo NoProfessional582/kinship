@@ -53,7 +53,11 @@ const unwritten = (bodyText: string) => bodyText.trim().length === 0
  * One merged feed. Tasks and entries are draggable because their dates are
  * editable; birthdays are derived from the contact record and are not.
  */
-export async function getCalendarEvents(owner: string, start: Date, end: Date): Promise<CalendarEvent[]> {
+export async function getCalendarEvents(
+  owner: string,
+  start: Date,
+  end: Date,
+): Promise<CalendarEvent[]> {
   const now = new Date()
   // Date-only columns sit at UTC midnight, which can fall a whole day outside a
   // window cut on the viewer's zone. Widened here; the day views narrow it back
@@ -73,14 +77,25 @@ export async function getCalendarEvents(owner: string, start: Date, end: Date): 
         ],
       },
       select: {
-        id: true, title: true, startDate: true, dueDate: true, allDay: true, priority: true,
-        status: true, project: { select: { name: true, color: true } },
+        id: true,
+        title: true,
+        startDate: true,
+        dueDate: true,
+        allDay: true,
+        priority: true,
+        status: true,
+        project: { select: { name: true, color: true } },
       },
     }),
     prisma.entry.findMany({
       where: { owner, deletedAt: null, occurredAt: { gte: start, lte: end } },
       select: {
-        id: true, title: true, kind: true, occurredAt: true, durationMin: true, bodyText: true,
+        id: true,
+        title: true,
+        kind: true,
+        occurredAt: true,
+        durationMin: true,
+        bodyText: true,
         mentions: { select: { contact: { select: { displayName: true } } }, take: 3 },
       },
     }),
@@ -98,7 +113,15 @@ export async function getCalendarEvents(owner: string, start: Date, end: Date): 
           { startDate: { gte: dayStart, lte: dayEnd } },
         ],
       },
-      select: { id: true, slug: true, name: true, color: true, startDate: true, targetDate: true, allDay: true },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        color: true,
+        startDate: true,
+        targetDate: true,
+        allDay: true,
+      },
     }),
   ])
 
@@ -106,15 +129,17 @@ export async function getCalendarEvents(owner: string, start: Date, end: Date): 
   // follow-up is an ordinary entry — the edge is the only thing that says so,
   // and it is what earns the ochre chip and a place on the agenda views.
   const followUpIds = new Set(
-    (await prisma.entityEdge.findMany({
-      where: {
-        owner,
-        relation: FOLLOWS_UP,
-        sourceType: 'entry',
-        sourceId: { in: entries.map((e) => e.id) },
-      },
-      select: { sourceId: true },
-    })).map((e) => e.sourceId),
+    (
+      await prisma.entityEdge.findMany({
+        where: {
+          owner,
+          relation: FOLLOWS_UP,
+          sourceType: 'entry',
+          sourceId: { in: entries.map((e) => e.id) },
+        },
+        select: { sourceId: true },
+      })
+    ).map((e) => e.sourceId),
   )
 
   const events: CalendarEvent[] = []
@@ -131,7 +156,9 @@ export async function getCalendarEvents(owner: string, start: Date, end: Date): 
       start: t.allDay ? dayString(t.startDate ?? anchor) : (t.startDate ?? anchor).toISOString(),
       end: !(t.startDate && t.dueDate)
         ? undefined
-        : t.allDay ? exclusiveEnd(t.dueDate) : t.dueDate.toISOString(),
+        : t.allDay
+          ? exclusiveEnd(t.dueDate)
+          : t.dueDate.toISOString(),
       allDay: t.allDay,
       source: 'task',
       category: 'deadline',
@@ -144,9 +171,7 @@ export async function getCalendarEvents(owner: string, start: Date, end: Date): 
 
   for (const e of entries) {
     const startAt = e.occurredAt
-    const endAt = e.durationMin
-      ? new Date(startAt.getTime() + e.durationMin * 60_000)
-      : undefined
+    const endAt = e.durationMin ? new Date(startAt.getTime() + e.durationMin * 60_000) : undefined
     const who = e.mentions.map((m) => m.contact.displayName).join(', ')
     // Future date wins over kind: an entry you dated forward is a plan. Two
     // exceptions.
@@ -160,13 +185,16 @@ export async function getCalendarEvents(owner: string, start: Date, end: Date): 
     // conversation that was promised and never had, and letting it decay into
     // 'log' would hide the open loop in the one category the calendar does not
     // show. Writing it up is what releases it into the ordinary history.
-    const category = e.kind === 'EVENT'
-      ? 'event'
-      : followUpIds.has(e.id) && (startAt > now || unwritten(e.bodyText))
-        ? 'followup'
-        : startAt > now
-          ? 'scheduled'
-          : ENCOUNTER_KINDS.has(e.kind) ? 'meeting' : 'log'
+    const category =
+      e.kind === 'EVENT'
+        ? 'event'
+        : followUpIds.has(e.id) && (startAt > now || unwritten(e.bodyText))
+          ? 'followup'
+          : startAt > now
+            ? 'scheduled'
+            : ENCOUNTER_KINDS.has(e.kind)
+              ? 'meeting'
+              : 'log'
 
     events.push({
       id: `entry:${e.id}`,
@@ -177,7 +205,7 @@ export async function getCalendarEvents(owner: string, start: Date, end: Date): 
       source: 'entry',
       category,
       entityId: e.id,
-      color: category === 'followup' ? FOLLOWUP_COLOR : KIND_COLOR[e.kind] ?? '#8b5cf6',
+      color: category === 'followup' ? FOLLOWUP_COLOR : (KIND_COLOR[e.kind] ?? '#8b5cf6'),
       editable: true,
       meta: { kind: e.kind, who },
     })
@@ -194,7 +222,11 @@ export async function getCalendarEvents(owner: string, start: Date, end: Date): 
       id: `project:${p.id}`,
       title: spans || p.targetDate ? p.name : `${p.name} starts`,
       start: p.allDay ? dayString(p.startDate ?? anchor) : (p.startDate ?? anchor).toISOString(),
-      end: !spans ? undefined : p.allDay ? exclusiveEnd(p.targetDate!) : p.targetDate!.toISOString(),
+      end: !spans
+        ? undefined
+        : p.allDay
+          ? exclusiveEnd(p.targetDate!)
+          : p.targetDate!.toISOString(),
       allDay: p.allDay,
       source: 'project',
       category: 'deadline',
@@ -268,7 +300,9 @@ export async function rescheduleEvent(
           // Only an all-day end was widened on the way out, so only an all-day
           // end is narrowed on the way back.
           targetDate: end
-            ? (project.allDay ? inclusiveEnd(end) : end)
+            ? project.allDay
+              ? inclusiveEnd(end)
+              : end
             : shiftedEnd(project.startDate, project.targetDate, start),
         },
       })
@@ -291,7 +325,9 @@ export async function rescheduleEvent(
         data: {
           startDate: start,
           dueDate: end
-            ? (task.allDay ? inclusiveEnd(end) : end)
+            ? task.allDay
+              ? inclusiveEnd(end)
+              : end
             : shiftedEnd(task.startDate, task.dueDate, start),
         },
       })
@@ -306,7 +342,9 @@ export async function rescheduleEvent(
   }
 
   await prisma.entry.findFirstOrThrow({ where: { id: entityId, owner }, select: { id: true } })
-  const durationMin = end ? Math.max(0, Math.round((end.getTime() - start.getTime()) / 60_000)) : undefined
+  const durationMin = end
+    ? Math.max(0, Math.round((end.getTime() - start.getTime()) / 60_000))
+    : undefined
   return prisma.entry.update({
     where: { id: entityId },
     data: { occurredAt: start, ...(durationMin !== undefined ? { durationMin } : {}) },

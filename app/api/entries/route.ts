@@ -9,7 +9,8 @@ export async function GET(req: Request) {
   const owner = requireIdentity(req).subject
   const p = new URL(req.url).searchParams
   return handle(() =>
-    listEntries(owner,
+    listEntries(
+      owner,
       entryListSchema.parse(
         Object.fromEntries(
           // Absent params are dropped rather than passed as null, so each field

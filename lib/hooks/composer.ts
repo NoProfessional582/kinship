@@ -1,12 +1,14 @@
 'use client'
 import * as React from 'react'
+import { useBrowserReady, subscribeBrowser } from './platform'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import type { Editor } from '@tiptap/core'
+import type { Editor, JSONContent } from '@tiptap/core'
 import { entryKind } from '@/components/entity-modal/entry-form'
 import { api, useProjects } from '@/lib/hooks/api'
 import { useEnrichmentQueue } from '@/lib/store'
 import { useTimezone } from '@/lib/hooks/settings'
+import type { EntrySaved } from '@/lib/api-types'
 import { collectDocRefs } from '@/lib/tiptap/doc'
 import { fromLocalInputValue, toLocalInputValue } from '@/lib/format'
 
@@ -44,22 +46,33 @@ interface Draft {
 const store = (() => {
   const k = 'kb.composer.hero'
   return {
-    read(): Draft | null {
+    snapshot(): string | null {
       if (typeof window === 'undefined') return null
-      try { return JSON.parse(window.localStorage.getItem(k) ?? 'null') } catch { return null }
+      try {
+        return window.localStorage.getItem(k)
+      } catch {
+        return null
+      }
     },
     write(d: Draft) {
-      try { window.localStorage.setItem(k, JSON.stringify(d)) } catch { /* private mode */ }
+      try {
+        window.localStorage.setItem(k, JSON.stringify(d))
+      } catch {
+        /* private mode */
+      }
     },
     clear() {
-      try { window.localStorage.removeItem(k) } catch { /* private mode */ }
+      try {
+        window.localStorage.removeItem(k)
+      } catch {
+        /* private mode */
+      }
     },
   }
 })()
 
-const isEmptyDoc = (doc: any) =>
-  !doc?.content?.length ||
-  (doc.content.length === 1 && !doc.content[0].content?.length)
+const isEmptyDoc = (doc: JSONContent | null | undefined) =>
+  !doc?.content?.length || (doc.content.length === 1 && !doc.content[0].content?.length)
 
 /**
  * Capture, without a surface. The desktop card and the mobile sheet lay these
@@ -82,7 +95,10 @@ export function useComposer(onSaved?: () => void) {
 
   const [kind, setKind] = React.useState<string>('NOTE')
   const [title, setTitle] = React.useState('')
-  const [occurredAt, setOccurredAt] = React.useState('')
+  const [chosenDate, setChosenDate] = React.useState('')
+  const [dateEdited, setDateEdited] = React.useState(false)
+  const ready = useBrowserReady()
+  const persistedDraft = React.useSyncExternalStore(subscribeBrowser, store.snapshot, () => null)
   const [direction, setDirection] = React.useState<'INBOUND' | 'OUTBOUND' | ''>('')
   const [durationMin, setDurationMin] = React.useState('')
   const [location, setLocation] = React.useState('')
@@ -96,42 +112,76 @@ export function useComposer(onSaved?: () => void) {
   const { timezone } = useTimezone()
   const { data: projects } = useProjects()
 
-  // Re-seeds whenever the zone changes, but never over a date someone chose.
-  // "Fill it once if blank" is not enough: useTimezone answers 'UTC' until the
-  // settings query lands, so the first render would stamp a UTC wall time into
-  // the field and the real zone would arrive too late to correct it.
-  const dateTouched = React.useRef(false)
-  React.useEffect(() => {
-    if (dateTouched.current) return
-    setOccurredAt(toLocalInputValue(new Date(), timezone))
-  }, [timezone])
+  // Defaults follow timezone changes until the user picks a date.
+  const [defaultDate, setDefaultDate] = React.useState('')
+  const [defaultSource, setDefaultSource] = React.useState({ ready: false, timezone })
+  if (ready && (!defaultSource.ready || defaultSource.timezone !== timezone)) {
+    setDefaultSource({ ready, timezone })
+    if (!dateEdited) setDefaultDate(toLocalInputValue(new Date(), timezone))
+  }
+  const occurredAt = dateEdited ? chosenDate : defaultDate
+  const setOccurredAt = (value: string) => {
+    setDateEdited(true)
+    setChosenDate(value)
+  }
   const editorRef = React.useRef<Editor | null>(null)
   const enqueue = useEnrichmentQueue((s) => s.enqueue)
   const qc = useQueryClient()
 
   const active = entryKind(kind)
-  const onReady = React.useCallback((e: Editor) => { editorRef.current = e }, [])
-
-  // Any stored draft is pulled in before the editor mounts, so its content can
-  // be handed over as initial content rather than pushed in afterwards.
-  React.useEffect(() => {
-    const d = store.read()
-    if (!d) return
-    setRestored(d)
-    setHasDraft(true)
-    setKind(d.kind); setTitle(d.title)
-    if (d.occurredAt) { dateTouched.current = true; setOccurredAt(d.occurredAt) }
-    setDirection(d.direction); setDurationMin(d.durationMin)
-    setLocation(d.location); setTags(d.tags)
-    setFollowUpAt(d.followUpAt ?? ''); setProjectId(d.projectId ?? '')
-    setOpen(true)
+  const onReady = React.useCallback((e: Editor) => {
+    editorRef.current = e
   }, [])
+
+  // Seed this component once, after the server-compatible hydration snapshot.
+  const [restoredOnce, setRestoredOnce] = React.useState(false)
+  if (ready && !restoredOnce) {
+    setRestoredOnce(true)
+    let d: Draft | null = null
+    try {
+      d = JSON.parse(persistedDraft ?? 'null') as Draft | null
+    } catch {
+      /* edited draft */
+    }
+    if (d) {
+      setRestored(d)
+      setHasDraft(true)
+      setKind(d.kind)
+      setTitle(d.title)
+      if (d.occurredAt) {
+        setDateEdited(true)
+        setChosenDate(d.occurredAt)
+      }
+      setDirection(d.direction)
+      setDurationMin(d.durationMin)
+      setLocation(d.location)
+      setTags(d.tags)
+      setFollowUpAt(d.followUpAt ?? '')
+      setProjectId(d.projectId ?? '')
+      setOpen(true)
+    }
+  }
 
   const persist = React.useCallback(() => {
     const doc = editorRef.current?.getJSON()
     const empty = isEmptyDoc(doc) && !title.trim() && tags.length === 0
-    if (empty) { store.clear(); setHasDraft(false); return }
-    store.write({ kind, title, occurredAt, direction, durationMin, location, followUpAt, projectId, tags, body: doc })
+    if (empty) {
+      store.clear()
+      setHasDraft(false)
+      return
+    }
+    store.write({
+      kind,
+      title,
+      occurredAt,
+      direction,
+      durationMin,
+      location,
+      followUpAt,
+      projectId,
+      tags,
+      body: doc,
+    })
     setHasDraft(true)
   }, [kind, title, occurredAt, direction, durationMin, location, followUpAt, projectId, tags])
 
@@ -144,10 +194,17 @@ export function useComposer(onSaved?: () => void) {
 
   const reset = () => {
     editorRef.current?.commands.clearContent()
-    setKind('NOTE'); setTitle(''); setDurationMin(''); setLocation(''); setDirection('')
-    setFollowUpAt(''); setProjectId('')
-    setTags([]); dateTouched.current = false
-    setOccurredAt(toLocalInputValue(new Date(), timezone))
+    setKind('NOTE')
+    setTitle('')
+    setDurationMin('')
+    setLocation('')
+    setDirection('')
+    setFollowUpAt('')
+    setProjectId('')
+    setTags([])
+    setDateEdited(false)
+    setChosenDate('')
+    setDefaultDate(toLocalInputValue(new Date(), timezone))
     setRestored(null)
     store.clear()
     setHasDraft(false)
@@ -158,7 +215,7 @@ export function useComposer(onSaved?: () => void) {
     if (!editor || saving) return
 
     const doc = editor.getJSON()
-    const refs = collectDocRefs(doc as any)
+    const refs = collectDocRefs(doc)
 
     if (editor.getText().trim().length === 0 && !title.trim()) {
       toast.error('Write something first')
@@ -167,7 +224,7 @@ export function useComposer(onSaved?: () => void) {
 
     setSaving(true)
     try {
-      const res = await api.post<{ entry: any; createdEntities: any[] }>('/api/entries', {
+      const res = await api.post<EntrySaved>('/api/entries', {
         kind,
         title: title.trim() || null,
         bodyJson: doc,
@@ -201,12 +258,36 @@ export function useComposer(onSaved?: () => void) {
   }
 
   return {
-    open, setOpen, restored, hasDraft, setHasDraft,
-    kind, setKind, title, setTitle, occurredAt, setOccurredAt, dateTouched,
-    direction, setDirection, durationMin, setDurationMin,
-    location, setLocation, followUpAt, setFollowUpAt,
-    projectId, setProjectId, tags, setTags,
-    saving, setBodyRev, active, onReady, reset, save,
-    projects, timezone,
+    open,
+    setOpen,
+    restored,
+    hasDraft,
+    setHasDraft,
+    kind,
+    setKind,
+    title,
+    setTitle,
+    occurredAt,
+    setOccurredAt,
+    direction,
+    setDirection,
+    durationMin,
+    setDurationMin,
+    location,
+    setLocation,
+    followUpAt,
+    setFollowUpAt,
+    projectId,
+    setProjectId,
+    tags,
+    setTags,
+    saving,
+    setBodyRev,
+    active,
+    onReady,
+    reset,
+    save,
+    projects,
+    timezone,
   }
 }

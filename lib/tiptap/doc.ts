@@ -1,9 +1,5 @@
-import {
-  CONTACT_MENTION,
-  ENTITY_REF,
-  isPendingId,
-  type EntityKind,
-} from './nodes'
+import type { JSONContent } from '@tiptap/core'
+import { CONTACT_MENTION, ENTITY_REF, isPendingId, type EntityKind } from './nodes'
 
 /**
  * A single walker over the TipTap document, shared by every consumer:
@@ -11,12 +7,24 @@ import {
  * Keeping one traversal here is what stops the three from drifting apart.
  */
 
+/** A value that survives JSON, which is how documents are stored. */
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
 export type ProseNode = {
   type?: string
-  attrs?: Record<string, any>
+  attrs?: Record<string, JsonValue>
   content?: ProseNode[]
   text?: string
-  marks?: unknown[]
+  marks?: { type: string; attrs?: Record<string, JsonValue> }[]
+}
+
+/**
+ * A stored or restored body as editor content. Bodies arrive as JSON from the
+ * database or from a saved draft; only an object can be a document.
+ */
+export function asDoc(value: unknown): JSONContent | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value : null
 }
 
 export interface DocRefs {
@@ -119,8 +127,13 @@ export function rewriteDocIds(doc: ProseNode, idMap: Map<string, string>): Prose
 export function docToText(doc: ProseNode): string {
   const parts: string[] = []
   const BLOCK = new Set([
-    'paragraph', 'heading', 'blockquote', 'listItem', 'taskItem',
-    'codeBlock', 'horizontalRule',
+    'paragraph',
+    'heading',
+    'blockquote',
+    'listItem',
+    'taskItem',
+    'codeBlock',
+    'horizontalRule',
   ])
 
   function visit(node: ProseNode) {
@@ -138,6 +151,9 @@ export function docToText(doc: ProseNode): string {
   }
 
   visit(doc)
-  return parts.join('').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+  return parts
+    .join('')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
-

@@ -1,0 +1,45 @@
+# Pinned upstream pieces, read by `upstream check` (the dev VM's upgrade tool).
+# Data only: nothing in the build reads this file. Pins listed together must move together.
+groups:
+  node:
+    policy: upgrade # 24 LTS only; a new line shows as "needs a plan"
+    items:
+      - name: node
+        source: { type: docker-tag, image: library/node, track: '24.*-alpine3.24' }
+        pins:
+          - { file: Dockerfile, pattern: '^ARG NODE_IMAGE=node:(\S+)$' }
+          - { file: scripts/node.sh, pattern: '^NODE_IMAGE="node:(\S+)"' }
+  postgres:
+    policy: upgrade # 18 only; a new major needs a plan and a data upgrade (README.md)
+    items:
+      - name: postgres
+        source: { type: docker-tag, image: library/postgres, track: '18.*-trixie' }
+        pins:
+          - { file: compose.yaml, pattern: 'image: postgres:(\S+)' }
+  next:
+    # Linting goes without eslint-config-next until braces fixes GHSA-vfj7-8cjw-p6xm
+    # (eslint.config.mjs); when it comes back, its pin joins this group, same version as next.
+    policy: upgrade
+    items:
+      - name: next
+        source: { type: github-release, repo: vercel/next.js }
+        pins:
+          - { file: package.json, pattern: '"next": "(\S+)"' }
+  playwright:
+    policy: upgrade # the test stack's browser image runs the same version as @playwright/test
+    items:
+      - name: playwright
+        source: { type: github-release, repo: microsoft/playwright }
+        pins:
+          - { file: package.json, pattern: '"@playwright/test": "(\S+)"' }
+          - {
+              file: tests/compose.test.yaml,
+              pattern: 'mcr\.microsoft\.com/playwright:v(\S+)-noble',
+            }
+  dependencies:
+    # package.json's `overrides` (mysql2, deepmerge-ts) patch advisories in Prisma 7's
+    # command-line tool; they are fixed versions, and moving to Prisma 8 removes them.
+    policy: upgrade
+    items:
+      - name: package-lock.json
+        source: { type: npm-lock, npm: [scripts/node.sh, npm] }

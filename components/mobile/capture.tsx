@@ -10,8 +10,16 @@ import { Select } from '@/components/ui/select'
 import { ENTRY_KINDS } from '@/components/entity-modal/entry-form'
 import { useComposer } from '@/lib/hooks/composer'
 import { useSettings } from '@/lib/hooks/settings'
-import { MSheet, MSheetContent, MSheetTitle, MSheetBody, MSheetFooter, MSheetHeader } from '@/components/mobile/sheet'
+import {
+  MSheet,
+  MSheetContent,
+  MSheetTitle,
+  MSheetBody,
+  MSheetFooter,
+  MSheetHeader,
+} from '@/components/mobile/sheet'
 import { cn } from '@/lib/utils'
+import { asDoc } from '@/lib/tiptap/doc'
 
 /**
  * Capture on a phone.
@@ -27,12 +35,35 @@ import { cn } from '@/lib/utils'
  */
 export function MobileCapture() {
   const {
-    open, setOpen, restored, hasDraft, setHasDraft,
-    kind, setKind, title, setTitle, occurredAt, setOccurredAt, dateTouched,
-    direction, setDirection, durationMin, setDurationMin,
-    location, setLocation, followUpAt, setFollowUpAt,
-    projectId, setProjectId, tags, setTags,
-    saving, setBodyRev, active, onReady, save, projects,
+    open,
+    setOpen,
+    restored,
+    hasDraft,
+    setHasDraft,
+    kind,
+    setKind,
+    title,
+    setTitle,
+    occurredAt,
+    setOccurredAt,
+    direction,
+    setDirection,
+    durationMin,
+    setDurationMin,
+    location,
+    setLocation,
+    followUpAt,
+    setFollowUpAt,
+    projectId,
+    setProjectId,
+    tags,
+    setTags,
+    saving,
+    setBodyRev,
+    active,
+    onReady,
+    save,
+    projects,
   } = useComposer()
 
   const settings = useSettings()
@@ -101,16 +132,21 @@ export function MobileCapture() {
             {/* Fills the sheet while the body is the whole screen; stops
                 growing once Details is open so the fields are reachable
                 without scrolling past a mostly-empty editor. */}
-            <div className={cn(
-              "flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)]",
-              !details && "flex-1",
-            )}>
+            <div
+              className={cn(
+                'flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)]',
+                !details && 'flex-1',
+              )}
+            >
               <RichEditor
                 className="kb-editor-framed"
-                content={restored?.body}
+                content={asDoc(restored?.body)}
                 mentionShortcuts
                 onReady={onReady}
-                onUpdate={() => { setHasDraft(true); setBodyRev((n) => n + 1) }}
+                onUpdate={() => {
+                  setHasDraft(true)
+                  setBodyRev((n) => n + 1)
+                }}
                 placeholder="Type @ for people, [[ for tasks and projects…"
               />
             </div>
@@ -119,7 +155,11 @@ export function MobileCapture() {
               onClick={() => setDetails((v) => !v)}
               className="kb-tap mt-2 flex w-full items-center gap-1.5 text-xs font-medium text-[var(--muted-foreground)]"
             >
-              {details ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {details ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
               Details
             </button>
 
@@ -131,7 +171,13 @@ export function MobileCapture() {
                 {active.comms && (
                   <div className="flex flex-col gap-1">
                     <Label>Direction</Label>
-                    <Select value={direction} onChange={(e) => setDirection(e.target.value as any)}>
+                    <Select
+                      value={direction}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setDirection(v === 'INBOUND' || v === 'OUTBOUND' ? v : '')
+                      }}
+                    >
                       <option value="">—</option>
                       <option value="INBOUND">Inbound</option>
                       <option value="OUTBOUND">Outbound</option>
@@ -142,11 +188,21 @@ export function MobileCapture() {
                   <>
                     <div className="flex flex-col gap-1">
                       <Label>Duration (min)</Label>
-                      <Input type="number" min={0} value={durationMin} onChange={(e) => setDurationMin(e.target.value)} placeholder="25" />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={durationMin}
+                        onChange={(e) => setDurationMin(e.target.value)}
+                        placeholder="25"
+                      />
                     </div>
                     <div className="flex flex-col gap-1">
                       <Label>Location</Label>
-                      <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Zoom, office…" />
+                      <Input
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="Zoom, office…"
+                      />
                     </div>
                   </>
                 )}
@@ -155,20 +211,29 @@ export function MobileCapture() {
                   <Input
                     type="datetime-local"
                     value={occurredAt}
-                    onChange={(e) => { dateTouched.current = true; setOccurredAt(e.target.value) }}
+                    onChange={(e) => {
+                      setOccurredAt(e.target.value)
+                    }}
                     className="tabular"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label>Follow up</Label>
-                  <Input type="datetime-local" value={followUpAt} onChange={(e) => setFollowUpAt(e.target.value)} className="tabular" />
+                  <Input
+                    type="datetime-local"
+                    value={followUpAt}
+                    onChange={(e) => setFollowUpAt(e.target.value)}
+                    className="tabular"
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label>Project</Label>
                   <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
                     <option value="">None</option>
-                    {(projects ?? []).map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                    {(projects ?? []).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
                     ))}
                   </Select>
                 </div>
@@ -181,7 +246,9 @@ export function MobileCapture() {
           </MSheetBody>
 
           <MSheetFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
             <span className="flex-1" />
             <Button onClick={save} disabled={saving}>
               <Send className="h-3.5 w-3.5" /> {saving ? 'Saving…' : 'Save'}

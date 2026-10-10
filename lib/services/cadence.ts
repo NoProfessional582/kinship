@@ -8,8 +8,13 @@ export async function contactsNeedingAttention(owner: string, limit = 8) {
   const contacts = await prisma.contact.findMany({
     where: { owner, deletedAt: null, cadence: { not: 'NONE' } },
     select: {
-      id: true, slug: true, displayName: true, avatarUrl: true,
-      cadence: true, tier: true, lastContactAt: true,
+      id: true,
+      slug: true,
+      displayName: true,
+      avatarUrl: true,
+      cadence: true,
+      tier: true,
+      lastContactAt: true,
     },
   })
 

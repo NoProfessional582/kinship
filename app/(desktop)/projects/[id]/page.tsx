@@ -9,6 +9,7 @@ import { Board } from '@/components/board/board'
 import { TaskDialog } from '@/components/shared/task-dialog'
 import { NewTaskDialog } from '@/components/board/new-task-dialog'
 import { api, useBoard } from '@/lib/hooks/api'
+import type { ProjectDetail } from '@/lib/api-types'
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>()
@@ -18,7 +19,7 @@ export default function ProjectPage() {
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', id],
-    queryFn: () => api.get<any>(`/api/projects/${id}`),
+    queryFn: () => api.get<ProjectDetail>(`/api/projects/${id}`),
   })
 
   // The board is scoped by the project's real id, which the slug resolves to.
@@ -32,7 +33,9 @@ export default function ProjectPage() {
     )
   }
   if (!project) {
-    return <p className="py-16 text-center text-sm text-[var(--muted-foreground)]">Project not found.</p>
+    return (
+      <p className="py-16 text-center text-sm text-[var(--muted-foreground)]">Project not found.</p>
+    )
   }
 
   return (
@@ -45,7 +48,10 @@ export default function ProjectPage() {
             <ArrowLeft className="h-3.5 w-3.5" /> Projects
           </Button>
           <div className="mr-auto flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ background: project.color ?? 'var(--primary)' }} />
+            <span
+              className="h-3 w-3 rounded-full"
+              style={{ background: project.color ?? 'var(--primary)' }}
+            />
             <h1 className="text-lg font-semibold">{project.name}</h1>
             <Badge>{project.status.toLowerCase().replace('_', ' ')}</Badge>
             {project.isDraft && (
@@ -69,7 +75,11 @@ export default function ProjectPage() {
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="mx-auto h-full w-full max-w-[var(--page-max)] px-6 py-4 lg:px-8">
           {board && board.tasks.length === 0 && (
-            <EmptyState icon={KanbanSquare} title="No tasks in this project yet" hint="Add one, or tag it from a note." />
+            <EmptyState
+              icon={KanbanSquare}
+              title="No tasks in this project yet"
+              hint="Add one, or tag it from a note."
+            />
           )}
           {board && board.tasks.length > 0 && (
             <Board

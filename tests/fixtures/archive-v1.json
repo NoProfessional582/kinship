@@ -1,0 +1,838 @@
+{
+  "format": "kb-archive",
+  "version": 1,
+  "exportedAt": "2026-10-09T22:04:30.983Z",
+  "migrations": [
+    "20260821012400_init",
+    "20260821025900_expand_contact_dossier",
+    "20260821053000_column_owns_status",
+    "20260821160100_settings",
+    "20260821165000_cadence_tiers_attributes_trash",
+    "20260821193931_entry_social_followup_project",
+    "20260821194100_restore_search_indexes",
+    "20260822204500_search_dossier_fields_and_tag_index",
+    "20260823061500_task_project_all_day",
+    "20260823180000_entry_event_kind",
+    "20260823213000_followups_become_entries",
+    "20260915005035_add_owner_expansion",
+    "20260915020000_add_owner_contract"
+  ],
+  "counts": {
+    "Tag": 4,
+    "Contact": 3,
+    "ContactAttribute": 3,
+    "ContactChannel": 7,
+    "ContactPosition": 4,
+    "ContactMilestone": 2,
+    "ContactLink": 2,
+    "Project": 1,
+    "BoardColumn": 5,
+    "Task": 5,
+    "TaskAssignee": 3,
+    "Entry": 3,
+    "Mention": 6,
+    "EntityRef": 4,
+    "ContactTag": 0,
+    "EntryTag": 4,
+    "TaskTag": 0,
+    "EntityEdge": 2,
+    "Settings": 0
+  },
+  "data": {
+    "Tag": [
+      {
+        "id": "cmv1ijgh000080tqkt8jpylqn",
+        "owner": "tester",
+        "name": "q3",
+        "color": null
+      },
+      {
+        "id": "cmv1ijgh000090tqktxqsably",
+        "owner": "tester",
+        "name": "kickoff",
+        "color": null
+      },
+      {
+        "id": "cmv1ijgi9000h0tqkdkhvsn6u",
+        "owner": "tester",
+        "name": "design",
+        "color": null
+      },
+      {
+        "id": "cmv1ijgiu000n0tqkj41lv0qq",
+        "owner": "tester",
+        "name": "budget",
+        "color": null
+      }
+    ],
+    "Contact": [
+      {
+        "id": "cmv1ijgg600050tqkv61ifwyd",
+        "owner": "tester",
+        "slug": "maya-okafor",
+        "displayName": "Maya Okafor",
+        "firstName": "Maya",
+        "lastName": "Okafor",
+        "nickname": null,
+        "pronouns": "she/her",
+        "avatarUrl": null,
+        "headline": "Product lead who prefers async, answers fastest on Slack",
+        "company": "Northwind Studio",
+        "jobTitle": "Product Manager",
+        "location": "Portland, OR",
+        "birthday": "1988-06-14T00:00:00.000Z",
+        "howWeMet": "Introduced by a mutual friend at a conference in 2023",
+        "bio": "Sharp product sense, prefers async updates. Two kids, coaches soccer on weekends.",
+        "personalContext": "Married to Dele; two kids (Ada 9, Tomi 6). Coaches weekend soccer.",
+        "notes": "Prefers a written agenda 24h ahead. Do not schedule before 10am PT.",
+        "interests": ["sailing", "jazz piano", "trail running", "Ethiopian coffee"],
+        "customFields": {},
+        "tier": "TIER_1",
+        "cadence": "BIWEEKLY",
+        "isDraft": false,
+        "deletedAt": null,
+        "lastContactAt": "2026-10-07T22:04:29.665Z",
+        "createdAt": "2026-10-09T22:04:29.574Z",
+        "updatedAt": "2026-10-09T22:04:29.709Z"
+      },
+      {
+        "id": "cmv1ijghz000e0tqkpv4klp4x",
+        "owner": "tester",
+        "slug": "tobias-lindqvist",
+        "displayName": "Tobias Lindqvist",
+        "firstName": "Tobias",
+        "lastName": "Lindqvist",
+        "nickname": null,
+        "pronouns": "he/him",
+        "avatarUrl": null,
+        "headline": "Design lead, typography obsessive",
+        "company": "Northwind Studio",
+        "jobTitle": "Design Lead",
+        "location": "Stockholm",
+        "birthday": "1991-11-02T00:00:00.000Z",
+        "howWeMet": "Maya introduced us on the redesign kickoff",
+        "bio": null,
+        "personalContext": null,
+        "notes": null,
+        "interests": ["typography", "cycling", "film photography"],
+        "customFields": {},
+        "tier": "TIER_2",
+        "cadence": "MONTHLY",
+        "isDraft": false,
+        "deletedAt": null,
+        "lastContactAt": "2026-10-07T22:04:29.665Z",
+        "createdAt": "2026-10-09T22:04:29.639Z",
+        "updatedAt": "2026-10-09T22:04:29.711Z"
+      },
+      {
+        "id": "cmv1ijgi2000f0tqkg65e7d6b",
+        "owner": "tester",
+        "slug": "priya-raman",
+        "displayName": "Priya Raman",
+        "firstName": "Priya",
+        "lastName": "Raman",
+        "nickname": null,
+        "pronouns": "she/her",
+        "avatarUrl": null,
+        "headline": "Freelance copywriter, long-form specialist",
+        "company": "Freelance",
+        "jobTitle": "Copywriter",
+        "location": "Bengaluru",
+        "birthday": null,
+        "howWeMet": null,
+        "bio": null,
+        "personalContext": null,
+        "notes": null,
+        "interests": ["long-form essays", "birdwatching", "baking"],
+        "customFields": {},
+        "tier": "TIER_3",
+        "cadence": "QUARTERLY",
+        "isDraft": false,
+        "deletedAt": null,
+        "lastContactAt": "2026-10-05T22:04:29.637Z",
+        "createdAt": "2026-10-09T22:04:29.642Z",
+        "updatedAt": "2026-10-09T22:04:29.713Z"
+      }
+    ],
+    "ContactAttribute": [
+      {
+        "id": "cmv1ijgk300190tqkj08t3tfo",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "category": "Working style",
+        "key": "Meetings",
+        "value": "Written agenda 24h ahead; never before 10am PT",
+        "position": 0
+      },
+      {
+        "id": "cmv1ijgk3001a0tqkv7mbihgd",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "category": "Working style",
+        "key": "Decisions",
+        "value": "Confirms verbally, renegotiates over Slack — get it in writing",
+        "position": 1
+      },
+      {
+        "id": "cmv1ijgk3001b0tqkkz2ve31g",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "category": "Preferences",
+        "key": "Coffee",
+        "value": "Ethiopian, black",
+        "position": 0
+      }
+    ],
+    "ContactChannel": [
+      {
+        "id": "cmv1ijgjd000s0tqksztx20dr",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "type": "SLACK",
+        "value": "@maya",
+        "label": "work",
+        "isPreferred": true,
+        "position": 0
+      },
+      {
+        "id": "cmv1ijgjd000t0tqkbl44530s",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "type": "EMAIL",
+        "value": "maya@northwind.example",
+        "label": "work",
+        "isPreferred": false,
+        "position": 1
+      },
+      {
+        "id": "cmv1ijgjd000u0tqkw6dwpo7v",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "type": "PHONE",
+        "value": "+1 555 0142",
+        "label": "mobile",
+        "isPreferred": false,
+        "position": 2
+      },
+      {
+        "id": "cmv1ijgjd000v0tqkwy4tq6w4",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "type": "LINKEDIN",
+        "value": "mayaokafor",
+        "label": null,
+        "isPreferred": false,
+        "position": 3
+      },
+      {
+        "id": "cmv1ijgjk00120tqk7sphfeqq",
+        "contactId": "cmv1ijghz000e0tqkpv4klp4x",
+        "type": "EMAIL",
+        "value": "tobias@northwind.example",
+        "label": "work",
+        "isPreferred": true,
+        "position": 0
+      },
+      {
+        "id": "cmv1ijgjk00130tqknpp8u9od",
+        "contactId": "cmv1ijghz000e0tqkpv4klp4x",
+        "type": "TEAMS",
+        "value": "tobias.lindqvist",
+        "label": null,
+        "isPreferred": false,
+        "position": 1
+      },
+      {
+        "id": "cmv1ijgjr00150tqksriutzxe",
+        "contactId": "cmv1ijgi2000f0tqkg65e7d6b",
+        "type": "EMAIL",
+        "value": "priya@example.com",
+        "label": null,
+        "isPreferred": true,
+        "position": 0
+      }
+    ],
+    "ContactPosition": [
+      {
+        "id": "cmv1ijgje000w0tqk28od548f",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "role": "Product Manager",
+        "organization": "Northwind Studio",
+        "team": "Growth",
+        "startDate": "2023-02-01T00:00:00.000Z",
+        "endDate": null,
+        "isCurrent": true
+      },
+      {
+        "id": "cmv1ijgje000x0tqktejeab4z",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "role": "Associate PM",
+        "organization": "Lumen Labs",
+        "team": "Platform",
+        "startDate": "2019-06-01T00:00:00.000Z",
+        "endDate": "2023-01-15T00:00:00.000Z",
+        "isCurrent": false
+      },
+      {
+        "id": "cmv1ijgjl00140tqkpp94wbwx",
+        "contactId": "cmv1ijghz000e0tqkpv4klp4x",
+        "role": "Design Lead",
+        "organization": "Northwind Studio",
+        "team": "Brand",
+        "startDate": "2021-09-01T00:00:00.000Z",
+        "endDate": null,
+        "isCurrent": true
+      },
+      {
+        "id": "cmv1ijgjs00160tqk3nt0j4p5",
+        "contactId": "cmv1ijgi2000f0tqkg65e7d6b",
+        "role": "Copywriter",
+        "organization": "Freelance",
+        "team": null,
+        "startDate": null,
+        "endDate": null,
+        "isCurrent": true
+      }
+    ],
+    "ContactMilestone": [
+      {
+        "id": "cmv1ijgjf000y0tqkwqzgpvi2",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "title": "Promoted to PM",
+        "date": "2023-02-01T00:00:00.000Z",
+        "note": null
+      },
+      {
+        "id": "cmv1ijgjf000z0tqkgjlmrw4b",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "title": "Ran the Portland marathon",
+        "date": "2025-10-05T00:00:00.000Z",
+        "note": "Training again this year."
+      }
+    ],
+    "ContactLink": [
+      {
+        "id": "cmv1ijgjg00100tqk6wqyn6un",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "label": "LinkedIn",
+        "url": "https://linkedin.com/in/mayaokafor",
+        "position": 0
+      },
+      {
+        "id": "cmv1ijgjg00110tqkba0dxw5o",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "label": "Personal site",
+        "url": "https://maya.example",
+        "position": 1
+      }
+    ],
+    "Project": [
+      {
+        "id": "cmv1ijggd00060tqk2qianynn",
+        "owner": "tester",
+        "slug": "website-redesign",
+        "name": "Website redesign",
+        "description": "Full marketing site rebuild — new IA, copy and visual system.",
+        "color": "#6366f1",
+        "status": "IN_PROGRESS",
+        "startDate": null,
+        "targetDate": "2026-11-23T22:04:29.719Z",
+        "allDay": true,
+        "isDraft": false,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.581Z",
+        "updatedAt": "2026-10-09T22:04:29.720Z"
+      }
+    ],
+    "BoardColumn": [
+      {
+        "id": "cmv1ijgfu00000tqknv4483l3",
+        "owner": "tester",
+        "name": "Backlog",
+        "position": 1000,
+        "color": "#64748b",
+        "wipLimit": null,
+        "status": "TODO",
+        "projectId": null
+      },
+      {
+        "id": "cmv1ijgfu00010tqk7koep3w3",
+        "owner": "tester",
+        "name": "To Do",
+        "position": 2000,
+        "color": "#3b82f6",
+        "wipLimit": null,
+        "status": "TODO",
+        "projectId": null
+      },
+      {
+        "id": "cmv1ijgfu00020tqkc9o8hn3t",
+        "owner": "tester",
+        "name": "In Progress",
+        "position": 3000,
+        "color": "#f59e0b",
+        "wipLimit": null,
+        "status": "IN_PROGRESS",
+        "projectId": null
+      },
+      {
+        "id": "cmv1ijgfu00030tqkoctvozgh",
+        "owner": "tester",
+        "name": "Blocked",
+        "position": 4000,
+        "color": "#ef4444",
+        "wipLimit": null,
+        "status": "BLOCKED",
+        "projectId": null
+      },
+      {
+        "id": "cmv1ijgfu00040tqk1g4c7cbs",
+        "owner": "tester",
+        "name": "Done",
+        "position": 5000,
+        "color": "#22c55e",
+        "wipLimit": null,
+        "status": "DONE",
+        "projectId": null
+      }
+    ],
+    "Task": [
+      {
+        "id": "cmv1ijggo00070tqknxmwdf6k",
+        "owner": "tester",
+        "slug": "draft-the-sitemap",
+        "title": "Draft the sitemap",
+        "description": null,
+        "status": "IN_PROGRESS",
+        "priority": "HIGH",
+        "projectId": "cmv1ijggd00060tqk2qianynn",
+        "parentTaskId": null,
+        "columnId": "cmv1ijgfu00020tqkc9o8hn3t",
+        "position": 1000,
+        "startDate": null,
+        "dueDate": "2026-10-12T22:04:29.723Z",
+        "allDay": true,
+        "completedAt": null,
+        "isDraft": false,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.592Z",
+        "updatedAt": "2026-10-09T22:04:29.725Z"
+      },
+      {
+        "id": "cmv1ijgi6000g0tqkhsiuk2l8",
+        "owner": "tester",
+        "slug": "rewrite-the-homepage-copy",
+        "title": "Rewrite the homepage copy",
+        "description": null,
+        "status": "TODO",
+        "priority": "MEDIUM",
+        "projectId": "cmv1ijggd00060tqk2qianynn",
+        "parentTaskId": null,
+        "columnId": "cmv1ijgfu00010tqk7koep3w3",
+        "position": 2000,
+        "startDate": null,
+        "dueDate": "2026-10-19T22:04:29.728Z",
+        "allDay": true,
+        "completedAt": null,
+        "isDraft": false,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.646Z",
+        "updatedAt": "2026-10-09T22:04:29.730Z"
+      },
+      {
+        "id": "cmv1ijgky001e0tqkamqt3t8z",
+        "owner": "tester",
+        "slug": "audit-existing-pages",
+        "title": "Audit existing pages",
+        "description": null,
+        "status": "DONE",
+        "priority": "MEDIUM",
+        "projectId": "cmv1ijggd00060tqk2qianynn",
+        "parentTaskId": "cmv1ijggo00070tqknxmwdf6k",
+        "columnId": "cmv1ijgfu00040tqk1g4c7cbs",
+        "position": 1000,
+        "startDate": null,
+        "dueDate": null,
+        "allDay": true,
+        "completedAt": "2026-10-09T22:04:29.744Z",
+        "isDraft": false,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.746Z",
+        "updatedAt": "2026-10-09T22:04:29.746Z"
+      },
+      {
+        "id": "cmv1ijgl3001f0tqkm73gkoad",
+        "owner": "tester",
+        "slug": "map-redirects",
+        "title": "Map redirects",
+        "description": null,
+        "status": "TODO",
+        "priority": "MEDIUM",
+        "projectId": "cmv1ijggd00060tqk2qianynn",
+        "parentTaskId": "cmv1ijggo00070tqknxmwdf6k",
+        "columnId": "cmv1ijgfu00010tqk7koep3w3",
+        "position": 1000,
+        "startDate": null,
+        "dueDate": null,
+        "allDay": true,
+        "completedAt": null,
+        "isDraft": false,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.752Z",
+        "updatedAt": "2026-10-09T22:04:29.752Z"
+      },
+      {
+        "id": "cmv1ijglc001g0tqkkcw2aev9",
+        "owner": "tester",
+        "slug": "send-revised-sow",
+        "title": "Send revised SOW",
+        "description": null,
+        "status": "TODO",
+        "priority": "URGENT",
+        "projectId": null,
+        "parentTaskId": null,
+        "columnId": "cmv1ijgfu00010tqk7koep3w3",
+        "position": 2000,
+        "startDate": null,
+        "dueDate": "2026-10-08T22:04:29.754Z",
+        "allDay": true,
+        "completedAt": null,
+        "isDraft": false,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.760Z",
+        "updatedAt": "2026-10-09T22:04:29.760Z"
+      }
+    ],
+    "TaskAssignee": [
+      {
+        "id": "cmv1ijgke001c0tqkjnx4eqda",
+        "taskId": "cmv1ijggo00070tqknxmwdf6k",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "role": null
+      },
+      {
+        "id": "cmv1ijgki001d0tqkwq5rftkp",
+        "taskId": "cmv1ijgi6000g0tqkhsiuk2l8",
+        "contactId": "cmv1ijgi2000f0tqkg65e7d6b",
+        "role": null
+      },
+      {
+        "id": "cmv1ijgld001h0tqkbieoc94b",
+        "taskId": "cmv1ijglc001g0tqkkcw2aev9",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd",
+        "role": null
+      }
+    ],
+    "Entry": [
+      {
+        "id": "cmv1ijghi000a0tqkk2rz7ut0",
+        "owner": "tester",
+        "kind": "CALL",
+        "title": "Kickoff call — website redesign",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "text": "Kickoff with ",
+                  "type": "text"
+                },
+                {
+                  "type": "contactMention",
+                  "attrs": {
+                    "id": "cmv1ijgg600050tqkv61ifwyd",
+                    "label": "Maya Okafor"
+                  }
+                },
+                {
+                  "text": " on ",
+                  "type": "text"
+                },
+                {
+                  "type": "entityRef",
+                  "attrs": {
+                    "id": "cmv1ijggd00060tqk2qianynn",
+                    "kind": "project",
+                    "label": "Website redesign"
+                  }
+                },
+                {
+                  "text": ". She owns ",
+                  "type": "text"
+                },
+                {
+                  "type": "entityRef",
+                  "attrs": {
+                    "id": "cmv1ijggo00070tqknxmwdf6k",
+                    "kind": "task",
+                    "label": "Draft the sitemap"
+                  }
+                },
+                {
+                  "text": " and wants a first pass before the design review.",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "text": "She mentioned her team is short-staffed until the new hire starts in October.",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        "bodyText": "Kickoff with @Maya Okafor on Website redesign. She owns Draft the sitemap and wants a first pass before the design review.\nShe mentioned her team is short-staffed until the new hire starts in October.",
+        "occurredAt": "2026-09-30T22:04:29.566Z",
+        "direction": "OUTBOUND",
+        "durationMin": 25,
+        "location": "Zoom",
+        "projectId": null,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.622Z",
+        "updatedAt": "2026-10-09T22:04:29.622Z"
+      },
+      {
+        "id": "cmv1ijgie000i0tqktfuut8ku",
+        "owner": "tester",
+        "kind": "MEETING",
+        "title": "Design review",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "text": "Design review with ",
+                  "type": "text"
+                },
+                {
+                  "type": "contactMention",
+                  "attrs": {
+                    "id": "cmv1ijgg600050tqkv61ifwyd",
+                    "label": "Maya Okafor"
+                  }
+                },
+                {
+                  "text": ", ",
+                  "type": "text"
+                },
+                {
+                  "type": "contactMention",
+                  "attrs": {
+                    "id": "cmv1ijghz000e0tqkpv4klp4x",
+                    "label": "Tobias Lindqvist"
+                  }
+                },
+                {
+                  "text": " and ",
+                  "type": "text"
+                },
+                {
+                  "type": "contactMention",
+                  "attrs": {
+                    "id": "cmv1ijgi2000f0tqkg65e7d6b",
+                    "label": "Priya Raman"
+                  }
+                },
+                {
+                  "text": ". Tobias pushed back on the nav; Priya will handle ",
+                  "type": "text"
+                },
+                {
+                  "type": "entityRef",
+                  "attrs": {
+                    "id": "cmv1ijgi6000g0tqkhsiuk2l8",
+                    "kind": "task",
+                    "label": "Rewrite the homepage copy"
+                  }
+                },
+                {
+                  "text": ".",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        "bodyText": "Design review with @Maya Okafor, @Tobias Lindqvist and @Priya Raman. Tobias pushed back on the nav; Priya will handle Rewrite the homepage copy.",
+        "occurredAt": "2026-10-05T22:04:29.637Z",
+        "direction": null,
+        "durationMin": 60,
+        "location": "Office — room 3",
+        "projectId": null,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.654Z",
+        "updatedAt": "2026-10-09T22:04:29.654Z"
+      },
+      {
+        "id": "cmv1ijgix000o0tqkjm77obwo",
+        "owner": "tester",
+        "kind": "EMAIL",
+        "title": "Budget question",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "contactMention",
+                  "attrs": {
+                    "id": "cmv1ijgg600050tqkv61ifwyd",
+                    "label": "Maya Okafor"
+                  }
+                },
+                {
+                  "text": " looped in ",
+                  "type": "text"
+                },
+                {
+                  "type": "contactMention",
+                  "attrs": {
+                    "id": "cmv1ijghz000e0tqkpv4klp4x",
+                    "label": "Tobias Lindqvist"
+                  }
+                },
+                {
+                  "text": " about the extra budget for ",
+                  "type": "text"
+                },
+                {
+                  "type": "entityRef",
+                  "attrs": {
+                    "id": "cmv1ijggd00060tqk2qianynn",
+                    "kind": "project",
+                    "label": "Website redesign"
+                  }
+                },
+                {
+                  "text": ". Needs an answer by Friday.",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        "bodyText": "@Maya Okafor looped in @Tobias Lindqvist about the extra budget for Website redesign. Needs an answer by Friday.",
+        "occurredAt": "2026-10-07T22:04:29.665Z",
+        "direction": "INBOUND",
+        "durationMin": null,
+        "location": null,
+        "projectId": null,
+        "deletedAt": null,
+        "createdAt": "2026-10-09T22:04:29.673Z",
+        "updatedAt": "2026-10-09T22:04:29.673Z"
+      }
+    ],
+    "Mention": [
+      {
+        "id": "cmv1ijghk000b0tqk12orm25p",
+        "entryId": "cmv1ijghi000a0tqkk2rz7ut0",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd"
+      },
+      {
+        "id": "cmv1ijgif000j0tqkobicgv73",
+        "entryId": "cmv1ijgie000i0tqktfuut8ku",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd"
+      },
+      {
+        "id": "cmv1ijgif000k0tqkal2lsr9a",
+        "entryId": "cmv1ijgie000i0tqktfuut8ku",
+        "contactId": "cmv1ijgi2000f0tqkg65e7d6b"
+      },
+      {
+        "id": "cmv1ijgif000l0tqkoh5nzoqc",
+        "entryId": "cmv1ijgie000i0tqktfuut8ku",
+        "contactId": "cmv1ijghz000e0tqkpv4klp4x"
+      },
+      {
+        "id": "cmv1ijgiy000p0tqkqppj6y7l",
+        "entryId": "cmv1ijgix000o0tqkjm77obwo",
+        "contactId": "cmv1ijgg600050tqkv61ifwyd"
+      },
+      {
+        "id": "cmv1ijgiy000q0tqkpvtolpbs",
+        "entryId": "cmv1ijgix000o0tqkjm77obwo",
+        "contactId": "cmv1ijghz000e0tqkpv4klp4x"
+      }
+    ],
+    "EntityRef": [
+      {
+        "id": "cmv1ijghl000c0tqkmh8ed055",
+        "entryId": "cmv1ijghi000a0tqkk2rz7ut0",
+        "targetType": "TASK",
+        "taskId": "cmv1ijggo00070tqknxmwdf6k",
+        "projectId": null
+      },
+      {
+        "id": "cmv1ijghl000d0tqkzxyzojvo",
+        "entryId": "cmv1ijghi000a0tqkk2rz7ut0",
+        "targetType": "PROJECT",
+        "taskId": null,
+        "projectId": "cmv1ijggd00060tqk2qianynn"
+      },
+      {
+        "id": "cmv1ijgig000m0tqk93yv3env",
+        "entryId": "cmv1ijgie000i0tqktfuut8ku",
+        "targetType": "TASK",
+        "taskId": "cmv1ijgi6000g0tqkhsiuk2l8",
+        "projectId": null
+      },
+      {
+        "id": "cmv1ijgiz000r0tqkq3qw1qov",
+        "entryId": "cmv1ijgix000o0tqkjm77obwo",
+        "targetType": "PROJECT",
+        "taskId": null,
+        "projectId": "cmv1ijggd00060tqk2qianynn"
+      }
+    ],
+    "ContactTag": [],
+    "EntryTag": [
+      {
+        "entryId": "cmv1ijghi000a0tqkk2rz7ut0",
+        "tagId": "cmv1ijgh000080tqkt8jpylqn"
+      },
+      {
+        "entryId": "cmv1ijghi000a0tqkk2rz7ut0",
+        "tagId": "cmv1ijgh000090tqktxqsably"
+      },
+      {
+        "entryId": "cmv1ijgie000i0tqktfuut8ku",
+        "tagId": "cmv1ijgi9000h0tqkdkhvsn6u"
+      },
+      {
+        "entryId": "cmv1ijgix000o0tqkjm77obwo",
+        "tagId": "cmv1ijgiu000n0tqkj41lv0qq"
+      }
+    ],
+    "TaskTag": [],
+    "EntityEdge": [
+      {
+        "id": "cmv1ijgju00170tqkyx2wyg50",
+        "owner": "tester",
+        "sourceType": "contact",
+        "sourceId": "cmv1ijghz000e0tqkpv4klp4x",
+        "targetType": "contact",
+        "targetId": "cmv1ijgg600050tqkv61ifwyd",
+        "relation": "reports to",
+        "weight": 1,
+        "note": null,
+        "createdAt": "2026-10-09T22:04:29.706Z"
+      },
+      {
+        "id": "cmv1ijgju00180tqka5s3j1tx",
+        "owner": "tester",
+        "sourceType": "contact",
+        "sourceId": "cmv1ijgi2000f0tqkg65e7d6b",
+        "targetType": "contact",
+        "targetId": "cmv1ijgg600050tqkv61ifwyd",
+        "relation": "contracted by",
+        "weight": 1,
+        "note": null,
+        "createdAt": "2026-10-09T22:04:29.706Z"
+      }
+    ],
+    "Settings": []
+  },
+  "uploads": []
+}

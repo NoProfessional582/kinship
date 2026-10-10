@@ -27,8 +27,10 @@ export default function MobileBoardPage() {
           aria-label="Filter by project"
         >
           <option value="">All projects</option>
-          {(projects ?? []).map((p: any) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+          {(projects ?? []).map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
         </Select>
         <Button onClick={() => setCreating(true)} className="shrink-0">

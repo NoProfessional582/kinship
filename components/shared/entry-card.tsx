@@ -2,19 +2,38 @@
 import * as React from 'react'
 import Link from 'next/link'
 import {
-  Phone, Mail, MessageSquare, Users, Handshake, NotebookPen, AtSign,
-  ArrowDownLeft, ArrowUpRight, Clock, MapPin, CalendarClock, FolderKanban, Pencil,
+  Phone,
+  Mail,
+  MessageSquare,
+  Users,
+  Handshake,
+  NotebookPen,
+  AtSign,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Clock,
+  MapPin,
+  CalendarClock,
+  FolderKanban,
+  Pencil,
   CornerUpLeft,
+  type LucideIcon,
 } from 'lucide-react'
 import { useTimezone } from '@/lib/hooks/settings'
 import { Card, Badge, Avatar } from '@/components/ui/misc'
 import { EntryBody } from './entry-body'
 import { EntryEditDialog } from './entry-edit-dialog'
-import { cn, entryTitle } from '@/lib/utils'
+import { entryTitle } from '@/lib/utils'
+import type { EntryRecord } from '@/lib/api-types'
 
-export const KIND_ICON: Record<string, any> = {
-  NOTE: NotebookPen, CALL: Phone, EMAIL: Mail, TEXT: MessageSquare,
-  MEETING: Users, IN_PERSON: Handshake, SOCIAL: AtSign,
+export const KIND_ICON: Record<string, LucideIcon> = {
+  NOTE: NotebookPen,
+  CALL: Phone,
+  EMAIL: Mail,
+  TEXT: MessageSquare,
+  MEETING: Users,
+  IN_PERSON: Handshake,
+  SOCIAL: AtSign,
 }
 
 /**
@@ -22,16 +41,25 @@ export const KIND_ICON: Record<string, any> = {
  * meeting is the same colour in the activity list and in the month grid.
  */
 export const KIND_COLOR: Record<string, string> = {
-  NOTE: '#7a6a86', CALL: '#4a6572', EMAIL: '#697760',
-  TEXT: '#5f7d6e', MEETING: '#8c5a4a', IN_PERSON: '#bd5b3f', SOCIAL: '#a06a86',
+  NOTE: '#7a6a86',
+  CALL: '#4a6572',
+  EMAIL: '#697760',
+  TEXT: '#5f7d6e',
+  MEETING: '#8c5a4a',
+  IN_PERSON: '#bd5b3f',
+  SOCIAL: '#a06a86',
 }
 
 /**
  * `editable` is on by default: the card is the only place an entry is shown, so
  * turning editing off here is what leaves a note readable but unfixable.
  */
-export function EntryCard({ entry, compact, editable = true }: {
-  entry: any
+export function EntryCard({
+  entry,
+  compact,
+  editable = true,
+}: {
+  entry: EntryRecord
   compact?: boolean
   editable?: boolean
 }) {
@@ -43,9 +71,8 @@ export function EntryCard({ entry, compact, editable = true }: {
   // A follow-up whose date has passed with nothing written into it is a
   // conversation that was promised and never had. Nothing else in the app
   // records that, and an empty card on its own does not read as a problem.
-  const openLoop = !!entry.followsUp
-    && !entry.bodyText?.trim()
-    && new Date(entry.occurredAt) <= new Date()
+  const openLoop =
+    !!entry.followsUp && !entry.bodyText?.trim() && new Date(entry.occurredAt) <= new Date()
 
   // A follow-up dated ahead of now has not happened yet, however much of it is
   // already drafted into the note, so it reads as a commitment rather than a
@@ -68,14 +95,37 @@ export function EntryCard({ entry, compact, editable = true }: {
           <Icon className="h-3.5 w-3.5" />
         </span>
 
-        <Link href={`/notes/${entry.id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline">
+        <Link
+          href={`/notes/${entry.id}`}
+          className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+        >
           {entryTitle(entry)}
         </Link>
 
-        {entry.direction === 'INBOUND' && <Badge><ArrowDownLeft className="h-3 w-3" />in</Badge>}
-        {entry.direction === 'OUTBOUND' && <Badge><ArrowUpRight className="h-3 w-3" />out</Badge>}
-        {entry.durationMin != null && <Badge><Clock className="h-3 w-3" />{entry.durationMin}m</Badge>}
-        {entry.location && <Badge><MapPin className="h-3 w-3" />{entry.location}</Badge>}
+        {entry.direction === 'INBOUND' && (
+          <Badge>
+            <ArrowDownLeft className="h-3 w-3" />
+            in
+          </Badge>
+        )}
+        {entry.direction === 'OUTBOUND' && (
+          <Badge>
+            <ArrowUpRight className="h-3 w-3" />
+            out
+          </Badge>
+        )}
+        {entry.durationMin != null && (
+          <Badge>
+            <Clock className="h-3 w-3" />
+            {entry.durationMin}m
+          </Badge>
+        )}
+        {entry.location && (
+          <Badge>
+            <MapPin className="h-3 w-3" />
+            {entry.location}
+          </Badge>
+        )}
         {entry.project && (
           <Link
             href={`/projects/${entry.project.slug}`}
@@ -85,7 +135,8 @@ export function EntryCard({ entry, compact, editable = true }: {
               color: entry.project.color ?? 'var(--primary)',
             }}
           >
-            <FolderKanban className="h-3 w-3" />{entry.project.name}
+            <FolderKanban className="h-3 w-3" />
+            {entry.project.name}
           </Link>
         )}
 
@@ -122,12 +173,14 @@ export function EntryCard({ entry, compact, editable = true }: {
                 className="inline-flex items-center gap-1 font-medium text-[var(--warning)] hover:underline"
               >
                 <CalendarClock className="h-3 w-3" />
-                {followUpLabel}{' '}
-                {fmt(entry.followUp.occurredAt, 'MMM d, yyyy')}
+                {followUpLabel} {fmt(entry.followUp.occurredAt, 'MMM d, yyyy')}
               </Link>
             )}
             {openLoop && (
-              <span className="font-medium text-[var(--warning)]" title="This follow-up has never been written up">
+              <span
+                className="font-medium text-[var(--warning)]"
+                title="This follow-up has never been written up"
+              >
                 Not written up
               </span>
             )}
@@ -139,9 +192,9 @@ export function EntryCard({ entry, compact, editable = true }: {
           links and the people/task chips. */}
       <EntryBody doc={entry.bodyJson} compact={compact} />
 
-      {(entry.mentions?.length > 0 || entry.refs?.length > 0 || entry.tags?.length > 0) && (
+      {!!(entry.mentions?.length || entry.refs?.length || entry.tags.length) && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[var(--border)] pt-2.5">
-          {(entry.mentions ?? []).map((m: any) => (
+          {(entry.mentions ?? []).map((m) => (
             <Link
               key={m.id}
               href={`/contacts/${m.contact.slug}`}
@@ -151,17 +204,20 @@ export function EntryCard({ entry, compact, editable = true }: {
               {m.contact.displayName}
             </Link>
           ))}
-          {(entry.refs ?? []).map((r: any) => (
+          {(entry.refs ?? []).map((r) => (
             <Link
               key={r.id}
               href={r.project ? `/projects/${r.project.slug}` : `/board?task=${r.taskId}`}
               className="inline-flex items-center gap-1 rounded-full bg-[var(--muted)] px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--accent)]"
             >
-              {r.project ? r.project.name : r.task?.title ?? 'task'}
+              {r.project ? r.project.name : (r.task?.title ?? 'task')}
             </Link>
           ))}
-          {(entry.tags ?? []).map((t: any) => (
-            <span key={t.tagId} className="rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[11px] text-[var(--muted-foreground)]">
+          {entry.tags.map((t) => (
+            <span
+              key={t.tagId}
+              className="rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[11px] text-[var(--muted-foreground)]"
+            >
               #{t.tag.name}
             </span>
           ))}
@@ -170,9 +226,7 @@ export function EntryCard({ entry, compact, editable = true }: {
 
       {/* Mounted only while open so the editor is seeded from the current body
           every time, rather than from whatever it held on the first edit. */}
-      {editing && (
-        <EntryEditDialog entry={entry} open onOpenChange={setEditing} />
-      )}
+      {editing && <EntryEditDialog entry={entry} open onOpenChange={setEditing} />}
     </Card>
   )
 }

@@ -12,7 +12,10 @@ export function slugify(input: string): string {
 type SlugModel = 'contact' | 'task' | 'project'
 
 interface SlugDelegate {
-  findFirst(args: { where: { owner: string; slug: string }; select: { id: true } }): Promise<{ id: string } | null>
+  findFirst(args: {
+    where: { owner: string; slug: string }
+    select: { id: true }
+  }): Promise<{ id: string } | null>
 }
 
 export type SlugClient = Record<SlugModel, SlugDelegate>
@@ -42,7 +45,10 @@ export async function uniqueSlug(
   for (let n = 1; n < 1000; n++) {
     const candidate = n === 1 ? base : `${base}-${n}`
     if (taken.has(candidate)) continue
-    const existing = await delegate.findFirst({ where: { owner, slug: candidate }, select: { id: true } })
+    const existing = await delegate.findFirst({
+      where: { owner, slug: candidate },
+      select: { id: true },
+    })
     if (!existing) {
       taken.add(candidate)
       return candidate

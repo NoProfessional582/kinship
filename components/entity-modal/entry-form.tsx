@@ -2,8 +2,16 @@
 import * as React from 'react'
 import type { Editor } from '@tiptap/core'
 import {
-  NotebookPen, Phone, Mail, MessageSquare, Users, Handshake, AtSign, CalendarDays,
-  ArrowDownLeft, ArrowUpRight,
+  NotebookPen,
+  Phone,
+  Mail,
+  MessageSquare,
+  Users,
+  Handshake,
+  AtSign,
+  CalendarDays,
+  ArrowDownLeft,
+  ArrowUpRight,
 } from 'lucide-react'
 import { RichEditor } from '@/components/editor/editor'
 import { Input } from '@/components/ui/input'
@@ -13,8 +21,9 @@ import { ChipsInput } from '@/components/ui/chips'
 import { DateTimeField } from '@/components/ui/datetime-field'
 import { Field } from './contact-form'
 import { useProjects } from '@/lib/hooks/api'
-import { collectDocRefs } from '@/lib/tiptap/doc'
+import { asDoc, collectDocRefs } from '@/lib/tiptap/doc'
 import { cn } from '@/lib/utils'
+import type { EntryRecord } from '@/lib/api-types'
 
 /**
  * The one list of entry kinds, shared by capture and editing. Two copies would
@@ -62,14 +71,19 @@ export interface EntryFormValue {
 
 export function blankEntry(): EntryFormValue {
   return {
-    kind: 'NOTE', title: '',
-    occurredAt: new Date().toISOString(), followUpAt: '',
-    direction: '', durationMin: '', location: '',
-    projectId: '', tags: [],
+    kind: 'NOTE',
+    title: '',
+    occurredAt: new Date().toISOString(),
+    followUpAt: '',
+    direction: '',
+    durationMin: '',
+    location: '',
+    projectId: '',
+    tags: [],
   }
 }
 
-export function entryFromRecord(e: any): EntryFormValue {
+export function entryFromRecord(e: EntryRecord): EntryFormValue {
   return {
     kind: e.kind ?? 'NOTE',
     title: e.title ?? '',
@@ -80,7 +94,7 @@ export function entryFromRecord(e: any): EntryFormValue {
     durationMin: e.durationMin == null ? '' : String(e.durationMin),
     location: e.location ?? '',
     projectId: e.projectId ?? e.project?.id ?? '',
-    tags: (e.tags ?? []).map((t: any) => t.tag?.name ?? t),
+    tags: e.tags.map((t) => t.tag.name),
   }
 }
 
@@ -104,7 +118,7 @@ export function entryToPayload(v: EntryFormValue, doc: unknown) {
     followUpAt: v.followUpAt || null,
     projectId: v.projectId || null,
     tags: v.tags,
-    pendingEntities: doc ? collectDocRefs(doc as any).pending : [],
+    pendingEntities: doc ? collectDocRefs(doc).pending : [],
   }
 }
 
@@ -114,7 +128,11 @@ export function entryToPayload(v: EntryFormValue, doc: unknown) {
  * back for the caller to read at save time.
  */
 export function EntryForm({
-  value, onChange, body, onEditorReady, onSubmit,
+  value,
+  onChange,
+  body,
+  onEditorReady,
+  onSubmit,
 }: {
   value: EntryFormValue
   onChange: (v: EntryFormValue) => void
@@ -151,7 +169,9 @@ export function EntryForm({
         <Input
           value={value.title}
           onChange={(e) => set({ title: e.target.value })}
-          placeholder={active.value === 'EVENT' ? 'What is it? e.g. Dentist, 3pm' : 'Give this entry a title…'}
+          placeholder={
+            active.value === 'EVENT' ? 'What is it? e.g. Dentist, 3pm' : 'Give this entry a title…'
+          }
           className="text-base font-medium"
         />
       </Field>
@@ -159,48 +179,59 @@ export function EntryForm({
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)]">
         <RichEditor
           className="kb-editor-framed"
-          content={body}
+          content={asDoc(body)}
           mentionShortcuts
           onReady={onEditorReady}
           onSubmit={onSubmit}
-          placeholder={active.value === 'EVENT'
-            ? 'Anything worth knowing before it — Type @ for people or [[ for tasks and projects…'
-            : 'What happened? Type @ for people or [[ for tasks and projects…'}
+          placeholder={
+            active.value === 'EVENT'
+              ? 'Anything worth knowing before it — Type @ for people or [[ for tasks and projects…'
+              : 'What happened? Type @ for people or [[ for tasks and projects…'
+          }
         />
       </div>
 
       {(active.comms || active.slot) && (
-        <div className={cn(
-          'grid grid-cols-2 gap-3 rounded-[var(--radius-md)] bg-[var(--muted)] p-3',
-          active.comms ? 'sm:grid-cols-4' : 'sm:grid-cols-3',
-        )}>
+        <div
+          className={cn(
+            'grid grid-cols-2 gap-3 rounded-[var(--radius-md)] bg-[var(--muted)] p-3',
+            active.comms ? 'sm:grid-cols-4' : 'sm:grid-cols-3',
+          )}
+        >
           {active.comms && (
-          <div className="flex flex-col gap-1">
-            <Label>Direction</Label>
-            <div className="flex gap-1">
-              {([['INBOUND', ArrowDownLeft], ['OUTBOUND', ArrowUpRight]] as const).map(([d, Icon]) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => set({ direction: value.direction === d ? '' : d })}
-                  title={d.toLowerCase()}
-                  className={cn(
-                    'inline-flex h-8 flex-1 items-center justify-center rounded-md border text-xs transition-colors',
-                    value.direction === d
-                      ? 'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]'
-                      : 'border-[var(--border)] hover:bg-[var(--accent)]',
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </button>
-              ))}
+            <div className="flex flex-col gap-1">
+              <Label>Direction</Label>
+              <div className="flex gap-1">
+                {(
+                  [
+                    ['INBOUND', ArrowDownLeft],
+                    ['OUTBOUND', ArrowUpRight],
+                  ] as const
+                ).map(([d, Icon]) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => set({ direction: value.direction === d ? '' : d })}
+                    title={d.toLowerCase()}
+                    className={cn(
+                      'inline-flex h-8 flex-1 items-center justify-center rounded-md border text-xs transition-colors',
+                      value.direction === d
+                        ? 'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]'
+                        : 'border-[var(--border)] hover:bg-[var(--accent)]',
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
           )}
           <div className="flex flex-col gap-1">
             <Label>Duration (min)</Label>
             <Input
-              type="number" min={0} placeholder="25"
+              type="number"
+              min={0}
+              placeholder="25"
               value={value.durationMin}
               onChange={(e) => set({ durationMin: e.target.value })}
               className="h-8 text-xs"
@@ -221,23 +252,37 @@ export function EntryForm({
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Date & time">
           {/* An entry is something that happened at a moment, so never all-day. */}
-          <DateTimeField value={value.occurredAt} allDay={false} onChange={(iso) => set({ occurredAt: iso })} />
+          <DateTimeField
+            value={value.occurredAt}
+            allDay={false}
+            onChange={(iso) => set({ occurredAt: iso })}
+          />
         </Field>
         <Field label="Follow-up">
-          <DateTimeField value={value.followUpAt} allDay={false} onChange={(iso) => set({ followUpAt: iso })} />
+          <DateTimeField
+            value={value.followUpAt}
+            allDay={false}
+            onChange={(iso) => set({ followUpAt: iso })}
+          />
         </Field>
         <Field label="Project">
           <Select value={value.projectId} onChange={(e) => set({ projectId: e.target.value })}>
             <option value="">No project</option>
-            {(projects ?? []).map((p: any) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+            {(projects ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </Select>
         </Field>
       </div>
 
       <Field label="Tags">
-        <ChipsInput value={value.tags} onChange={(tags) => set({ tags })} placeholder="Add a tag…" />
+        <ChipsInput
+          value={value.tags}
+          onChange={(tags) => set({ tags })}
+          placeholder="Add a tag…"
+        />
       </Field>
     </div>
   )

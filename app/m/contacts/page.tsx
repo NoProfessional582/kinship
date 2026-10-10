@@ -1,6 +1,6 @@
 'use client'
 import * as React from 'react'
-import { Loader2, Search, Plus } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 import { MEmpty, MList, MRow, MTile } from '@/components/mobile/bits'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/misc'
@@ -50,14 +50,18 @@ export default function MobileContacts() {
       {(contacts?.length ?? 0) > 0 && (
         <MTile>
           <MList>
-            {contacts!.map((c: any) => (
+            {contacts!.map((c) => (
               <MRow
                 key={c.id}
                 href={m(`/contacts/${c.slug}`)}
                 lead={<Avatar name={c.displayName} src={c.avatarUrl} size={36} />}
                 title={c.displayName}
                 sub={[c.jobTitle, c.company].filter(Boolean).join(' · ') || undefined}
-                meta={c.cadence && c.cadence !== 'NONE' ? CADENCE_LABEL[c.cadence as keyof typeof CADENCE_LABEL] : undefined}
+                meta={
+                  c.cadence && c.cadence !== 'NONE'
+                    ? CADENCE_LABEL[c.cadence as keyof typeof CADENCE_LABEL]
+                    : undefined
+                }
                 chevron
               />
             ))}

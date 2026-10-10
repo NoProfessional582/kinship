@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { Editor } from '@tiptap/core'
+import { Editor, type JSONContent } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
@@ -20,9 +20,11 @@ beforeEach(() => {
   editor = new Editor({
     element,
     extensions: [
-      Document, Paragraph, Text,
-      ContactMention.configure({ render: undefined as any }),
-      EntityRef.configure({ render: undefined as any }),
+      Document,
+      Paragraph,
+      Text,
+      ContactMention.configure({ render: undefined }),
+      EntityRef.configure({ render: undefined }),
     ],
     content: '<p></p>',
   })
@@ -36,12 +38,17 @@ function commitTag(typed: string, node: { type: string; attrs: Record<string, un
   insertTagNode(editor, { from: to - typed.length, to }, node)
 }
 
-afterEach(() => { editor?.destroy() })
+afterEach(() => {
+  editor?.destroy()
+})
 
 const maya = { type: CONTACT_MENTION, attrs: { id: 'c1', label: 'Maya Okafor' } }
 const sitemap = { type: ENTITY_REF, attrs: { id: 't1', kind: 'task', label: 'Draft the sitemap' } }
 
-const paragraph = () => (editor.getJSON().content as any[])[0]
+const paragraph = (): { content: JSONContent[] } => {
+  const para: JSONContent | undefined = editor.getJSON().content?.[0]
+  return { content: para?.content ?? [] }
+}
 
 describe('committing a tag', () => {
   it('inserts only the tag, with nothing after it', () => {
@@ -49,7 +56,7 @@ describe('committing a tag', () => {
     const para = paragraph()
     expect(para.content).toHaveLength(1)
     expect(para.content[0].type).toBe(CONTACT_MENTION)
-    expect(para.content[0].attrs.label).toBe('Maya Okafor')
+    expect(para.content[0].attrs?.label).toBe('Maya Okafor')
   })
 
   it('lets punctuation sit flush against the tag', () => {
@@ -63,7 +70,7 @@ describe('committing a tag', () => {
     commitTag('[[site', sitemap)
     editor.commands.insertContent('.')
     expect(editor.getText()).toBe('Draft the sitemap.')
-    expect(paragraph().content[0].attrs.kind).toBe('task')
+    expect(paragraph().content[0].attrs?.kind).toBe('task')
   })
 
   it('still allows a space when the writer types one', () => {
@@ -80,7 +87,7 @@ describe('committing a tag', () => {
 
   it('keeps a provisional id pending so it renders dashed', () => {
     commitTag('@new', { type: CONTACT_MENTION, attrs: { id: 'new:abc', label: 'Brand New' } })
-    expect(isPendingId(paragraph().content[0].attrs.id)).toBe(true)
+    expect(isPendingId(paragraph().content[0].attrs?.id)).toBe(true)
   })
 
   it('tags mid-sentence without disturbing surrounding text', () => {

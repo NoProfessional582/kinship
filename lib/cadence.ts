@@ -4,7 +4,8 @@
  * bundle. The query that reads contacts lives in ./services/cadence.
  */
 
-export type Cadence = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BIANNUAL' | 'ANNUAL' | 'NONE'
+export type Cadence =
+  'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BIANNUAL' | 'ANNUAL' | 'NONE'
 
 /** Intended gap between check-ins, in days. NONE opts a contact out entirely. */
 export const CADENCE_DAYS: Record<Cadence, number | null> = {

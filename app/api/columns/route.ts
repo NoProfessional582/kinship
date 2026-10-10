@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
   const owner = requireIdentity(req).subject
-  return handle(() => ensureColumns(prisma as any, owner))
+  return handle(() => ensureColumns(prisma, owner))
 }
 
 export async function POST(req: Request) {

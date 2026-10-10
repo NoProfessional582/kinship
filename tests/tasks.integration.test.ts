@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { prisma } from '@/lib/db'
+import { ensureColumns } from '@/lib/services/board'
 import { getBoard, getTask, moveTask } from '@/lib/services/tasks'
 import { restore, softDelete, deleteEdgesFor } from '@/lib/services/trash'
 
@@ -29,14 +30,23 @@ async function column() {
 async function project(key: string) {
   if (!projects[key]) {
     const p = await prisma.project.create({
-      data: { owner: OWNER, slug: `${MARK}${key}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: `${MARK}${key}` },
+      data: {
+        owner: OWNER,
+        slug: `${MARK}${key}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: `${MARK}${key}`,
+      },
     })
     projects[key] = p.id
   }
   return projects[key]
 }
 
-async function task(title: string, position: number, projectKey?: string, extra: Record<string, unknown> = {}) {
+async function task(
+  title: string,
+  position: number,
+  projectKey?: string,
+  extra: Record<string, unknown> = {},
+) {
   return prisma.task.create({
     data: {
       owner: OWNER,
@@ -53,17 +63,30 @@ async function task(title: string, position: number, projectKey?: string, extra:
 /** Titles in this column, in stored order, for one project — i.e. what the board shows. */
 async function visibleOrder(projectKey: string) {
   const rows = await prisma.task.findMany({
-    where: { owner: OWNER, columnId: await column(), projectId: await project(projectKey), deletedAt: null, parentTaskId: null },
-    orderBy: { position: 'asc' },
+    where: {
+      owner: OWNER,
+      columnId: await column(),
+      projectId: await project(projectKey),
+      deletedAt: null,
+      parentTaskId: null,
+    },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
     select: { title: true },
   })
   return rows.map((r) => r.title.replace(MARK, ''))
 }
 
 afterAll(async () => {
-  const ids = await prisma.task.findMany({ where: { title: { startsWith: MARK } }, select: { id: true } })
+  const ids = await prisma.task.findMany({
+    where: { title: { startsWith: MARK } },
+    select: { id: true },
+  })
   await prisma.task.deleteMany({ where: { title: { startsWith: MARK } } })
-  await deleteEdgesFor(OWNER, 'task', ids.map((t) => t.id))
+  await deleteEdgesFor(
+    OWNER,
+    'task',
+    ids.map((t) => t.id),
+  )
   await prisma.project.deleteMany({ where: { name: { startsWith: MARK } } })
   await prisma.boardColumn.deleteMany({ where: { name: { startsWith: MARK } } })
   await prisma.$disconnect()
@@ -125,7 +148,13 @@ describe('moveTask — ordering on a filtered board (K05)', () => {
       data: { owner: OWNER, name: `${MARK}other`, status: 'TODO', position: 2000, projectId: null },
     })
     const stranger = await prisma.task.create({
-      data: { owner: OWNER, slug: `${MARK}stranger`, title: `${MARK}stranger`, columnId: other.id, position: 1000 },
+      data: {
+        owner: OWNER,
+        slug: `${MARK}stranger`,
+        title: `${MARK}stranger`,
+        columnId: other.id,
+        position: 1000,
+      },
     })
     const a = await task('x-a', 1000, 'xvisible')
     await task('x-b', 2000, 'xvisible')
@@ -154,7 +183,7 @@ describe('taskDetail — soft-deleted subtasks (K06)', () => {
     await softDelete(OWNER, 'task', gone.id)
 
     detail = await getTask(OWNER, parent.id)
-    expect(detail!.subtasks.map((s: any) => s.id)).toEqual([keep.id])
+    expect(detail!.subtasks.map((s) => s.id)).toEqual([keep.id])
     // The count is the half that showed "2 subtasks" over a list of one.
     expect(detail!._count.subtasks).toBe(1)
 
@@ -174,9 +203,61 @@ describe('taskDetail — soft-deleted subtasks (K06)', () => {
     await softDelete(OWNER, 'task', child.id)
 
     const board = await getBoard(OWNER, await project('visible'))
-    const card = board.tasks.find((t: any) => t.id === parent.id)
+    const card = board.tasks.find((t) => t.id === parent.id)
     expect(card).toBeTruthy()
     expect(card!.subtasks).toHaveLength(0)
     expect(card!._count.subtasks).toBe(0)
+  })
+})
+
+describe('board order — equal positions', () => {
+  // Each spec stores two rows at one position, in the opposite order to their
+  // ids. Ordered by position alone, Postgres may return them either way, and
+  // usually returns them as stored; ordered by position then id, never.
+  beforeEach(() => {
+    columnId = ''
+  })
+
+  it('returns two cards at one position in id order', async () => {
+    const b = await task('tie-b', 1000, 'tie', { id: `${MARK}tie-b` })
+    const a = await task('tie-a', 1000, 'tie', { id: `${MARK}tie-a` })
+
+    const board = await getBoard(OWNER, await project('tie'))
+    const cards = board.tasks.filter((t) => t.columnId === columnId).map((t) => t.id)
+    expect(cards).toEqual([a.id, b.id])
+  })
+
+  it('returns two subtasks at one position in id order', async () => {
+    const parent = await task('tie-parent', 1000, 'tie')
+    const b = await task('tie-sub-b', 2000, 'tie', {
+      id: `${MARK}tie-sub-b`,
+      parentTaskId: parent.id,
+    })
+    const a = await task('tie-sub-a', 2000, 'tie', {
+      id: `${MARK}tie-sub-a`,
+      parentTaskId: parent.id,
+    })
+
+    const detail = await getTask(OWNER, parent.id)
+    expect(detail!.subtasks.map((s) => s.id)).toEqual([a.id, b.id])
+  })
+
+  it('returns two columns at one position in id order', async () => {
+    const owner = `${MARK}tie-columns`
+    for (const key of ['b', 'a']) {
+      await prisma.boardColumn.create({
+        data: {
+          id: `${MARK}tie-col-${key}`,
+          owner,
+          name: `${MARK}tie-col-${key}`,
+          status: 'TODO',
+          position: 1000,
+          projectId: null,
+        },
+      })
+    }
+
+    const columns = await ensureColumns(prisma, owner)
+    expect(columns.map((c) => c.id)).toEqual([`${MARK}tie-col-a`, `${MARK}tie-col-b`])
   })
 })

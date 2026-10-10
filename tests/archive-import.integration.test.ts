@@ -2,7 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readFile, readdir, writeFile, mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { prisma } from '@/lib/db'
-import { importArchive as importOwnedArchive, ARCHIVE_FORMAT, ARCHIVE_VERSION } from '@/lib/services/archive'
+import {
+  importArchive as importOwnedArchive,
+  ARCHIVE_FORMAT,
+  ARCHIVE_VERSION,
+} from '@/lib/services/archive'
 import { ownerUploadDir } from '@/lib/uploads'
 
 /**
@@ -31,7 +35,10 @@ const BAD_MAGIC = Buffer.from('NOTANIMAGE' + 'x'.repeat(40))
 
 const VICTIM = `${MARK}victim.png`
 
-const archiveWith = (uploads: { name: string; data: string }[], rows?: Record<string, unknown>[]) => ({
+const archiveWith = (
+  uploads: { name: string; data: string }[],
+  rows?: Record<string, unknown>[],
+) => ({
   format: ARCHIVE_FORMAT,
   version: ARCHIVE_VERSION,
   migrations: [] as string[],
@@ -131,7 +138,9 @@ describe('import — only raster images reach the public origin (K08)', () => {
 
   it('an archive naming a file .png is still judged on its bytes', async () => {
     await expect(
-      importArchive(archiveWith([{ name: `${MARK}looks-fine.png`, data: HTML.toString('base64') }])),
+      importArchive(
+        archiveWith([{ name: `${MARK}looks-fine.png`, data: HTML.toString('base64') }]),
+      ),
     ).rejects.toThrow(/not an image this app accepts/)
   })
 })

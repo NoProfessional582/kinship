@@ -32,4 +32,4 @@ const INVERSE: Record<string, string> = {
  * direction.
  */
 export const relationLabel = (relation: string, direction: 'in' | 'out') =>
-  direction === 'out' ? relation : INVERSE[relation] ?? `← ${relation}`
+  direction === 'out' ? relation : (INVERSE[relation] ?? `← ${relation}`)

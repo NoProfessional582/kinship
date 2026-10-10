@@ -17,6 +17,7 @@ import {
   reviveRow,
   type ModelName,
 } from '../archive-rows'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { ValidationError } from '../errors'
 import { ownerUploadDir, uploadUrl } from '../uploads'
@@ -44,20 +45,85 @@ export { archiveFilename } from '../archive-rows'
 type Client = typeof prisma
 type Tx = Omit<Client, '$transaction' | '$connect' | '$disconnect' | '$on' | '$use' | '$extends'>
 
+/** What the export does with every model's delegate. */
+interface ArchiveReader {
+  findMany(args: { where: object; orderBy: object }): Promise<Record<string, unknown>[]>
+  count(args: { where: object }): Promise<number>
+}
+
 /** `Contact` -> `prisma.contact`, the Prisma delegate naming rule. */
-function delegate(model: ModelName, client: Client | Tx = prisma): any {
-  return (client as any)[model[0].toLowerCase() + model.slice(1)]
+function delegate(model: ModelName): ArchiveReader {
+  const key = (model[0].toLowerCase() + model.slice(1)) as Uncapitalize<ModelName>
+  const d: ArchiveReader = prisma[key]
+  return d
+}
+
+type Row = Record<string, unknown>
+
+/**
+ * Writes one chunk of revived rows. An archive's rows have no compile-time
+ * type: `reviveRow` gives each one exactly the model's columns (read from
+ * Prisma's own model metadata) with dates restored, and Postgres checks every
+ * value on insert. Each entry says which Prisma input those rows are.
+ */
+const WRITERS: Record<ModelName, (tx: Tx, data: Row[]) => Promise<{ count: number }>> = {
+  Tag: (tx, data) => tx.tag.createMany({ data: data as Prisma.TagCreateManyInput[] }),
+  Contact: (tx, data) => tx.contact.createMany({ data: data as Prisma.ContactCreateManyInput[] }),
+  ContactAttribute: (tx, data) =>
+    tx.contactAttribute.createMany({ data: data as Prisma.ContactAttributeCreateManyInput[] }),
+  ContactChannel: (tx, data) =>
+    tx.contactChannel.createMany({ data: data as Prisma.ContactChannelCreateManyInput[] }),
+  ContactPosition: (tx, data) =>
+    tx.contactPosition.createMany({ data: data as Prisma.ContactPositionCreateManyInput[] }),
+  ContactMilestone: (tx, data) =>
+    tx.contactMilestone.createMany({ data: data as Prisma.ContactMilestoneCreateManyInput[] }),
+  ContactLink: (tx, data) =>
+    tx.contactLink.createMany({ data: data as Prisma.ContactLinkCreateManyInput[] }),
+  Project: (tx, data) => tx.project.createMany({ data: data as Prisma.ProjectCreateManyInput[] }),
+  BoardColumn: (tx, data) =>
+    tx.boardColumn.createMany({ data: data as Prisma.BoardColumnCreateManyInput[] }),
+  Task: (tx, data) => tx.task.createMany({ data: data as Prisma.TaskCreateManyInput[] }),
+  TaskAssignee: (tx, data) =>
+    tx.taskAssignee.createMany({ data: data as Prisma.TaskAssigneeCreateManyInput[] }),
+  Entry: (tx, data) => tx.entry.createMany({ data: data as Prisma.EntryCreateManyInput[] }),
+  Mention: (tx, data) => tx.mention.createMany({ data: data as Prisma.MentionCreateManyInput[] }),
+  EntityRef: (tx, data) =>
+    tx.entityRef.createMany({ data: data as Prisma.EntityRefCreateManyInput[] }),
+  ContactTag: (tx, data) =>
+    tx.contactTag.createMany({ data: data as Prisma.ContactTagCreateManyInput[] }),
+  EntryTag: (tx, data) =>
+    tx.entryTag.createMany({ data: data as Prisma.EntryTagCreateManyInput[] }),
+  TaskTag: (tx, data) => tx.taskTag.createMany({ data: data as Prisma.TaskTagCreateManyInput[] }),
+  EntityEdge: (tx, data) =>
+    tx.entityEdge.createMany({ data: data as Prisma.EntityEdgeCreateManyInput[] }),
+  Settings: (tx, data) =>
+    tx.settings.createMany({ data: data as Prisma.SettingsCreateManyInput[] }),
 }
 
 // ------------------------------------------------------------------- Export
 
 const ROOT_MODELS = new Set<ModelName>([
-  'Contact', 'EntityEdge', 'Entry', 'Project', 'BoardColumn', 'Task', 'Tag', 'Settings',
+  'Contact',
+  'EntityEdge',
+  'Entry',
+  'Project',
+  'BoardColumn',
+  'Task',
+  'Tag',
+  'Settings',
 ])
 
 function ownerWhere(model: ModelName, owner: string): Record<string, unknown> {
   if (ROOT_MODELS.has(model)) return { owner }
-  if (['ContactAttribute', 'ContactChannel', 'ContactPosition', 'ContactMilestone', 'ContactLink'].includes(model)) {
+  if (
+    [
+      'ContactAttribute',
+      'ContactChannel',
+      'ContactPosition',
+      'ContactMilestone',
+      'ContactLink',
+    ].includes(model)
+  ) {
     return { contact: { owner } }
   }
   if (model === 'Mention') return { entry: { owner } }
@@ -99,7 +165,8 @@ export async function exportArchive(owner: string): Promise<Archive> {
  */
 export async function currentCounts(owner: string): Promise<Record<string, number>> {
   const counts: Record<string, number> = {}
-  for (const model of MODEL_ORDER) counts[model] = await delegate(model).count({ where: ownerWhere(model, owner) })
+  for (const model of MODEL_ORDER)
+    counts[model] = await delegate(model).count({ where: ownerWhere(model, owner) })
   return counts
 }
 
@@ -216,10 +283,7 @@ export async function importArchive(
   // Counted BEFORE `prepared` is built, because building it is the allocation
   // being bounded — discovering the archive was enormous afterwards is the same
   // mistake `file.read()` made on the jobs side.
-  const declaredRows = MODEL_ORDER.reduce(
-    (n, model) => n + (archive.data[model]?.length ?? 0),
-    0,
-  )
+  const declaredRows = MODEL_ORDER.reduce((n, model) => n + (archive.data[model]?.length ?? 0), 0)
   if (declaredRows > MAX_ARCHIVE_ROWS) {
     throw new ValidationError(
       `Archive declares ${declaredRows.toLocaleString()} rows; the maximum is ` +
@@ -294,7 +358,7 @@ export async function importArchive(
           // Chunked so a wide table cannot walk into Postgres's 65 535 bound
           // parameters per statement: 250 rows x ~30 columns leaves room to spare.
           for (let i = 0; i < rows.length; i += CHUNK) {
-            await delegate(model, tx).createMany({ data: rows.slice(i, i + CHUNK) })
+            await WRITERS[model](tx, rows.slice(i, i + CHUNK))
           }
         }
         return written
@@ -321,19 +385,45 @@ const REFERENCES: Partial<Record<ModelName, [field: string, target: ModelName][]
   ContactMilestone: [['contactId', 'Contact']],
   ContactLink: [['contactId', 'Contact']],
   BoardColumn: [['projectId', 'Project']],
-  Task: [['projectId', 'Project'], ['parentTaskId', 'Task'], ['columnId', 'BoardColumn']],
-  TaskAssignee: [['taskId', 'Task'], ['contactId', 'Contact']],
+  Task: [
+    ['projectId', 'Project'],
+    ['parentTaskId', 'Task'],
+    ['columnId', 'BoardColumn'],
+  ],
+  TaskAssignee: [
+    ['taskId', 'Task'],
+    ['contactId', 'Contact'],
+  ],
   Entry: [['projectId', 'Project']],
-  Mention: [['entryId', 'Entry'], ['contactId', 'Contact']],
-  EntityRef: [['entryId', 'Entry'], ['taskId', 'Task'], ['projectId', 'Project']],
-  ContactTag: [['contactId', 'Contact'], ['tagId', 'Tag']],
-  EntryTag: [['entryId', 'Entry'], ['tagId', 'Tag']],
-  TaskTag: [['taskId', 'Task'], ['tagId', 'Tag']],
+  Mention: [
+    ['entryId', 'Entry'],
+    ['contactId', 'Contact'],
+  ],
+  EntityRef: [
+    ['entryId', 'Entry'],
+    ['taskId', 'Task'],
+    ['projectId', 'Project'],
+  ],
+  ContactTag: [
+    ['contactId', 'Contact'],
+    ['tagId', 'Tag'],
+  ],
+  EntryTag: [
+    ['entryId', 'Entry'],
+    ['tagId', 'Tag'],
+  ],
+  TaskTag: [
+    ['taskId', 'Task'],
+    ['tagId', 'Tag'],
+  ],
 }
 
 /** `EntityEdge` endpoints have no foreign key, so their types are mapped here. */
 const EDGE_TARGETS: Record<string, ModelName> = {
-  contact: 'Contact', entry: 'Entry', task: 'Task', project: 'Project',
+  contact: 'Contact',
+  entry: 'Entry',
+  task: 'Task',
+  project: 'Project',
 }
 
 /**
@@ -342,7 +432,9 @@ const EDGE_TARGETS: Record<string, ModelName> = {
  * linked only by id — without this, a hand-edited archive could attach a
  * mention, tag or edge to another owner's contact.
  */
-export function assertReferencesClosed(prepared: Partial<Record<ModelName, Record<string, unknown>[]>>) {
+export function assertReferencesClosed(
+  prepared: Partial<Record<ModelName, Record<string, unknown>[]>>,
+) {
   const ids = new Map<ModelName, Set<unknown>>()
   const idsOf = (model: ModelName) => {
     let set = ids.get(model)
@@ -463,7 +555,9 @@ async function stageUploads(owner: string, uploads: ArchiveUpload[]): Promise<Ma
     // Belt and braces. The name is ours now, not the archive's, so this can no
     // longer fail — which is exactly why it is cheap to keep asserting.
     if (path.dirname(path.resolve(target)) !== path.resolve(directory)) {
-      throw new ValidationError(`Refusing to write an upload outside the uploads directory: ${item.to}`)
+      throw new ValidationError(
+        `Refusing to write an upload outside the uploads directory: ${item.to}`,
+      )
     }
     await writeFile(target, item.bytes)
     staged.set(item.from, item.to)

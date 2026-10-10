@@ -1,8 +1,12 @@
-import { prisma } from '../db'
+import type { EntryKind } from '@prisma/client'
+import { prisma, type Tx } from '../db'
 import { uniqueSlug } from '../slug'
 import {
-  collectDocRefs, rewriteDocIds, docToText,
-  type PendingEntity, type ProseNode,
+  collectDocRefs,
+  rewriteDocIds,
+  docToText,
+  type PendingEntity,
+  type ProseNode,
 } from '../tiptap/doc'
 import type { CreateEntryInput } from '../validation'
 import { appendPosition, defaultColumnId } from './board'
@@ -51,9 +55,9 @@ const followUpTitle = (parent: { title: string | null; kind: string }) =>
  * the moment it opened.
  */
 async function createFollowUp(
-  tx: any,
+  tx: Tx,
   owner: string,
-  parent: { id: string; kind: string; title: string | null; projectId: string | null },
+  parent: { id: string; kind: EntryKind; title: string | null; projectId: string | null },
   at: Date,
   contactIds: string[],
 ) {
@@ -62,7 +66,7 @@ async function createFollowUp(
       owner,
       kind: parent.kind,
       title: followUpTitle(parent),
-      bodyJson: EMPTY_DOC as any,
+      bodyJson: EMPTY_DOC,
       bodyText: '',
       occurredAt: at,
       projectId: parent.projectId,
@@ -95,9 +99,15 @@ async function createFollowUp(
  * record of a conversation that happened, and an emptied date field is not
  * consent to throw that away; deleting the note itself is.
  */
-async function syncFollowUp(tx: any, owner: string, parentId: string, at: Date | null) {
+async function syncFollowUp(tx: Tx, owner: string, parentId: string, at: Date | null) {
   const edge = await tx.entityEdge.findFirst({
-    where: { owner, relation: FOLLOWS_UP, sourceType: 'entry', targetType: 'entry', targetId: parentId },
+    where: {
+      owner,
+      relation: FOLLOWS_UP,
+      sourceType: 'entry',
+      targetType: 'entry',
+      targetId: parentId,
+    },
     orderBy: { createdAt: 'desc' },
     select: { sourceId: true },
   })
@@ -117,12 +127,21 @@ async function syncFollowUp(tx: any, owner: string, parentId: string, at: Date |
     const parent = await tx.entry.findUnique({
       where: { id: parentId, owner },
       select: {
-        id: true, kind: true, title: true, projectId: true,
+        id: true,
+        kind: true,
+        title: true,
+        projectId: true,
         mentions: { select: { contactId: true } },
       },
     })
     if (!parent) return
-    await createFollowUp(tx, owner, parent, at, parent.mentions.map((m: any) => m.contactId))
+    await createFollowUp(
+      tx,
+      owner,
+      parent,
+      at,
+      parent.mentions.map((m) => m.contactId),
+    )
     return
   }
 
@@ -141,10 +160,17 @@ async function syncFollowUp(tx: any, owner: string, parentId: string, at: Date |
  * to `Entry`.
  */
 async function withFollowUps<T extends { id: string }>(owner: string, rows: T[]) {
-  const bare = rows.map((r) => ({ ...r, followUp: null as FollowUpLink | null, followsUp: null as FollowUpLink | null }))
+  const bare = rows.map((r) => ({
+    ...r,
+    followUp: null as FollowUpLink | null,
+    followsUp: null as FollowUpLink | null,
+  }))
   if (rows.length === 0) return bare
 
-  const edges = await followUpEdges(owner, rows.map((r) => r.id))
+  const edges = await followUpEdges(
+    owner,
+    rows.map((r) => r.id),
+  )
   if (edges.length === 0) return bare
 
   const linked = await prisma.entry.findMany({
@@ -157,10 +183,16 @@ async function withFollowUps<T extends { id: string }>(owner: string, rows: T[])
   })
 
   const byId = new Map<string, FollowUpLink>(
-    linked.map((e) => [e.id, {
-      id: e.id, kind: e.kind, title: e.title, occurredAt: e.occurredAt,
-      written: e.bodyText.trim().length > 0,
-    }]),
+    linked.map((e) => [
+      e.id,
+      {
+        id: e.id,
+        kind: e.kind,
+        title: e.title,
+        occurredAt: e.occurredAt,
+        written: e.bodyText.trim().length > 0,
+      },
+    ]),
   )
 
   // A note can be followed up more than once over its life. The nearest one is
@@ -186,7 +218,9 @@ async function withFollowUps<T extends { id: string }>(owner: string, rows: T[])
 
 export const entryInclude = {
   project: { select: { id: true, slug: true, name: true, color: true } },
-  mentions: { include: { contact: { select: { id: true, slug: true, displayName: true, avatarUrl: true } } } },
+  mentions: {
+    include: { contact: { select: { id: true, slug: true, displayName: true, avatarUrl: true } } },
+  },
   refs: {
     include: {
       task: { select: { id: true, slug: true, title: true, status: true } },
@@ -225,7 +259,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
     const taskIds = await existingIds(tx.task, owner, [...refs.taskIds, ...newTaskIds])
     const projectIds = await existingIds(tx.project, owner, [...refs.projectIds, ...newProjectIds])
 
-    const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+    const tagIds = await resolveTagIds(tx, owner, input.tags)
 
     const entry = await tx.entry.create({
       data: {
@@ -233,7 +267,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
         kind: input.kind,
         // Left null when the writer gave no title; the UI shows 'Untitled'.
         title: input.title?.trim() || null,
-        bodyJson: finalDoc as any,
+        bodyJson: finalDoc,
         bodyText,
         occurredAt: input.occurredAt,
         direction: input.direction ?? null,
@@ -243,7 +277,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
         // deleted while the composer sat open, and a stale id must not fail an
         // otherwise good save.
         projectId: input.projectId
-          ? (await existingIds(tx.project, owner, [input.projectId]))[0] ?? null
+          ? ((await existingIds(tx.project, owner, [input.projectId]))[0] ?? null)
           : null,
         mentions: { create: contactIds.map((contactId) => ({ contactId })) },
         refs: {
@@ -267,7 +301,8 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
     if (contactIds.length > 0 && input.occurredAt <= new Date()) {
       await tx.contact.updateMany({
         where: {
-          owner, id: { in: contactIds },
+          owner,
+          id: { in: contactIds },
           OR: [{ lastContactAt: null }, { lastContactAt: { lt: input.occurredAt } }],
         },
         data: { lastContactAt: input.occurredAt },
@@ -294,7 +329,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
  * was never created, with no mention or ref recorded for it.
  */
 async function materializePending(
-  tx: any,
+  tx: Tx,
   owner: string,
   pending: PendingEntity[],
   labelHints: Map<string, string>,
@@ -345,11 +380,25 @@ async function materializePending(
   return { idMap, createdEntities, newContactIds, newTaskIds, newProjectIds }
 }
 
-async function existingIds(delegate: any, owner: string, ids: string[]): Promise<string[]> {
+interface OwnedIdLookup {
+  findMany(args: {
+    where: { owner: string; id: { in: string[] } }
+    select: { id: true }
+  }): Promise<{ id: string }[]>
+}
+
+async function existingIds(
+  delegate: OwnedIdLookup,
+  owner: string,
+  ids: string[],
+): Promise<string[]> {
   const unique = [...new Set(ids)].filter(Boolean)
   if (unique.length === 0) return []
-  const rows = await delegate.findMany({ where: { owner, id: { in: unique } }, select: { id: true } })
-  return rows.map((r: { id: string }) => r.id)
+  const rows = await delegate.findMany({
+    where: { owner, id: { in: unique } },
+    select: { id: true },
+  })
+  return rows.map((r) => r.id)
 }
 
 export async function updateEntry(owner: string, id: string, input: Partial<CreateEntryInput>) {
@@ -375,7 +424,7 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
     if (input.title !== undefined) data.title = input.title?.trim() || null
     if (input.projectId !== undefined) {
       data.projectId = input.projectId
-        ? (await existingIds(tx.project, owner, [input.projectId]))[0] ?? null
+        ? ((await existingIds(tx.project, owner, [input.projectId]))[0] ?? null)
         : null
     }
 
@@ -390,29 +439,44 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
       createdEntities = materialized.createdEntities
 
       const finalDoc = rewriteDocIds(doc, materialized.idMap)
-      data.bodyJson = finalDoc as any
+      data.bodyJson = finalDoc
       data.bodyText = docToText(finalDoc)
 
-      const contactIds = await existingIds(tx.contact, owner, [...refs.contactIds, ...materialized.newContactIds])
+      const contactIds = await existingIds(tx.contact, owner, [
+        ...refs.contactIds,
+        ...materialized.newContactIds,
+      ])
       contactsAfter = contactIds
-      const taskIds = await existingIds(tx.task, owner, [...refs.taskIds, ...materialized.newTaskIds])
-      const projectIds = await existingIds(tx.project, owner, [...refs.projectIds, ...materialized.newProjectIds])
+      const taskIds = await existingIds(tx.task, owner, [
+        ...refs.taskIds,
+        ...materialized.newTaskIds,
+      ])
+      const projectIds = await existingIds(tx.project, owner, [
+        ...refs.projectIds,
+        ...materialized.newProjectIds,
+      ])
 
       await tx.mention.deleteMany({ where: { entryId: id } })
       await tx.entityRef.deleteMany({ where: { entryId: id } })
       if (contactIds.length)
-        await tx.mention.createMany({ data: contactIds.map((contactId) => ({ entryId: id, contactId })) })
+        await tx.mention.createMany({
+          data: contactIds.map((contactId) => ({ entryId: id, contactId })),
+        })
       if (taskIds.length || projectIds.length)
         await tx.entityRef.createMany({
           data: [
             ...taskIds.map((taskId) => ({ entryId: id, targetType: 'TASK' as const, taskId })),
-            ...projectIds.map((projectId) => ({ entryId: id, targetType: 'PROJECT' as const, projectId })),
+            ...projectIds.map((projectId) => ({
+              entryId: id,
+              targetType: 'PROJECT' as const,
+              projectId,
+            })),
           ],
         })
     }
 
     if (input.tags) {
-      const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+      const tagIds = await resolveTagIds(tx, owner, input.tags)
       await tx.entryTag.deleteMany({ where: { entryId: id } })
       if (tagIds.length)
         await tx.entryTag.createMany({ data: tagIds.map((tagId) => ({ entryId: id, tagId })) })
@@ -444,7 +508,8 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
     if (resultingContacts.length > 0 && occurredAt <= new Date()) {
       await tx.contact.updateMany({
         where: {
-          owner, id: { in: resultingContacts },
+          owner,
+          id: { in: resultingContacts },
           OR: [{ lastContactAt: null }, { lastContactAt: { lt: occurredAt } }],
         },
         data: { lastContactAt: occurredAt },
@@ -460,21 +525,24 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
   })
 }
 
-export async function listEntries(owner: string, opts: {
-  contactId?: string
-  taskId?: string
-  projectId?: string
-  kind?: string
-  take?: number
-  skip?: number
-  /** Only entries that have already occurred. */
-  past?: string
-  /**
-   * Only entries still ahead — what is planned rather than what happened.
-   * Ordered nearest-first, because a list of plans reads forwards.
-   */
-  upcoming?: string
-} = {}) {
+export async function listEntries(
+  owner: string,
+  opts: {
+    contactId?: string
+    taskId?: string
+    projectId?: string
+    kind?: EntryKind
+    take?: number
+    skip?: number
+    /** Only entries that have already occurred. */
+    past?: string
+    /**
+     * Only entries still ahead — what is planned rather than what happened.
+     * Ordered nearest-first, because a list of plans reads forwards.
+     */
+    upcoming?: string
+  } = {},
+) {
   const { contactId, taskId, projectId, kind, take = 50, skip = 0, past, upcoming } = opts
   const now = new Date()
   const rows = await prisma.entry.findMany({
@@ -483,7 +551,7 @@ export async function listEntries(owner: string, opts: {
       deletedAt: null,
       ...(past ? { occurredAt: { lte: now } } : {}),
       ...(upcoming ? { occurredAt: { gt: now } } : {}),
-      ...(kind ? { kind: kind as any } : {}),
+      ...(kind ? { kind } : {}),
       ...(contactId ? { mentions: { some: { contactId } } } : {}),
       ...(taskId ? { refs: { some: { taskId } } } : {}),
       ...(projectId ? { refs: { some: { projectId } } } : {}),
@@ -497,7 +565,10 @@ export async function listEntries(owner: string, opts: {
 }
 
 export async function getEntry(owner: string, id: string) {
-  const entry = await prisma.entry.findFirst({ where: { id, owner, deletedAt: null }, include: entryInclude })
+  const entry = await prisma.entry.findFirst({
+    where: { id, owner, deletedAt: null },
+    include: entryInclude,
+  })
   if (!entry) return null
   return (await withFollowUps(owner, [entry]))[0]
 }

@@ -8,18 +8,25 @@
  * must no-op when there is no DOM rather than throw on `Element`.
  */
 if (typeof globalThis.document !== 'undefined' && typeof globalThis.Element !== 'undefined') {
-  const emptyRect = () => ({
-    x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0,
-    toJSON: () => ({}),
-  }) as DOMRect
+  const emptyRect = () =>
+    ({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: 0,
+      height: 0,
+      toJSON: () => ({}),
+    }) as DOMRect
 
-  const emptyRectList = () => {
-    const list: any = [emptyRect()]
-    list.item = (i: number) => list[i] ?? null
-    return list as DOMRectList
+  const emptyRectList = (): DOMRectList => {
+    const rects = [emptyRect()]
+    return Object.assign(rects, { item: (i: number) => rects[i] ?? null })
   }
 
-  const protos: any[] = [globalThis.Element.prototype]
+  const protos: (Element | Range)[] = [globalThis.Element.prototype]
   if (typeof globalThis.Range !== 'undefined') protos.push(globalThis.Range.prototype)
 
   for (const proto of protos) {
@@ -27,7 +34,15 @@ if (typeof globalThis.document !== 'undefined' && typeof globalThis.Element !== 
     if (typeof proto.getBoundingClientRect !== 'function') proto.getBoundingClientRect = emptyRect
   }
 
-  if (typeof (globalThis as any).DOMRect === 'undefined') {
-    ;(globalThis as any).DOMRect = class { constructor() { return emptyRect() } }
+  if (typeof globalThis.DOMRect === 'undefined') {
+    Object.defineProperty(globalThis, 'DOMRect', {
+      configurable: true,
+      writable: true,
+      value: class {
+        constructor() {
+          return emptyRect()
+        }
+      },
+    })
   }
 }

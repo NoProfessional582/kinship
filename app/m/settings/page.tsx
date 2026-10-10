@@ -19,26 +19,16 @@ import { CADENCE_LABEL } from '@/lib/cadence'
 export default function MobileSettings() {
   const settings = useSettings()
   const save = useSaveSettings()
-  const [v, setV] = React.useState(settings)
+  const [draft, setV] = React.useState(settings)
   const [dirty, setDirty] = React.useState(false)
 
-  // Re-seed when the query lands, but never over something being typed.
-  //
-  // The deps are the individual fields, not `settings`: useSettings spreads
-  // FALLBACK into the query data and so returns a new object on every render,
-  // which as a dependency re-runs this effect forever. Same pattern the desktop
-  // panels use.
-  React.useEffect(() => {
-    if (!dirty) setV(settings)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    dirty,
-    settings.userName, settings.appTitle,
-    settings.calendarWeekStart, settings.defaultCadence,
-    settings.weatherEnabled, settings.weatherLocation, settings.weatherUnit,
-  ])
+  // The query remains the source until the user starts editing.
+  const v = dirty ? draft : settings
 
-  const set = (patch: Partial<typeof settings>) => { setDirty(true); setV({ ...v, ...patch }) }
+  const set = (patch: Partial<typeof settings>) => {
+    setDirty(true)
+    setV({ ...v, ...patch })
+  }
 
   const commit = async () => {
     try {
@@ -78,16 +68,26 @@ export default function MobileSettings() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <Label>Week starts on</Label>
-            <Select value={v.calendarWeekStart} onChange={(e) => set({ calendarWeekStart: e.target.value as any })}>
+            <Select
+              value={v.calendarWeekStart}
+              onChange={(e) =>
+                set({ calendarWeekStart: e.target.value === 'sunday' ? 'sunday' : 'monday' })
+              }
+            >
               <option value="sunday">Sunday</option>
               <option value="monday">Monday</option>
             </Select>
           </div>
           <div className="flex flex-col gap-1">
             <Label>Default cadence</Label>
-            <Select value={v.defaultCadence} onChange={(e) => set({ defaultCadence: e.target.value })}>
+            <Select
+              value={v.defaultCadence}
+              onChange={(e) => set({ defaultCadence: e.target.value })}
+            >
               {Object.entries(CADENCE_LABEL).map(([k, label]) => (
-                <option key={k} value={k}>{label}</option>
+                <option key={k} value={k}>
+                  {label}
+                </option>
               ))}
             </Select>
           </div>
@@ -109,11 +109,20 @@ export default function MobileSettings() {
             <>
               <div className="flex flex-col gap-1">
                 <Label>Location</Label>
-                <Input value={v.weatherLocation} onChange={(e) => set({ weatherLocation: e.target.value })} placeholder="City, region" />
+                <Input
+                  value={v.weatherLocation}
+                  onChange={(e) => set({ weatherLocation: e.target.value })}
+                  placeholder="City, region"
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <Label>Units</Label>
-                <Select value={v.weatherUnit} onChange={(e) => set({ weatherUnit: e.target.value as any })}>
+                <Select
+                  value={v.weatherUnit}
+                  onChange={(e) =>
+                    set({ weatherUnit: e.target.value === 'celsius' ? 'celsius' : 'fahrenheit' })
+                  }
+                >
                   <option value="fahrenheit">Fahrenheit</option>
                   <option value="celsius">Celsius</option>
                 </Select>
@@ -128,7 +137,13 @@ export default function MobileSettings() {
       {dirty && (
         <div className="sticky bottom-2 z-10">
           <Button onClick={commit} disabled={save.isPending} className="w-full shadow-lg">
-            {save.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : 'Save changes'}
+            {save.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+              </>
+            ) : (
+              'Save changes'
+            )}
           </Button>
         </div>
       )}

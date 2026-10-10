@@ -5,7 +5,10 @@ import { cn } from '@/lib/utils'
 
 /** Free-form chip list, used for interests, hobbies and tags. */
 export function ChipsInput({
-  value, onChange, placeholder = 'Add and press Enter', className,
+  value,
+  onChange,
+  placeholder = 'Add and press Enter',
+  className,
 }: {
   value: string[]
   onChange: (next: string[]) => void
@@ -50,7 +53,10 @@ export function ChipsInput({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() }
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault()
+            add()
+          }
           if (e.key === 'Backspace' && !draft && value.length) onChange(value.slice(0, -1))
         }}
         onBlur={add}

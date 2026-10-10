@@ -1,4 +1,4 @@
-import { prisma } from '../db'
+import { prisma, type Tx } from '../db'
 import { uniqueSlug } from '../slug'
 import type { UpsertContactInput } from '../validation'
 import { followUpEdges } from './edges'
@@ -31,7 +31,10 @@ export const contactDetail = () => ({
   _count: { select: { ...interactionCount(), assignments: true } },
 })
 
-export async function listContacts(owner: string, opts: { q?: string; draftsOnly?: boolean; tag?: string } = {}) {
+export async function listContacts(
+  owner: string,
+  opts: { q?: string; draftsOnly?: boolean; tag?: string } = {},
+) {
   const { q, draftsOnly, tag } = opts
   return prisma.contact.findMany({
     where: {
@@ -52,9 +55,20 @@ export async function listContacts(owner: string, opts: { q?: string; draftsOnly
         : {}),
     },
     select: {
-      id: true, slug: true, displayName: true, avatarUrl: true, company: true,
-      jobTitle: true, headline: true, location: true, lastContactAt: true,
-      isDraft: true, interests: true, tier: true, cadence: true, birthday: true,
+      id: true,
+      slug: true,
+      displayName: true,
+      avatarUrl: true,
+      company: true,
+      jobTitle: true,
+      headline: true,
+      location: true,
+      lastContactAt: true,
+      isDraft: true,
+      interests: true,
+      tier: true,
+      cadence: true,
+      birthday: true,
       _count: { select: interactionCount() },
     },
     orderBy: [{ displayName: 'asc' }],
@@ -112,7 +126,9 @@ function childRows(input: UpsertContactInput) {
     },
     milestones: {
       create: input.milestones.map((m) => ({
-        title: m.title, date: m.date ?? null, note: m.note ?? null,
+        title: m.title,
+        date: m.date ?? null,
+        note: m.note ?? null,
       })),
     },
     links: {
@@ -142,7 +158,7 @@ function scalarFields(input: UpsertContactInput) {
     personalContext: input.personalContext ?? null,
     notes: input.notes ?? null,
     interests: input.interests,
-    customFields: input.customFields as any,
+    customFields: input.customFields,
   }
 }
 
@@ -151,7 +167,11 @@ function scalarFields(input: UpsertContactInput) {
  * touching them — the standalone endpoint still owns them for callers that
  * post attributes on their own.
  */
-async function replaceAttributes(tx: any, contactId: string, rows: UpsertContactInput['attributes']) {
+async function replaceAttributes(
+  tx: Tx,
+  contactId: string,
+  rows: UpsertContactInput['attributes'],
+) {
   if (rows === undefined) return
   await tx.contactAttribute.deleteMany({ where: { contactId } })
   if (rows.length === 0) return
@@ -168,8 +188,8 @@ async function replaceAttributes(tx: any, contactId: string, rows: UpsertContact
 
 export async function createContact(owner: string, input: UpsertContactInput) {
   return prisma.$transaction(async (tx) => {
-    const slug = await uniqueSlug('contact', owner, input.displayName, tx as any)
-    const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+    const slug = await uniqueSlug('contact', owner, input.displayName, tx)
+    const tagIds = await resolveTagIds(tx, owner, input.tags)
     const contact = await tx.contact.create({
       data: {
         owner,
@@ -190,7 +210,7 @@ export async function createContact(owner: string, input: UpsertContactInput) {
 export async function updateContact(owner: string, id: string, input: UpsertContactInput) {
   return prisma.$transaction(async (tx) => {
     await tx.contact.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
-    const tagIds = await resolveTagIds(tx as any, owner, input.tags)
+    const tagIds = await resolveTagIds(tx, owner, input.tags)
 
     // Repeatable sections are replaced wholesale; the form always posts the
     // complete list, so diffing rows would add complexity without benefit.
@@ -221,7 +241,10 @@ export async function deleteContact(owner: string, id: string) {
 
 /** The columns the "upcoming" block needs, shared by its two queries. */
 const upcomingSelect = {
-  id: true, kind: true, title: true, occurredAt: true,
+  id: true,
+  kind: true,
+  title: true,
+  occurredAt: true,
   project: { select: { id: true, slug: true, name: true, color: true } },
 } as const
 
@@ -255,11 +278,18 @@ export async function getContactDossier(owner: string, idOrSlug: string) {
     }),
     prisma.task.findMany({
       where: { owner, deletedAt: null, assignees: { some: { contactId: contact.id } } },
-      include: { project: { select: { id: true, slug: true, name: true, color: true } }, column: true },
+      include: {
+        project: { select: { id: true, slug: true, name: true, color: true } },
+        column: true,
+      },
       orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
     }),
     prisma.project.findMany({
-      where: { owner, deletedAt: null, refs: { some: { entry: { mentions: { some: { contactId: contact.id } } } } } },
+      where: {
+        owner,
+        deletedAt: null,
+        refs: { some: { entry: { mentions: { some: { contactId: contact.id } } } } },
+      },
       select: { id: true, slug: true, name: true, color: true, status: true },
     }),
     // Two bounded queries rather than one OR, because each cap has to keep the
@@ -306,12 +336,20 @@ export async function getContactDossier(owner: string, idOrSlug: string) {
     }),
   ])
 
-  const candidates = [...scheduled, ...openLoops]
-    .filter((e, i, all) => all.findIndex((o) => o.id === e.id) === i)
+  const candidates = [...scheduled, ...openLoops].filter(
+    (e, i, all) => all.findIndex((o) => o.id === e.id) === i,
+  )
 
   // Which of them continue an earlier conversation, so the block can colour a
   // promised call differently from a dinner you simply have in the diary.
-  const followUpIds = new Set((await followUpEdges(owner, candidates.map((e) => e.id))).map((e) => e.sourceId))
+  const followUpIds = new Set(
+    (
+      await followUpEdges(
+        owner,
+        candidates.map((e) => e.id),
+      )
+    ).map((e) => e.sourceId),
+  )
 
   const upcoming = candidates
     // Emptiness only means "never happened" for something that was planned. An

@@ -8,6 +8,7 @@ import {
   orderBy,
   parentsFirst,
   reviveRow,
+  type ModelName,
 } from '@/lib/archive-rows'
 import { ARCHIVE_FORMAT } from '@/lib/archive-format'
 import { ValidationError } from '@/lib/errors'
@@ -29,18 +30,25 @@ describe('model coverage', () => {
   it('lists a model only after the models it points at', () => {
     // Not derivable from the DMMF any more — Prisma 7 dropped
     // `relationFromFields` — so the dependencies are spelled out and checked.
-    const dependsOn: Partial<Record<string, string[]>> = {
-      ContactAttribute: ['Contact'], ContactChannel: ['Contact'],
-      ContactPosition: ['Contact'], ContactMilestone: ['Contact'],
-      ContactLink: ['Contact'], BoardColumn: ['Project'],
-      Task: ['Project', 'BoardColumn'], TaskAssignee: ['Task', 'Contact'],
-      Entry: ['Project'], Mention: ['Entry', 'Contact'],
+    const dependsOn: Partial<Record<ModelName, ModelName[]>> = {
+      ContactAttribute: ['Contact'],
+      ContactChannel: ['Contact'],
+      ContactPosition: ['Contact'],
+      ContactMilestone: ['Contact'],
+      ContactLink: ['Contact'],
+      BoardColumn: ['Project'],
+      Task: ['Project', 'BoardColumn'],
+      TaskAssignee: ['Task', 'Contact'],
+      Entry: ['Project'],
+      Mention: ['Entry', 'Contact'],
       EntityRef: ['Entry', 'Task', 'Project'],
-      ContactTag: ['Contact', 'Tag'], EntryTag: ['Entry', 'Tag'], TaskTag: ['Task', 'Tag'],
+      ContactTag: ['Contact', 'Tag'],
+      EntryTag: ['Entry', 'Tag'],
+      TaskTag: ['Task', 'Tag'],
     }
-    for (const [model, deps] of Object.entries(dependsOn)) {
-      for (const dep of deps!) {
-        expect(MODEL_ORDER.indexOf(dep as any)).toBeLessThan(MODEL_ORDER.indexOf(model as any))
+    for (const model of MODEL_ORDER) {
+      for (const dep of dependsOn[model] ?? []) {
+        expect(MODEL_ORDER.indexOf(dep)).toBeLessThan(MODEL_ORDER.indexOf(model))
       }
     }
   })
@@ -53,9 +61,13 @@ describe('model coverage', () => {
   })
 
   it('finds the instants on each model', () => {
-    expect([...SCHEMA.Contact.dates].sort()).toEqual(
-      ['birthday', 'createdAt', 'deletedAt', 'lastContactAt', 'updatedAt'],
-    )
+    expect([...SCHEMA.Contact.dates].sort()).toEqual([
+      'birthday',
+      'createdAt',
+      'deletedAt',
+      'lastContactAt',
+      'updatedAt',
+    ])
     expect(SCHEMA.Task.dates.has('dueDate')).toBe(true)
     expect(SCHEMA.Mention.dates.size).toBe(0)
   })
@@ -69,8 +81,11 @@ describe('model coverage', () => {
 describe('reviveRow', () => {
   it('turns date columns back into Dates and leaves everything else alone', () => {
     const row = reviveRow('Contact', {
-      id: 'c1', displayName: 'Ada', createdAt: '2026-08-29T12:00:00.000Z',
-      interests: ['looms'], customFields: { desk: 3 },
+      id: 'c1',
+      displayName: 'Ada',
+      createdAt: '2026-08-29T12:00:00.000Z',
+      interests: ['looms'],
+      customFields: { desk: 3 },
     })
     expect(row.createdAt).toBeInstanceOf(Date)
     expect((row.createdAt as Date).toISOString()).toBe('2026-08-29T12:00:00.000Z')
@@ -102,8 +117,7 @@ describe('reviveRow', () => {
   })
 
   it('refuses a date that is not one', () => {
-    expect(() => reviveRow('Contact', { id: 'c1', createdAt: 'whenever' }))
-      .toThrow(ValidationError)
+    expect(() => reviveRow('Contact', { id: 'c1', createdAt: 'whenever' })).toThrow(ValidationError)
   })
 })
 
@@ -112,8 +126,7 @@ describe('parentsFirst', () => {
   const idsOf = (rows: Record<string, unknown>[]) => rows.map((r) => r.id)
 
   it('puts a parent ahead of its child', () => {
-    expect(idsOf(parentsFirst([task('child', 'root'), task('root')])))
-      .toEqual(['root', 'child'])
+    expect(idsOf(parentsFirst([task('child', 'root'), task('root')]))).toEqual(['root', 'child'])
   })
 
   it('orders a chain emitted entirely backwards', () => {
@@ -153,33 +166,53 @@ describe('archiveSchema', () => {
     expect(archiveSchema.safeParse({ hello: 'world' }).success).toBe(false)
   })
 
+  it('says so when the marker is missing', () => {
+    const result = archiveSchema.safeParse({ ...valid, format: 'something-else' })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe(
+      'Not a Kinship archive (missing the "kb-archive" marker)',
+    )
+  })
+
+  it("keeps the old app's marker, so archives move both ways", () => {
+    expect(ARCHIVE_FORMAT).toBe('kb-archive')
+    expect(archiveSchema.safeParse({ ...valid, format: 'kb-archive' }).success).toBe(true)
+  })
+
   it.each(['../escape.png', 'nested/escape.png', '..\\escape.png', '.hidden'])(
     'refuses the upload name %s',
     (name) => {
       const result = archiveSchema.safeParse({
-        ...valid, uploads: [{ name, data: 'AAAA' }],
+        ...valid,
+        uploads: [{ name, data: 'AAAA' }],
       })
       expect(result.success).toBe(false)
     },
   )
 
   it('accepts a plain filename', () => {
-    expect(archiveSchema.safeParse({
-      ...valid, uploads: [{ name: 'a1b2.png', data: 'AAAA' }],
-    }).success).toBe(true)
+    expect(
+      archiveSchema.safeParse({
+        ...valid,
+        uploads: [{ name: 'a1b2.png', data: 'AAAA' }],
+      }).success,
+    ).toBe(true)
   })
 
   it('refuses upload data that is not base64', () => {
-    expect(archiveSchema.safeParse({
-      ...valid, uploads: [{ name: 'a.png', data: 'not base64!' }],
-    }).success).toBe(false)
+    expect(
+      archiveSchema.safeParse({
+        ...valid,
+        uploads: [{ name: 'a.png', data: 'not base64!' }],
+      }).success,
+    ).toBe(false)
   })
 })
 
 describe('archiveFilename', () => {
-  it('is sortable, stamped, and free of characters a filesystem dislikes', () => {
+  it('is named for Kinship, sortable, stamped, and free of characters a filesystem dislikes', () => {
     const name = archiveFilename(new Date('2026-08-29T12:34:56.000Z'))
-    expect(name).toBe('kb-archive-2026-08-29-12-34-56.json')
+    expect(name).toBe('kinship-archive-2026-08-29-12-34-56.json')
     expect(name).not.toMatch(/[:]/)
   })
 })

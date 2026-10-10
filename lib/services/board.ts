@@ -3,7 +3,10 @@ import type { TaskStatus } from '@prisma/client'
 import { ConflictError } from '../errors'
 import { STEP, needsRenormalize, renormalizedPositions } from '../fractional-index'
 
-type Tx = Omit<typeof prisma, '$transaction' | '$connect' | '$disconnect' | '$on' | '$use' | '$extends'>
+type Tx = Omit<
+  typeof prisma,
+  '$transaction' | '$connect' | '$disconnect' | '$on' | '$use' | '$extends'
+>
 
 export const DEFAULT_COLUMNS = [
   { name: 'Backlog', color: '#64748b', status: 'TODO' as const },
@@ -27,14 +30,22 @@ export const DEFAULT_COLUMNS = [
 export async function ensureColumns(tx: Tx, owner: string) {
   const existing = await tx.boardColumn.findMany({
     where: { owner, projectId: null },
-    orderBy: { position: 'asc' },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
   })
   if (existing.length > 0) return existing
 
   await tx.boardColumn.createMany({
-    data: DEFAULT_COLUMNS.map((c, i) => ({ ...c, owner, projectId: null, position: (i + 1) * STEP })),
+    data: DEFAULT_COLUMNS.map((c, i) => ({
+      ...c,
+      owner,
+      projectId: null,
+      position: (i + 1) * STEP,
+    })),
   })
-  return tx.boardColumn.findMany({ where: { owner, projectId: null }, orderBy: { position: 'asc' } })
+  return tx.boardColumn.findMany({
+    where: { owner, projectId: null },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
+  })
 }
 
 /** The column an inline-created task lands in: the first one on the board. */
@@ -47,7 +58,7 @@ export async function defaultColumnId(tx: Tx, owner: string): Promise<string> {
 export async function appendPosition(tx: Tx, owner: string, columnId: string): Promise<number> {
   const last = await tx.task.findFirst({
     where: { owner, columnId, deletedAt: null },
-    orderBy: { position: 'desc' },
+    orderBy: [{ position: 'desc' }, { id: 'desc' }],
     select: { position: true },
   })
   return last ? last.position + STEP : STEP
@@ -60,14 +71,16 @@ export async function appendPosition(tx: Tx, owner: string, columnId: string): P
 export async function renormalizeColumn(tx: Tx, owner: string, columnId: string): Promise<void> {
   const tasks = await tx.task.findMany({
     where: { owner, columnId, deletedAt: null },
-    orderBy: { position: 'asc' },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
     select: { id: true, position: true },
   })
   if (!needsRenormalize(tasks.map((t) => t.position))) return
 
   const fresh = renormalizedPositions(tasks.length)
   await Promise.all(
-    tasks.map((t, i) => tx.task.updateMany({ where: { id: t.id, owner }, data: { position: fresh[i] } })),
+    tasks.map((t, i) =>
+      tx.task.updateMany({ where: { id: t.id, owner }, data: { position: fresh[i] } }),
+    ),
   )
 }
 
@@ -135,7 +148,7 @@ export async function deleteColumn(owner: string, id: string) {
   if (trashed > 0) {
     throw new ConflictError(
       `This column still holds ${trashed} deleted card${trashed === 1 ? '' : 's'}. ` +
-      'Restore them or empty the trash first — removing the column would delete them for good.',
+        'Restore them or empty the trash first — removing the column would delete them for good.',
     )
   }
 

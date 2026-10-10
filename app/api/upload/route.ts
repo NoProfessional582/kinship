@@ -4,7 +4,12 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { ownerUploadDir, uploadUrl } from '@/lib/uploads'
 import { requireIdentity } from '@/lib/identity'
-import { ALLOWED_IMAGE_TYPES, allowedImageLabel, extensionFor, sniffImageType } from '@/lib/image-types'
+import {
+  ALLOWED_IMAGE_TYPES,
+  allowedImageLabel,
+  extensionFor,
+  sniffImageType,
+} from '@/lib/image-types'
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_REQUEST_BYTES, readBodyCapped } from '@/lib/body-limit'
 import { PayloadTooLargeError } from '@/lib/errors'
 
@@ -76,7 +81,9 @@ export async function POST(req: Request) {
   try {
     const directory = ownerUploadDir(owner)
     await mkdir(directory, { recursive: true })
-    await writeFile(path.join(directory, name), bytes)
+    // The comment keeps the build from following a path it can only know at run
+    // time; without it, the build copies the whole project into the image.
+    await writeFile(path.join(/*turbopackIgnore: true*/ directory, name), bytes)
   } catch (err) {
     console.error('[upload]', err)
     return NextResponse.json({ error: 'Could not save the file' }, { status: 500 })

@@ -1,7 +1,10 @@
 import { prisma } from '../db'
 import { normalizeLabel } from '../utils'
 
-type Tx = Omit<typeof prisma, '$transaction' | '$connect' | '$disconnect' | '$on' | '$use' | '$extends'>
+type Tx = Omit<
+  typeof prisma,
+  '$transaction' | '$connect' | '$disconnect' | '$on' | '$use' | '$extends'
+>
 
 /**
  * Resolves tags by name and returns their ids, preserving input order.
@@ -32,7 +35,10 @@ export async function resolveTagIds(tx: Tx, owner: string, names: string[]): Pro
   const byKey = new Map<string, string>()
   const lookup = async (names: string[]) => {
     const rows = await tx.tag.findMany({
-      where: { owner, OR: names.map((name) => ({ name: { equals: name, mode: 'insensitive' as const } })) },
+      where: {
+        owner,
+        OR: names.map((name) => ({ name: { equals: name, mode: 'insensitive' as const } })),
+      },
       select: { id: true, name: true },
     })
     for (const row of rows) byKey.set(normalizeLabel(row.name), row.id)
@@ -50,7 +56,10 @@ export async function resolveTagIds(tx: Tx, owner: string, names: string[]): Pro
     // the plain unique index and created the two divergent tags this function
     // exists to prevent. Now the loser of the race simply reads the winner's
     // row back.
-    await tx.tag.createMany({ data: missing.map((name) => ({ owner, name })), skipDuplicates: true })
+    await tx.tag.createMany({
+      data: missing.map((name) => ({ owner, name })),
+      skipDuplicates: true,
+    })
     await lookup(missing)
   }
 

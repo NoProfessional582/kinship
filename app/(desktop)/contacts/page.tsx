@@ -8,13 +8,22 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, Avatar, Badge, EmptyState } from '@/components/ui/misc'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  ContactForm, blankContact, contactFromRecord, contactToPayload, type ContactFormValue,
+  ContactForm,
+  blankContact,
+  contactFromRecord,
+  contactToPayload,
+  type ContactFormValue,
 } from '@/components/entity-modal/contact-form'
 import { api, useContacts } from '@/lib/hooks/api'
 import { formatDistanceToNowStrict } from 'date-fns'
+import type { ContactDossier, ContactSummary } from '@/lib/api-types'
 
 export default function ContactsPage() {
   const [q, setQ] = React.useState('')
@@ -38,10 +47,10 @@ export default function ContactsPage() {
    * links. Seeding the editor from one and saving it would send empty arrays
    * for all of them and delete the rows, so the full record is fetched first.
    */
-  const openEditor = async (c: any) => {
+  const openEditor = async (c: ContactSummary) => {
     setOpening(c.id)
     try {
-      const data = await api.get<any>(`/api/contacts/${c.id}`)
+      const data = await api.get<ContactDossier>(`/api/contacts/${c.id}`)
       if (!data?.contact) throw new Error('Contact not found')
       setForm(contactFromRecord(data.contact))
       setEditing({ id: c.id, name: data.contact.displayName })
@@ -53,7 +62,10 @@ export default function ContactsPage() {
   }
 
   const submit = async () => {
-    if (!form.displayName.trim()) { toast.error('A name is required'); return }
+    if (!form.displayName.trim()) {
+      toast.error('A name is required')
+      return
+    }
     setSaving(true)
     try {
       const payload = contactToPayload(form, false)
@@ -83,9 +95,19 @@ export default function ContactsPage() {
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted-foreground)]" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people…" className="w-56 pl-8" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search people…"
+            className="w-56 pl-8"
+          />
         </div>
-        <Button onClick={() => { setForm(blankContact()); setEditing({ id: null }) }}>
+        <Button
+          onClick={() => {
+            setForm(blankContact())
+            setEditing({ id: null })
+          }}
+        >
           <Plus className="h-3.5 w-3.5" /> New contact
         </Button>
       </header>
@@ -105,8 +127,11 @@ export default function ContactsPage() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 3xl:grid-cols-4">
-        {(contacts ?? []).map((c: any) => (
-          <Card key={c.id} className="relative h-full p-3.5 transition-colors hover:bg-[var(--muted)]">
+        {(contacts ?? []).map((c) => (
+          <Card
+            key={c.id}
+            className="relative h-full p-3.5 transition-colors hover:bg-[var(--muted)]"
+          >
             <div className="flex items-start gap-3">
               <Avatar src={c.avatarUrl} name={c.displayName} size={40} />
               <div className="min-w-0 flex-1">
@@ -127,13 +152,17 @@ export default function ContactsPage() {
                     title="Edit contact"
                     className="relative z-10 shrink-0 rounded-md p-1 text-[var(--muted-foreground)] opacity-70 transition-colors hover:bg-[var(--accent)] hover:text-[var(--foreground)] hover:opacity-100 focus-visible:opacity-100"
                   >
-                    {opening === c.id
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <Pencil className="h-3.5 w-3.5" />}
+                    {opening === c.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Pencil className="h-3.5 w-3.5" />
+                    )}
                   </button>
                 </div>
                 <p className="line-clamp-2 text-xs text-[var(--muted-foreground)]">
-                  {c.headline || [c.jobTitle, c.company].filter(Boolean).join(' · ') || 'No details yet'}
+                  {c.headline ||
+                    [c.jobTitle, c.company].filter(Boolean).join(' · ') ||
+                    'No details yet'}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   <Badge>{c._count.mentions} interactions</Badge>
@@ -144,7 +173,9 @@ export default function ContactsPage() {
                       bare pencil here read as an edit button that only some
                       tiles had. */}
                   {c.isDraft && (
-                    <Badge className="border-[var(--pending)] text-[var(--pending)]">needs details</Badge>
+                    <Badge className="border-[var(--pending)] text-[var(--pending)]">
+                      needs details
+                    </Badge>
                   )}
                 </div>
                 {c.interests?.length > 0 && (
@@ -167,7 +198,9 @@ export default function ContactsPage() {
           </DialogHeader>
           <ContactForm value={form} onChange={setForm} />
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
             <Button onClick={submit} disabled={saving}>
               {saving ? 'Saving…' : editing?.id ? 'Save changes' : 'Create contact'}
             </Button>

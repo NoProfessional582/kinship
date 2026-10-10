@@ -2,6 +2,7 @@
 import * as React from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { renderEntryHtml } from '@/lib/tiptap/render'
+import { asDoc } from '@/lib/tiptap/doc'
 import { cn } from '@/lib/utils'
 
 /**
@@ -11,13 +12,15 @@ import { cn } from '@/lib/utils'
  * actually overflows gets a toggle that opens it in place. Reading the rest of
  * a note on a dossier should not cost you the dossier.
  */
-export function EntryBody({ doc, compact }: { doc: any; compact?: boolean }) {
-  const html = React.useMemo(() => renderEntryHtml(doc), [doc])
+export function EntryBody({ doc, compact }: { doc: unknown; compact?: boolean }) {
+  const html = React.useMemo(() => renderEntryHtml(asDoc(doc)), [doc])
   const ref = React.useRef<HTMLDivElement>(null)
   const [clipped, setClipped] = React.useState(false)
   const [open, setOpen] = React.useState(false)
   const openRef = React.useRef(open)
-  openRef.current = open
+  React.useEffect(() => {
+    openRef.current = open
+  }, [open])
 
   React.useEffect(() => {
     const el = ref.current
@@ -51,9 +54,17 @@ export function EntryBody({ doc, compact }: { doc: any; compact?: boolean }) {
           aria-expanded={open}
           className="mt-1.5 inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
         >
-          {open
-            ? <><ChevronUp className="h-3 w-3" />Show less</>
-            : <><ChevronDown className="h-3 w-3" />Show more</>}
+          {open ? (
+            <>
+              <ChevronUp className="h-3 w-3" />
+              Show less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3 w-3" />
+              Show more
+            </>
+          )}
         </button>
       )}
     </>

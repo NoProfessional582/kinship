@@ -34,7 +34,10 @@ export function createSuggestionRenderer(): SuggestionOptions<SuggestionItem>['r
       })
     }
 
-    const render = (props: { items: SuggestionItem[]; command: (item: SuggestionItem) => void }) => {
+    const render = (props: {
+      items: SuggestionItem[]
+      command: (item: SuggestionItem) => void
+    }) => {
       latestItems = props.items
       root?.render(
         <SuggestionList
@@ -55,11 +58,11 @@ export function createSuggestionRenderer(): SuggestionOptions<SuggestionItem>['r
         container.style.left = '0'
         document.body.appendChild(container)
         root = createRoot(container)
-        render(props as any)
+        render(props)
         position(props.clientRect)
       },
       onUpdate: (props) => {
-        render(props as any)
+        render(props)
         position(props.clientRect)
       },
       onKeyDown: (props) => {

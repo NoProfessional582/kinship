@@ -1,14 +1,20 @@
 import 'dotenv/config'
 import { prisma } from '../lib/db'
-import { archiveFilename, currentCounts, exportArchive, importArchive } from '../lib/services/archive'
+import {
+  archiveFilename,
+  currentCounts,
+  exportArchive,
+  importArchive,
+  type Archive,
+} from '../lib/services/archive'
 import { requireConfiguredOwner } from '../lib/identity'
 
 /**
  * Command-line half of the archive, for moving this app between machines.
  *
- *   npm run export > kb-archive.json                  # this machine, to a file
- *   npm run import < kb-archive.json                  # dry run: says what it would do
- *   npm run import -- --replace < kb-archive.json     # actually does it
+ *   npm run export > kinship-archive.json                  # this machine, to a file
+ *   npm run import < kinship-archive.json                  # dry run: says what it would do
+ *   npm run import -- --replace < kinship-archive.json     # actually does it
  *
  * The archive travels on stdout and stdin rather than through a path argument.
  * A path would be a path *inside the container*, which is a trap, and anything
@@ -23,8 +29,8 @@ const say = (...args: unknown[]) => console.error(...args)
 const owner = requireConfiguredOwner()
 
 const USAGE = `Usage:
-  npm run export > kb-archive.json
-  npm run import [-- --replace] [--force] < kb-archive.json
+  npm run export > kinship-archive.json
+  npm run import [-- --replace] [--force] < kinship-archive.json
 
   --replace   Actually restore. Without it, import only reports the plan.
   --force     Restore even if the archive and this database are on different
@@ -78,7 +84,9 @@ async function runImport({ replace, force }: { replace: boolean; force: boolean 
     return
   }
 
-  let archive: any
+  // Unchecked until importArchive validates it; the dry run only reads it for
+  // display, and every field it reads has a fallback.
+  let archive: Partial<Archive>
   try {
     archive = JSON.parse(raw)
   } catch (err) {
@@ -91,7 +99,9 @@ async function runImport({ replace, force }: { replace: boolean; force: boolean 
     // A dry run is worth more than a confirmation prompt here: the interesting
     // question is not "are you sure" but "what exactly is on each side".
     const here = await currentCounts(owner)
-    say(`Archive written ${archive.exportedAt ?? 'at an unrecorded time'}, format v${archive.version}.`)
+    say(
+      `Archive written ${archive.exportedAt ?? 'at an unrecorded time'}, format v${archive.version}.`,
+    )
     say('\nIt would REPLACE this database:\n')
     say(compare(here, archive.counts ?? {}))
     say(`\nUploads in the archive: ${archive.uploads?.length ?? 0}`)

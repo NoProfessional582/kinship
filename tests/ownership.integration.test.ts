@@ -14,10 +14,20 @@ import { createProject, getProject, listProjects, updateProject } from '@/lib/se
 import { globalSearch, searchMentions } from '@/lib/services/search'
 import { createTask, getBoard, getTask, moveTask, updateTask } from '@/lib/services/tasks'
 import { emptyTrash, listTrash, purge, restore, softDelete } from '@/lib/services/trash'
-import { ARCHIVE_FORMAT, ARCHIVE_VERSION, exportArchive, importArchive } from '@/lib/services/archive'
+import {
+  ARCHIVE_FORMAT,
+  ARCHIVE_VERSION,
+  exportArchive,
+  importArchive,
+} from '@/lib/services/archive'
 import { CONTACT_MENTION } from '@/lib/tiptap/nodes'
 import { ownerUploadDir } from '@/lib/uploads'
-import { createEntrySchema, upsertContactSchema, upsertProjectSchema, upsertTaskSchema } from '@/lib/validation'
+import {
+  createEntrySchema,
+  upsertContactSchema,
+  upsertProjectSchema,
+  upsertTaskSchema,
+} from '@/lib/validation'
 
 /**
  * P6 ownership isolation: two subjects build the SAME-named graph side by side
@@ -37,32 +47,55 @@ const WINDOW = [new Date('2031-01-01T00:00:00Z'), new Date('2031-02-01T00:00:00Z
 
 const noteWithMention = (text: string, contactId: string) => ({
   type: 'doc',
-  content: [{
-    type: 'paragraph',
-    content: [
-      { type: 'text', text },
-      { type: CONTACT_MENTION, attrs: { id: contactId, label: NAME } },
-    ],
-  }],
+  content: [
+    {
+      type: 'paragraph',
+      content: [
+        { type: 'text', text },
+        { type: CONTACT_MENTION, attrs: { id: contactId, label: NAME } },
+      ],
+    },
+  ],
 })
 
 async function world(owner: string) {
-  const contact = await createContact(owner, upsertContactSchema.parse({ displayName: NAME, tags: [TAG] }))
-  const project = await createProject(owner, upsertProjectSchema.parse({
-    name: `${MARK} Shared Project`, startDate: '2031-01-10',
-  }))
-  const task = await createTask(owner, upsertTaskSchema.parse({
-    title: `${MARK} Shared Task`, projectId: project.id, assigneeIds: [contact.id], tags: [TAG], dueDate: '2031-01-12',
-  }))
-  const { entry } = await createEntry(owner, createEntrySchema.parse({
-    kind: 'NOTE',
-    bodyJson: noteWithMention(`${MARK} shared note with `, contact.id),
-    occurredAt: '2031-01-11T12:00:00Z',
-    projectId: project.id,
-    tags: [TAG],
-  }))
+  const contact = await createContact(
+    owner,
+    upsertContactSchema.parse({ displayName: NAME, tags: [TAG] }),
+  )
+  const project = await createProject(
+    owner,
+    upsertProjectSchema.parse({
+      name: `${MARK} Shared Project`,
+      startDate: '2031-01-10',
+    }),
+  )
+  const task = await createTask(
+    owner,
+    upsertTaskSchema.parse({
+      title: `${MARK} Shared Task`,
+      projectId: project.id,
+      assigneeIds: [contact.id],
+      tags: [TAG],
+      dueDate: '2031-01-12',
+    }),
+  )
+  const { entry } = await createEntry(
+    owner,
+    createEntrySchema.parse({
+      kind: 'NOTE',
+      bodyJson: noteWithMention(`${MARK} shared note with `, contact.id),
+      occurredAt: '2031-01-11T12:00:00Z',
+      projectId: project.id,
+      tags: [TAG],
+    }),
+  )
   const edge = await upsertEdge(owner, {
-    sourceType: 'contact', sourceId: contact.id, targetType: 'project', targetId: project.id, relation: `${MARK}works on`,
+    sourceType: 'contact',
+    sourceId: contact.id,
+    targetType: 'project',
+    targetId: project.id,
+    relation: `${MARK}works on`,
   })
   const cadence = Object.values(CheckInCadence).find((c) => c !== 'NONE')!
   await prisma.contact.update({ where: { id: contact.id }, data: { cadence } })
@@ -135,8 +168,12 @@ describe('reads never cross owners', () => {
     expect(leaked((await getBoard(B, null)).tasks.map((t) => t.id))).toEqual([])
     expect(leaked((await listEntries(B)).map((e) => e.id))).toEqual([])
     expect(leaked((await globalSearch(B, MARK)).map((h) => h.id))).toEqual([])
-    expect(leaked((await searchMentions(B, 'contact', 'Shared Person')).map((s) => s.id))).toEqual([])
-    expect(leaked((await searchMentions(B, 'entity', `${MARK} Shared`)).map((s) => s.id))).toEqual([])
+    expect(leaked((await searchMentions(B, 'contact', 'Shared Person')).map((s) => s.id))).toEqual(
+      [],
+    )
+    expect(leaked((await searchMentions(B, 'entity', `${MARK} Shared`)).map((s) => s.id))).toEqual(
+      [],
+    )
     expect(leaked((await getCalendarEvents(B, ...WINDOW)).map((e) => e.entityId))).toEqual([])
     expect(leaked((await contactsNeedingAttention(B, 1000)).map((c) => c.id))).toEqual([])
 
@@ -149,14 +186,25 @@ describe('writes to another owner are refused and change nothing', () => {
   it('refuses updates, moves, edge deletes and trash actions', async () => {
     const [bColumn] = (await getBoard(B, null)).columns
 
-    await expect(updateContact(B, a.contact.id, upsertContactSchema.parse({ displayName: 'hijack' }))).rejects.toThrow()
-    await expect(updateProject(B, a.project.id, upsertProjectSchema.parse({ name: 'hijack' }))).rejects.toThrow()
-    await expect(updateTask(B, a.task.id, upsertTaskSchema.parse({ title: 'hijack' }))).rejects.toThrow()
+    await expect(
+      updateContact(B, a.contact.id, upsertContactSchema.parse({ displayName: 'hijack' })),
+    ).rejects.toThrow()
+    await expect(
+      updateProject(B, a.project.id, upsertProjectSchema.parse({ name: 'hijack' })),
+    ).rejects.toThrow()
+    await expect(
+      updateTask(B, a.task.id, upsertTaskSchema.parse({ title: 'hijack' })),
+    ).rejects.toThrow()
     await expect(updateEntry(B, a.entry.id, { title: 'hijack' })).rejects.toThrow()
     await expect(moveTask(B, a.task.id, bColumn.id, 0)).rejects.toThrow()
     await expect(deleteColumn(B, a.task.columnId)).rejects.toThrow()
     await expect(deleteEdge(B, a.edge.id)).rejects.toThrow()
-    for (const [kind, id] of [['contact', a.contact.id], ['project', a.project.id], ['task', a.task.id], ['entry', a.entry.id]] as const) {
+    for (const [kind, id] of [
+      ['contact', a.contact.id],
+      ['project', a.project.id],
+      ['task', a.task.id],
+      ['entry', a.entry.id],
+    ] as const) {
       await expect(softDelete(B, kind, id)).rejects.toThrow()
       await expect(restore(B, kind, id)).rejects.toThrow()
       await expect(purge(B, kind, id)).rejects.toThrow()
@@ -169,31 +217,51 @@ describe('writes to another owner are refused and change nothing', () => {
     expect(await prisma.entityEdge.findUnique({ where: { id: a.edge.id } })).not.toBeNull()
   })
 
-  it('refuses links from the caller\'s rows to another owner\'s rows', async () => {
-    await expect(createTask(B, upsertTaskSchema.parse({ title: `${MARK}x`, projectId: a.project.id }))).rejects.toThrow()
-    await expect(createTask(B, upsertTaskSchema.parse({ title: `${MARK}x`, parentTaskId: a.task.id }))).rejects.toThrow()
-    await expect(createTask(B, upsertTaskSchema.parse({ title: `${MARK}x`, assigneeIds: [a.contact.id] }))).rejects.toThrow()
-    await expect(createTask(B, upsertTaskSchema.parse({ title: `${MARK}x`, columnId: a.task.columnId }))).rejects.toThrow()
+  it("refuses links from the caller's rows to another owner's rows", async () => {
+    await expect(
+      createTask(B, upsertTaskSchema.parse({ title: `${MARK}x`, projectId: a.project.id })),
+    ).rejects.toThrow()
+    await expect(
+      createTask(B, upsertTaskSchema.parse({ title: `${MARK}x`, parentTaskId: a.task.id })),
+    ).rejects.toThrow()
+    await expect(
+      createTask(B, upsertTaskSchema.parse({ title: `${MARK}x`, assigneeIds: [a.contact.id] })),
+    ).rejects.toThrow()
+    await expect(
+      createTask(B, upsertTaskSchema.parse({ title: `${MARK}x`, columnId: a.task.columnId })),
+    ).rejects.toThrow()
     await expect(moveTask(B, b.task.id, a.task.columnId, 0)).rejects.toThrow()
-    await expect(upsertEdge(B, {
-      sourceType: 'contact', sourceId: b.contact.id, targetType: 'project', targetId: a.project.id, relation: `${MARK}x`,
-    })).rejects.toThrow()
+    await expect(
+      upsertEdge(B, {
+        sourceType: 'contact',
+        sourceId: b.contact.id,
+        targetType: 'project',
+        targetId: a.project.id,
+        relation: `${MARK}x`,
+      }),
+    ).rejects.toThrow()
 
     // An entry silently drops references it cannot resolve for its owner.
-    const { entry } = await createEntry(B, createEntrySchema.parse({
-      kind: 'NOTE',
-      bodyJson: noteWithMention(`${MARK} cross-owner mention `, a.contact.id),
-      occurredAt: '2031-01-15T12:00:00Z',
-      projectId: a.project.id,
-    }))
+    const { entry } = await createEntry(
+      B,
+      createEntrySchema.parse({
+        kind: 'NOTE',
+        bodyJson: noteWithMention(`${MARK} cross-owner mention `, a.contact.id),
+        occurredAt: '2031-01-15T12:00:00Z',
+        projectId: a.project.id,
+      }),
+    )
     expect(entry.mentions).toHaveLength(0)
     expect(entry.projectId).toBeNull()
   })
 })
 
 describe('trash is per owner', () => {
-  it('lists and empties only the caller\'s trash', async () => {
-    const doomed = await createContact(A, upsertContactSchema.parse({ displayName: `${MARK} Trashed` }))
+  it("lists and empties only the caller's trash", async () => {
+    const doomed = await createContact(
+      A,
+      upsertContactSchema.parse({ displayName: `${MARK} Trashed` }),
+    )
     await softDelete(A, 'contact', doomed.id)
 
     expect((await listTrash(B)).contacts.map((c) => c.id)).not.toContain(doomed.id)
@@ -212,7 +280,7 @@ describe('archives carry and restore one owner only', () => {
     'base64',
   )
 
-  it('exports none of another owner\'s rows or uploads', async () => {
+  it("exports none of another owner's rows or uploads", async () => {
     await mkdir(ownerUploadDir(A), { recursive: true })
     await writeFile(path.join(ownerUploadDir(A), `${MARK}a.png`), PNG)
     expect(ownerUploadDir(A)).not.toBe(ownerUploadDir(B))
@@ -233,7 +301,16 @@ describe('archives carry and restore one owner only', () => {
       }
     }
     expect(archive.uploads.map((u) => u.name)).not.toContain(`${MARK}a.png`)
-    for (const model of ['Contact', 'Project', 'Task', 'Entry', 'EntityEdge', 'Tag', 'BoardColumn', 'Settings']) {
+    for (const model of [
+      'Contact',
+      'Project',
+      'Task',
+      'Entry',
+      'EntityEdge',
+      'Tag',
+      'BoardColumn',
+      'Settings',
+    ]) {
       for (const row of archive.data[model] ?? []) expect(row.owner).toBe(B)
     }
   })
@@ -246,9 +323,19 @@ describe('archives carry and restore one owner only', () => {
     const hostile = [
       { Contact: [own], ContactTag: [{ contactId: own.id, tagId: aTag.id }] },
       { Contact: [own], TaskAssignee: [{ id: `${MARK}ta`, taskId: a.task.id, contactId: own.id }] },
-      { Contact: [own], EntityEdge: [{
-        id: `${MARK}edge`, sourceType: 'contact', sourceId: own.id, targetType: 'contact', targetId: a.contact.id, relation: 'x',
-      }] },
+      {
+        Contact: [own],
+        EntityEdge: [
+          {
+            id: `${MARK}edge`,
+            sourceType: 'contact',
+            sourceId: own.id,
+            targetType: 'contact',
+            targetId: a.contact.id,
+            relation: 'x',
+          },
+        ],
+      },
     ]
     for (const data of hostile) {
       await expect(importArchive(B, { ...base, data })).rejects.toBeInstanceOf(ValidationError)
@@ -256,10 +343,12 @@ describe('archives carry and restore one owner only', () => {
 
     // Refused before the transaction: the caller's own graph is intact.
     expect((await getContact(B, b.contact.id))?.id).toBe(b.contact.id)
-    expect(await prisma.contactTag.count({ where: { tagId: aTag.id, contact: { owner: B } } })).toBe(0)
+    expect(
+      await prisma.contactTag.count({ where: { tagId: aTag.id, contact: { owner: B } } }),
+    ).toBe(0)
   })
 
-  it('round-trips the caller\'s graph without touching another owner', async () => {
+  it("round-trips the caller's graph without touching another owner", async () => {
     const countsFor = async (owner: string) => ({
       contacts: await prisma.contact.count({ where: { owner } }),
       entries: await prisma.entry.count({ where: { owner } }),

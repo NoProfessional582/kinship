@@ -7,8 +7,9 @@ import { ArrowRight } from 'lucide-react'
 import { Card, Avatar } from '@/components/ui/misc'
 import { Inset } from './today-panel'
 import { api, useContacts } from '@/lib/hooks/api'
-import { useTimezone } from '@/lib/hooks/settings'
-import { nextAnniversary, zonedToday } from '@/lib/format'
+import { useZonedToday } from '@/lib/hooks/settings'
+import { nextAnniversary } from '@/lib/format'
+import type { CadenceContact, ContactSummary } from '@/lib/api-types'
 
 /**
  * The next birthday to fall due. Anything past the horizon is not a thing you
@@ -17,9 +18,9 @@ import { nextAnniversary, zonedToday } from '@/lib/format'
  */
 const MILESTONE_HORIZON_DAYS = 90
 
-function nextBirthday(contacts: any[], today: Date) {
+function nextBirthday(contacts: ContactSummary[], today: Date) {
   const upcoming = contacts
-    .filter((c) => c.birthday)
+    .flatMap((c) => (c.birthday ? [{ ...c, birthday: c.birthday }] : []))
     .map((c) => {
       // Birthdays are stored as a UTC calendar date; comparing them in local
       // time would shift half of them by a day. `nextAnniversary` also clamps
@@ -36,47 +37,49 @@ export function PeopleOrbit() {
   const { data: contacts } = useContacts()
   const { data: reconnect } = useQuery({
     queryKey: ['cadence'],
-    queryFn: () => api.get<any[]>('/api/cadence'),
+    queryFn: () => api.get<CadenceContact[]>('/api/cadence'),
   })
-  const { timezone } = useTimezone()
-  const [today, setToday] = React.useState<Date | null>(null)
-  React.useEffect(() => setToday(zonedToday(timezone)), [timezone])
+  const today = useZonedToday()
 
-  const list = contacts ?? []
+  const list = React.useMemo(() => contacts ?? [], [contacts])
 
   const stats = React.useMemo(() => {
     if (!today) return null
     const weekAgo = new Date(today.getTime() - 7 * 86_400_000)
     return {
-      active: list.filter((c: any) => c.lastContactAt && new Date(c.lastContactAt) >= weekAgo).length,
-      interactions: list.reduce((n: number, c: any) => n + (c._count?.mentions ?? 0), 0),
+      active: list.filter((c) => c.lastContactAt && new Date(c.lastContactAt) >= weekAgo).length,
+      interactions: list.reduce((n, c) => n + c._count.mentions, 0),
     }
   }, [list, today])
 
-  const faces = React.useMemo(() => (
-    [...list]
-      .sort((a: any, b: any) =>
-        new Date(b.lastContactAt ?? 0).getTime() - new Date(a.lastContactAt ?? 0).getTime())
-      .slice(0, 4)
-  ), [list])
-
-  const milestone = React.useMemo(
-    () => (today ? nextBirthday(list, today) : null),
-    [list, today],
+  const faces = React.useMemo(
+    () =>
+      [...list]
+        .sort(
+          (a, b) =>
+            new Date(b.lastContactAt ?? 0).getTime() - new Date(a.lastContactAt ?? 0).getTime(),
+        )
+        .slice(0, 4),
+    [list],
   )
+
+  const milestone = React.useMemo(() => (today ? nextBirthday(list, today) : null), [list, today])
 
   return (
     <Card className="flex flex-col overflow-hidden">
       <div className="flex items-baseline justify-between gap-2 px-4 pt-3.5 pb-3">
         <h2 className="text-[1.15rem]">People in orbit</h2>
-        <Link href="/contacts" className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]">
+        <Link
+          href="/contacts"
+          className="inline-flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition-colors hover:text-[var(--primary)]"
+        >
           Everyone <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
 
       <div className="mb-3 flex items-center gap-3 px-4">
         <div className="flex shrink-0 -space-x-2.5">
-          {faces.map((c: any) => (
+          {faces.map((c) => (
             <Link key={c.id} href={`/contacts/${c.slug}`} title={c.displayName}>
               <Avatar
                 src={c.avatarUrl}
@@ -107,7 +110,7 @@ export function PeopleOrbit() {
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {(reconnect ?? []).slice(0, 3).map((c: any) => (
+            {(reconnect ?? []).slice(0, 3).map((c) => (
               <Link
                 key={c.id}
                 href={`/contacts/${c.slug}`}
@@ -116,9 +119,11 @@ export function PeopleOrbit() {
                 <Avatar src={c.avatarUrl} name={c.displayName} size={20} />
                 <span className="min-w-0 flex-1 truncate">{c.displayName}</span>
                 <span className="shrink-0 text-[11px] font-medium text-[var(--destructive)]">
-                  {c.health.state === 'never' ? 'never'
-                    : c.health.state === 'overdue' ? `${Math.abs(c.health.dueInDays)}d over`
-                    : `due in ${c.health.dueInDays}d`}
+                  {c.health.state === 'never'
+                    ? 'never'
+                    : c.health.state === 'overdue'
+                      ? `${Math.abs(c.health.dueInDays ?? 0)}d over`
+                      : `due in ${c.health.dueInDays}d`}
                 </span>
               </Link>
             ))}

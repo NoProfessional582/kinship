@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { collectDocRefs, rewriteDocIds, docToText } from '@/lib/tiptap/doc'
+import { collectDocRefs, rewriteDocIds, docToText, type ProseNode } from '@/lib/tiptap/doc'
 import { CONTACT_MENTION, ENTITY_REF, isPendingId, makePendingId } from '@/lib/tiptap/nodes'
 
-const doc = {
+const doc: ProseNode = {
   type: 'doc',
   content: [
     {
@@ -29,7 +29,7 @@ const doc = {
 }
 
 describe('collectDocRefs', () => {
-  const refs = collectDocRefs(doc as any)
+  const refs = collectDocRefs(doc)
 
   it('separates existing references from pending ones', () => {
     expect(refs.contactIds).toEqual(['contact-real'])
@@ -49,8 +49,11 @@ describe('collectDocRefs', () => {
 })
 
 describe('rewriteDocIds', () => {
-  const map = new Map([['new:c1', 'cuid-maya'], ['new:p1', 'cuid-project']])
-  const out = rewriteDocIds(doc as any, map)
+  const map = new Map([
+    ['new:c1', 'cuid-maya'],
+    ['new:p1', 'cuid-project'],
+  ])
+  const out = rewriteDocIds(doc, map)
 
   it('leaves no provisional ids behind', () => {
     expect(JSON.stringify(out)).not.toContain('new:')
@@ -72,7 +75,7 @@ describe('rewriteDocIds', () => {
 })
 
 describe('docToText', () => {
-  const text = docToText(doc as any)
+  const text = docToText(doc)
 
   it('inlines mention labels so tagged names are searchable', () => {
     expect(text).toContain('@Maya Okafor')

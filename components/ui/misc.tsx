@@ -7,8 +7,16 @@ import { cn, initials } from '@/lib/utils'
 // ------------------------------------------------------------------ Avatar
 
 export function Avatar({
-  src, name, size = 32, className,
-}: { src?: string | null; name: string; size?: number; className?: string }) {
+  src,
+  name,
+  size = 32,
+  className,
+}: {
+  src?: string | null
+  name: string
+  size?: number
+  className?: string
+}) {
   return (
     <AvatarPrimitive.Root
       className={cn('relative inline-flex shrink-0 overflow-hidden rounded-full', className)}
@@ -27,8 +35,12 @@ export function Avatar({
 
 // --------------------------------------------------------------- Separator
 
-export function Separator({ className, orientation = 'horizontal' }: {
-  className?: string; orientation?: 'horizontal' | 'vertical'
+export function Separator({
+  className,
+  orientation = 'horizontal',
+}: {
+  className?: string
+  orientation?: 'horizontal' | 'vertical'
 }) {
   return (
     <SeparatorPrimitive.Root
@@ -44,8 +56,14 @@ export function Separator({ className, orientation = 'horizontal' }: {
 
 // ------------------------------------------------------------ Badge / Card
 
-export function Badge({ className, style, children }: {
-  className?: string; style?: React.CSSProperties; children: React.ReactNode
+export function Badge({
+  className,
+  style,
+  children,
+}: {
+  className?: string
+  style?: React.CSSProperties
+  children: React.ReactNode
 }) {
   return (
     <span
@@ -63,14 +81,23 @@ export function Badge({ className, style, children }: {
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] [box-shadow:var(--shadow-card)]', className)}
+      className={cn(
+        'rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] [box-shadow:var(--shadow-card)]',
+        className,
+      )}
       {...props}
     />
   )
 }
 
-export function EmptyState({ icon: Icon, title, hint }: {
-  icon?: React.ComponentType<{ className?: string }>; title: string; hint?: string
+export function EmptyState({
+  icon: Icon,
+  title,
+  hint,
+}: {
+  icon?: React.ComponentType<{ className?: string }>
+  title: string
+  hint?: string
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">

@@ -22,6 +22,7 @@ export function ownerSubject(): string {
 
 /** Identity for a route handler. The request is accepted for the call shape only; it is never read. */
 export function requireIdentity(_request: Request): Identity {
+  void _request
   return { subject: ownerSubject() }
 }
 

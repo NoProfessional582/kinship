@@ -149,7 +149,8 @@ function findings(sql) {
         new RegExp(`^ALTER\\s+TABLE\\s+${ident(table)}`, 'i').test(s) &&
         new RegExp(`ADD\\s+COLUMN\\b[^,]*${ident(column)}`, 'i').test(s),
     )
-    if (dropped && !readded) out.push(`drops generated column ${table}.${column} without re-adding it`)
+    if (dropped && !readded)
+      out.push(`drops generated column ${table}.${column} without re-adding it`)
 
     // The statement Prisma actually emits, and the one that errors on a
     // generated column after the DROP INDEXes have already gone through.
@@ -210,7 +211,9 @@ for (const dir of dirs) {
 
 if (refused.length) {
   console.error('')
-  console.error('migration guard: REFUSING TO APPLY — a migration would destroy search infrastructure')
+  console.error(
+    'migration guard: REFUSING TO APPLY — a migration would destroy search infrastructure',
+  )
   console.error('')
   for (const { dir, problems } of refused) {
     console.error(`  ${dir}`)

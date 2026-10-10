@@ -2,11 +2,16 @@
 import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { EntryForm } from '@/components/entity-modal/entry-form'
 import { useEntryEdit } from '@/lib/hooks/entry-edit'
 import { entryTitle } from '@/lib/utils'
+import type { EntryRecord } from '@/lib/api-types'
 
 /**
  * Editing an entry after the fact.
@@ -18,9 +23,11 @@ import { entryTitle } from '@/lib/utils'
  * The behaviour lives in `useEntryEdit`; this is the desktop container.
  */
 export function EntryEditDialog({
-  entry, open, onOpenChange,
+  entry,
+  open,
+  onOpenChange,
 }: {
-  entry: any
+  entry: EntryRecord
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -40,8 +47,12 @@ export function EntryEditDialog({
           onSubmit={save}
         />
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

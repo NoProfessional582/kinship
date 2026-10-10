@@ -13,8 +13,8 @@ export const runtime = 'nodejs'
  * The body is the archive itself and nothing else, so a file on disk can be
  * pushed straight up:
  *
- *   curl -X POST 'http://localhost:2002/api/import?confirm=replace' \
- *        -H 'Content-Type: application/json' --data-binary @kb-archive-….json
+ *   curl -X POST 'http://127.0.0.1:3000/api/import?confirm=replace' \
+ *        -H 'Content-Type: application/json' --data-binary @kinship-archive-….json
  *
  * `confirm=replace` is required regardless: this app has no sign-in, so the
  * only thing between a stray POST and every row in the database is that the

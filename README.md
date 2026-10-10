@@ -155,7 +155,7 @@ curl -sOJ http://127.0.0.1:3000/api/export     # saves the archive under its sug
 
 curl -X POST 'http://127.0.0.1:3000/api/import?confirm=replace' \
      -H 'Content-Type: application/json' \
-     --data-binary @kb-archive-2026-10-09-12-00-00.json
+     --data-binary @kinship-archive-2026-10-09-12-00-00.json
 ```
 
 `confirm=replace` is required and cannot be turned off: with no sign-in, the only
@@ -214,6 +214,8 @@ publish its database port, so for `npm run dev` use a Postgres of your own, with
 npm ci
 npm run dev          # http://127.0.0.1:3000
 npm run typecheck
+npm run lint
+npm run format:check # npm run format rewrites what it flags
 npm test             # unit tests, no database needed
 ```
 
@@ -227,6 +229,50 @@ docker compose run --rm migrate npm run test:integration
 
 They create and remove their own records under throwaway owners, but run them
 against a development copy, not the database holding your real data.
+
+### Checks
+
+`scripts/check.sh` runs every check a change needs before it is merged, and stops at
+the first failure. It runs from any checkout of the repo, starts nothing that it does
+not remove again, pass or fail, and ends with each part's time:
+
+```bash
+scripts/check.sh --list          # the parts
+scripts/check.sh                 # every part, in order
+scripts/check.sh quick privacy   # only those parts
+```
+
+- `quick`: Prettier, ESLint (no warnings allowed), the type check, the unit tests,
+  `npm audit` (no high or critical advisories), and that compose publishes ports on
+  `127.0.0.1` only.
+- `privacy`: gitleaks on the branch's commits and on the working tree, and a sweep of
+  the files and the branch's commits (authors and messages too) for personal data.
+- `stack` (`scripts/test-stack.sh`): builds the image and runs it in a throwaway stack
+  with its own database, no published port and no way out. It checks health and logs,
+  then runs the database tests, the command-line jobs (seed, export, import, LinkedIn
+  import) and the Playwright tests: API tests for every route, every page and the main
+  flows on a desktop and on a phone, and importing archives, old ones included.
+- `upgrade` (`scripts/test-upgrade.sh`): the previous version (the newest `vX.Y.Z` tag,
+  or `origin/main` until there is one) makes a database and uploads a photo; this
+  version then migrates it and runs on it. Every table must keep its rows and the photo
+  its bytes, and every page must load. `scripts/test-upgrade.sh REF` starts from another
+  version.
+
+The computer running them needs bash 4 or later, git, Docker with Compose and Buildx,
+and [gitleaks](https://github.com/gitleaks/gitleaks). Node.js runs in the Dockerfile's
+own image through `scripts/node.sh`, so it does not need to be installed. A full run
+takes about five minutes, most of it in `stack`; the first run downloads the images
+and takes longer.
+
+The personal-data sweep reads a list of what must never be published (names, email
+addresses, domains) from `~/.config/kinship/private-patterns.txt`, or from the file
+`KINSHIP_PRIVATE_PATTERNS` names. It holds one Perl regular expression per line, with
+`(?i)` in front where case does not matter; blank lines and lines starting with `#` are
+skipped. It stays outside the repo, since committing it would publish what it guards.
+`KINSHIP_PRIVATE_PATTERNS=none` skips the sweep.
+
+When a Playwright test fails, its trace is kept in `test-results/`; open it with
+`npx playwright show-trace test-results/<test>/trace.zip`.
 
 ### Architecture
 

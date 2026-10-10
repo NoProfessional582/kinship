@@ -57,19 +57,21 @@ export async function getProject(owner: string, idOrSlug: string) {
       tasks: {
         where: { deletedAt: null },
         include: {
-          assignees: { include: { contact: { select: { id: true, displayName: true, avatarUrl: true } } } },
+          assignees: {
+            include: { contact: { select: { id: true, displayName: true, avatarUrl: true } } },
+          },
           column: true,
         },
-        orderBy: { position: 'asc' },
+        orderBy: [{ position: 'asc' }, { id: 'asc' }],
       },
-      columns: { orderBy: { position: 'asc' } },
+      columns: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
     },
   })
 }
 
 export async function createProject(owner: string, input: UpsertProjectInput) {
   return prisma.$transaction(async (tx) => {
-    const slug = await uniqueSlug('project', owner, input.name, tx as any)
+    const slug = await uniqueSlug('project', owner, input.name, tx)
     return tx.project.create({
       data: {
         owner,

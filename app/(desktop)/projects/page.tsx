@@ -7,10 +7,18 @@ import { FolderKanban, Plus, Loader2, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, Avatar, EmptyState } from '@/components/ui/misc'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  ProjectForm, blankProject, projectFromRecord, projectToPayload, type ProjectFormValue,
+  ProjectForm,
+  blankProject,
+  projectFromRecord,
+  projectToPayload,
+  type ProjectFormValue,
 } from '@/components/entity-modal/project-form'
 import { api, useProjects } from '@/lib/hooks/api'
 
@@ -30,10 +38,13 @@ export default function ProjectsPage() {
   const qc = useQueryClient()
 
   const list = projects ?? []
-  const totalTasks = list.reduce((n: number, p: any) => n + (p.taskTotal ?? 0), 0)
+  const totalTasks = list.reduce((n, p) => n + (p.taskTotal ?? 0), 0)
 
   const submit = async () => {
-    if (!form.name.trim()) { toast.error('Give the project a name'); return }
+    if (!form.name.trim()) {
+      toast.error('Give the project a name')
+      return
+    }
     setSaving(true)
     try {
       const payload = projectToPayload(form, false)
@@ -58,10 +69,16 @@ export default function ProjectsPage() {
           </p>
           <h1 className="mt-1 text-[2.6rem] leading-[1.08]">Projects</h1>
           <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
-            {list.length} project{list.length === 1 ? '' : 's'} connected to {totalTasks} task{totalTasks === 1 ? '' : 's'}.
+            {list.length} project{list.length === 1 ? '' : 's'} connected to {totalTasks} task
+            {totalTasks === 1 ? '' : 's'}.
           </p>
         </div>
-        <Button onClick={() => { setForm(blankProject()); setEditing({ id: null }) }}>
+        <Button
+          onClick={() => {
+            setForm(blankProject())
+            setEditing({ id: null })
+          }}
+        >
           <Plus className="h-3.5 w-3.5" /> Add project
         </Button>
       </header>
@@ -80,27 +97,39 @@ export default function ProjectsPage() {
       )}
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
-        {list.map((p: any) => {
+        {list.map((p) => {
           const color = p.color ?? 'var(--primary)'
           const total = p.taskTotal ?? 0
           const pct = total ? Math.round(((p.doneCount ?? 0) / total) * 100) : 0
           return (
-            <Card key={p.id} className="group relative flex flex-col p-5 transition-shadow hover:[box-shadow:var(--shadow-lift)]">
+            <Card
+              key={p.id}
+              className="group relative flex flex-col p-5 transition-shadow hover:[box-shadow:var(--shadow-lift)]"
+            >
               <div className="mb-3 flex items-start gap-3">
-                <span className="mt-0.5 h-9 w-[3px] shrink-0 rounded-full" style={{ background: color }} />
+                <span
+                  className="mt-0.5 h-9 w-[3px] shrink-0 rounded-full"
+                  style={{ background: color }}
+                />
                 <div className="min-w-0 flex-1">
                   <p className="font-mono text-[10px] uppercase tracking-[0.13em] text-[var(--muted-foreground)]">
                     Project
                   </p>
                   {/* Stretched so the whole card opens the project, while the
                       edit button above it stays independently clickable. */}
-                  <Link href={`/projects/${p.slug}`} className="block truncate text-[1.3rem] leading-tight after:absolute after:inset-0 after:content-['']">
+                  <Link
+                    href={`/projects/${p.slug}`}
+                    className="block truncate text-[1.3rem] leading-tight after:absolute after:inset-0 after:content-['']"
+                  >
                     <span className="display">{p.name}</span>
                   </Link>
                 </div>
                 <div className="relative z-10 flex shrink-0 items-center gap-1.5">
                   <button
-                    onClick={() => { setForm(projectFromRecord(p)); setEditing({ id: p.id }) }}
+                    onClick={() => {
+                      setForm(projectFromRecord(p))
+                      setEditing({ id: p.id })
+                    }}
                     aria-label={`Edit ${p.name}`}
                     title="Edit project"
                     className="rounded p-1 text-[var(--muted-foreground)] opacity-0 transition-opacity hover:text-[var(--foreground)] focus-visible:opacity-100 group-hover:opacity-100"
@@ -121,14 +150,24 @@ export default function ProjectsPage() {
                 <span className="tabular text-xs font-medium">{pct}%</span>
               </div>
               <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-[var(--muted)]">
-                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${pct}%`, background: color }}
+                />
               </div>
 
               <div className="mb-4 grid grid-cols-4 gap-1.5">
                 {STAGES.map((s) => (
-                  <div key={s.key} className="rounded-[var(--radius-sm)] bg-[var(--muted)] px-1 py-2 text-center">
-                    <p className="display text-[1.05rem] leading-none">{p.taskCounts?.[s.key] ?? 0}</p>
-                    <p className="mt-1 text-[10px] leading-tight text-[var(--muted-foreground)]">{s.label}</p>
+                  <div
+                    key={s.key}
+                    className="rounded-[var(--radius-sm)] bg-[var(--muted)] px-1 py-2 text-center"
+                  >
+                    <p className="display text-[1.05rem] leading-none">
+                      {p.taskCounts?.[s.key] ?? 0}
+                    </p>
+                    <p className="mt-1 text-[10px] leading-tight text-[var(--muted-foreground)]">
+                      {s.label}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -138,7 +177,7 @@ export default function ProjectsPage() {
                   {(p.people ?? []).length > 0 ? 'Linked people' : 'No one assigned yet'}
                 </span>
                 <div className="flex -space-x-2">
-                  {(p.people ?? []).slice(0, 5).map((c: any) => (
+                  {(p.people ?? []).slice(0, 5).map((c) => (
                     <Avatar
                       key={c.id}
                       src={c.avatarUrl}
@@ -166,7 +205,9 @@ export default function ProjectsPage() {
           </DialogHeader>
           <ProjectForm value={form} onChange={setForm} />
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
             <Button onClick={submit} disabled={saving}>
               {saving ? 'Saving…' : editing?.id ? 'Save changes' : 'Create project'}
             </Button>

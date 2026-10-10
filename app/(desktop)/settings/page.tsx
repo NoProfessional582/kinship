@@ -1,10 +1,23 @@
 'use client'
 import * as React from 'react'
+import { subscribeBrowser, useBrowserReady } from '@/lib/hooks/platform'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  SlidersHorizontal, Globe, CloudSun, Type, User, KanbanSquare,
-  Plus, X, Check, DatabaseBackup, Download, Upload, AlertTriangle,
+  SlidersHorizontal,
+  Globe,
+  CloudSun,
+  Type,
+  User,
+  KanbanSquare,
+  Plus,
+  X,
+  Check,
+  DatabaseBackup,
+  Download,
+  Upload,
+  AlertTriangle,
+  type LucideIcon,
 } from 'lucide-react'
 import { Card } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
@@ -12,11 +25,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { api } from '@/lib/hooks/api'
-import { useSaveSettings, useSettings } from '@/lib/hooks/settings'
+import { useSaveSettings, useSettings, type Settings } from '@/lib/hooks/settings'
 import { allTimezones, browserTimezone, formatInstant, zoneOffsetLabel } from '@/lib/format'
 import { CADENCE_LABEL } from '@/lib/cadence'
 import { SCHEMA_MISMATCH, type ImportSummary } from '@/lib/archive-format'
 import { cn } from '@/lib/utils'
+import type { BoardColumn } from '@/lib/api-types'
+
+type Commit = (patch: Partial<Settings>, message: string) => Promise<void>
+type PanelProps = { settings: Settings; commit: Commit }
 
 const COLUMN_COLORS = ['#bd5b3f', '#ba8a42', '#697760', '#4a6572', '#8c5a4a', '#7a6a86', '#74746c']
 const STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'ARCHIVED']
@@ -25,9 +42,13 @@ export default function SettingsPage() {
   const settings = useSettings()
   const save = useSaveSettings()
 
-  const commit = async (patch: any, message: string) => {
-    try { await save.mutateAsync(patch); toast.success(message) }
-    catch (err) { toast.error(err instanceof Error ? err.message : 'Could not save') }
+  const commit: Commit = async (patch, message) => {
+    try {
+      await save.mutateAsync(patch)
+      toast.success(message)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save')
+    }
   }
 
   return (
@@ -43,10 +64,14 @@ export default function SettingsPage() {
       </header>
 
       <div className="flex flex-col gap-5">
-        <IdentityPanel settings={settings} commit={commit} />
+        <IdentityPanel
+          key={JSON.stringify([settings.userName, settings.appTitle, settings.tagline])}
+          settings={settings}
+          commit={commit}
+        />
         <DisplayPanel settings={settings} commit={commit} />
         <TimezonePanel settings={settings} commit={commit} />
-        <WeatherPanel settings={settings} commit={commit} />
+        <WeatherPanel key={settings.weatherLocation} settings={settings} commit={commit} />
         <ColumnsPanel />
         <DataPanel />
       </div>
@@ -54,15 +79,29 @@ export default function SettingsPage() {
   )
 }
 
-function Panel({ icon: Icon, title, hint, hue = 'var(--hue-1)', children }: {
-  icon: any; title: string; hint?: string; hue?: string; children: React.ReactNode
+function Panel({
+  icon: Icon,
+  title,
+  hint,
+  hue = 'var(--hue-1)',
+  children,
+}: {
+  icon: LucideIcon
+  title: string
+  hint?: string
+  hue?: string
+  children: React.ReactNode
 }) {
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center gap-2 px-5 py-3"
-        style={{ background: `color-mix(in oklch, ${hue} 10%, transparent)` }}>
+      <div
+        className="flex items-center gap-2 px-5 py-3"
+        style={{ background: `color-mix(in oklch, ${hue} 10%, transparent)` }}
+      >
         <Icon className="h-4 w-4" style={{ color: hue }} />
-        <h2 className="flex-1 text-base" style={{ color: hue }}>{title}</h2>
+        <h2 className="flex-1 text-base" style={{ color: hue }}>
+          {title}
+        </h2>
       </div>
       <div className="flex flex-col gap-3.5 p-5">
         {hint && <p className="-mt-1 text-xs text-[var(--muted-foreground)]">{hint}</p>}
@@ -72,14 +111,19 @@ function Panel({ icon: Icon, title, hint, hue = 'var(--hue-1)', children }: {
   )
 }
 
-function IdentityPanel({ settings, commit }: any) {
-  const [v, setV] = React.useState({ userName: '', appTitle: '', tagline: '' })
-  React.useEffect(() => setV({
-    userName: settings.userName, appTitle: settings.appTitle, tagline: settings.tagline,
-  }), [settings.userName, settings.appTitle, settings.tagline])
+function IdentityPanel({ settings, commit }: PanelProps) {
+  const [v, setV] = React.useState(() => ({
+    userName: settings.userName,
+    appTitle: settings.appTitle,
+    tagline: settings.tagline,
+  }))
 
   return (
-    <Panel icon={User} title="Identity" hint="Used for the greeting on the dashboard and the name in the sidebar.">
+    <Panel
+      icon={User}
+      title="Identity"
+      hint="Used for the greeting on the dashboard and the name in the sidebar."
+    >
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <Label>Your name</Label>
@@ -94,18 +138,27 @@ function IdentityPanel({ settings, commit }: any) {
         <Label>Tagline</Label>
         <Input value={v.tagline} onChange={(e) => setV({ ...v, tagline: e.target.value })} />
       </div>
-      <Button className="w-fit" onClick={() => commit(v, 'Identity saved')}>Save identity</Button>
+      <Button className="w-fit" onClick={() => commit(v, 'Identity saved')}>
+        Save identity
+      </Button>
     </Panel>
   )
 }
 
-function DisplayPanel({ settings, commit }: any) {
+function DisplayPanel({ settings, commit }: PanelProps) {
   const scales = [
-    { v: 0.9, label: 'Compact' }, { v: 1, label: 'Default' },
-    { v: 1.12, label: 'Comfortable' }, { v: 1.25, label: 'Large' },
+    { v: 0.9, label: 'Compact' },
+    { v: 1, label: 'Default' },
+    { v: 1.12, label: 'Comfortable' },
+    { v: 1.25, label: 'Large' },
   ]
   return (
-    <Panel icon={Type} title="Display" hue="var(--hue-3)" hint="Type size applies everywhere immediately.">
+    <Panel
+      icon={Type}
+      title="Display"
+      hue="var(--hue-3)"
+      hint="Type size applies everywhere immediately."
+    >
       <div className="flex flex-col gap-1.5">
         <Label>Text size</Label>
         <div className="flex flex-wrap gap-2">
@@ -113,10 +166,12 @@ function DisplayPanel({ settings, commit }: any) {
             <button
               key={s.v}
               onClick={() => commit({ fontScale: s.v }, `Text size: ${s.label.toLowerCase()}`)}
-              className={cn('rounded-[var(--radius-sm)] border px-3 py-1.5 text-sm transition-colors',
+              className={cn(
+                'rounded-[var(--radius-sm)] border px-3 py-1.5 text-sm transition-colors',
                 Math.abs(settings.fontScale - s.v) < 0.01
                   ? 'border-[var(--primary)] bg-[var(--accent)] text-[var(--accent-foreground)]'
-                  : 'border-[var(--border)] hover:bg-[var(--muted)]')}
+                  : 'border-[var(--border)] hover:bg-[var(--muted)]',
+              )}
             >
               {s.label}
             </button>
@@ -126,18 +181,29 @@ function DisplayPanel({ settings, commit }: any) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <Label>Week starts on</Label>
-          <Select value={settings.calendarWeekStart}
-            onChange={(e) => commit({ calendarWeekStart: e.target.value }, 'Week start saved')}>
+          <Select
+            value={settings.calendarWeekStart}
+            onChange={(e) =>
+              commit(
+                { calendarWeekStart: e.target.value === 'sunday' ? 'sunday' : 'monday' },
+                'Week start saved',
+              )
+            }
+          >
             <option value="monday">Monday</option>
             <option value="sunday">Sunday</option>
           </Select>
         </div>
         <div className="flex flex-col gap-1">
           <Label>Default check-in cadence</Label>
-          <Select value={settings.defaultCadence}
-            onChange={(e) => commit({ defaultCadence: e.target.value }, 'Default cadence saved')}>
+          <Select
+            value={settings.defaultCadence}
+            onChange={(e) => commit({ defaultCadence: e.target.value }, 'Default cadence saved')}
+          >
             {Object.entries(CADENCE_LABEL).map(([k, label]) => (
-              <option key={k} value={k}>{label}</option>
+              <option key={k} value={k}>
+                {label}
+              </option>
             ))}
           </Select>
         </div>
@@ -146,21 +212,17 @@ function DisplayPanel({ settings, commit }: any) {
   )
 }
 
-function TimezonePanel({ settings, commit }: any) {
+function TimezonePanel({ settings, commit }: PanelProps) {
   const [filter, setFilter] = React.useState('')
-  const [detected, setDetected] = React.useState('UTC')
-  const [now, setNow] = React.useState<Date | null>(null)
-  // The zone list and each zone's offset come from the runtime's time zone data,
-  // which the server and the browser need not share (they disagreed on Morocco's
-  // offset, a hydration error), so like `detected` and `now` they are built in
-  // the browser only.
-  const [allZones, setAllZones] = React.useState<string[]>([])
-  React.useEffect(() => setDetected(browserTimezone()), [])
-  React.useEffect(() => setAllZones(allTimezones()), [])
+  const ready = useBrowserReady()
+  const detected = React.useSyncExternalStore(subscribeBrowser, browserTimezone, () => 'UTC')
+  const [clock, setClock] = React.useState(() => new Date())
+  const now = ready ? clock : null
+  // Runtime timezone data stays browser-only, including the initial hydration pass.
+  const allZones = React.useMemo(() => (ready ? allTimezones() : []), [ready])
   React.useEffect(() => {
-    setNow(new Date())
-    const t = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(t)
+    const timer = setInterval(() => setClock(new Date()), 1000)
+    return () => clearInterval(timer)
   }, [])
 
   const effective = settings.timezone ?? detected
@@ -170,8 +232,12 @@ function TimezonePanel({ settings, commit }: any) {
   }, [allZones, filter])
 
   return (
-    <Panel icon={Globe} title="Timezone" hue="var(--hue-2)"
-      hint="Everything is stored in UTC; this only controls how times are shown.">
+    <Panel
+      icon={Globe}
+      title="Timezone"
+      hue="var(--hue-2)"
+      hint="Everything is stored in UTC; this only controls how times are shown."
+    >
       <div className="rounded-[var(--radius-sm)] bg-[var(--muted)] px-3 py-2">
         <p className="text-[11px] uppercase tracking-wide text-[var(--muted-foreground)]">
           Right now in {effective}
@@ -180,20 +246,39 @@ function TimezonePanel({ settings, commit }: any) {
           {now ? formatInstant(now, 'EEE d MMM, HH:mm:ss', effective) : '—'}
         </p>
       </div>
-      <button onClick={() => commit({ timezone: null }, 'Following this browser')}
-        className={cn('flex items-center gap-2 rounded-[var(--radius-sm)] border p-2.5 text-left text-sm transition-colors',
-          !settings.timezone ? 'border-[var(--primary)] bg-[var(--accent)]' : 'border-[var(--border)] hover:bg-[var(--muted)]')}>
-        <span className="flex-1">Follow this browser <span className="text-[var(--muted-foreground)]">({detected})</span></span>
+      <button
+        onClick={() => commit({ timezone: null }, 'Following this browser')}
+        className={cn(
+          'flex items-center gap-2 rounded-[var(--radius-sm)] border p-2.5 text-left text-sm transition-colors',
+          !settings.timezone
+            ? 'border-[var(--primary)] bg-[var(--accent)]'
+            : 'border-[var(--border)] hover:bg-[var(--muted)]',
+        )}
+      >
+        <span className="flex-1">
+          Follow this browser <span className="text-[var(--muted-foreground)]">({detected})</span>
+        </span>
         {!settings.timezone && <Check className="h-4 w-4 text-[var(--primary)]" />}
       </button>
-      <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search zones… e.g. Denver" />
+      <Input
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder="Search zones… e.g. Denver"
+      />
       <div className="max-h-48 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)]">
         {zones.map((z) => (
-          <button key={z} onClick={() => commit({ timezone: z }, `Times shown in ${z}`)}
-            className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
-              settings.timezone === z ? 'bg-[var(--accent)]' : 'hover:bg-[var(--muted)]')}>
+          <button
+            key={z}
+            onClick={() => commit({ timezone: z }, `Times shown in ${z}`)}
+            className={cn(
+              'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors',
+              settings.timezone === z ? 'bg-[var(--accent)]' : 'hover:bg-[var(--muted)]',
+            )}
+          >
             <span className="min-w-0 flex-1 truncate">{z}</span>
-            <span className="font-mono text-[11px] text-[var(--muted-foreground)]">{zoneOffsetLabel(z)}</span>
+            <span className="font-mono text-[11px] text-[var(--muted-foreground)]">
+              {zoneOffsetLabel(z)}
+            </span>
           </button>
         ))}
       </div>
@@ -201,35 +286,59 @@ function TimezonePanel({ settings, commit }: any) {
   )
 }
 
-function WeatherPanel({ settings, commit }: any) {
-  const [location, setLocation] = React.useState('')
-  React.useEffect(() => setLocation(settings.weatherLocation), [settings.weatherLocation])
+function WeatherPanel({ settings, commit }: PanelProps) {
+  const [location, setLocation] = React.useState(settings.weatherLocation)
 
   return (
-    <Panel icon={CloudSun} title="Weather" hue="var(--hue-4)"
-      hint="The only feature that reaches outside this machine. Looked up through open-meteo, proxied by the server so your browser never contacts them directly.">
+    <Panel
+      icon={CloudSun}
+      title="Weather"
+      hue="var(--hue-4)"
+      hint="The only feature that reaches outside this machine. Looked up through open-meteo, proxied by the server so your browser never contacts them directly."
+    >
       <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-        <input type="checkbox" checked={settings.weatherEnabled}
-          onChange={(e) => commit({ weatherEnabled: e.target.checked },
-            e.target.checked ? 'Weather on' : 'Weather off')} />
+        <input
+          type="checkbox"
+          checked={settings.weatherEnabled}
+          onChange={(e) =>
+            commit(
+              { weatherEnabled: e.target.checked },
+              e.target.checked ? 'Weather on' : 'Weather off',
+            )
+          }
+        />
         Show weather on the dashboard
       </label>
       {settings.weatherEnabled && (
         <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
           <div className="flex flex-col gap-1">
             <Label>Location</Label>
-            <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, region" />
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="City, region"
+            />
           </div>
           <div className="flex flex-col gap-1">
             <Label>Units</Label>
-            <Select value={settings.weatherUnit}
-              onChange={(e) => commit({ weatherUnit: e.target.value }, 'Units saved')}>
+            <Select
+              value={settings.weatherUnit}
+              onChange={(e) =>
+                commit(
+                  { weatherUnit: e.target.value === 'celsius' ? 'celsius' : 'fahrenheit' },
+                  'Units saved',
+                )
+              }
+            >
               <option value="fahrenheit">°F</option>
               <option value="celsius">°C</option>
             </Select>
           </div>
-          <Button variant="outline" className="self-end"
-            onClick={() => commit({ weatherLocation: location }, 'Location saved')}>
+          <Button
+            variant="outline"
+            className="self-end"
+            onClick={() => commit({ weatherLocation: location }, 'Location saved')}
+          >
             Save
           </Button>
         </div>
@@ -243,7 +352,7 @@ function ColumnsPanel() {
   const qc = useQueryClient()
   const { data: columns } = useQuery({
     queryKey: ['columns'],
-    queryFn: () => api.get<any[]>('/api/columns'),
+    queryFn: () => api.get<BoardColumn[]>('/api/columns'),
   })
   const [adding, setAdding] = React.useState(false)
   const [draft, setDraft] = React.useState({ name: '', color: COLUMN_COLORS[0], status: 'TODO' })
@@ -251,22 +360,36 @@ function ColumnsPanel() {
   const refresh = () => qc.invalidateQueries()
 
   const add = async () => {
-    if (!draft.name.trim()) { toast.error('Give the column a name'); return }
+    if (!draft.name.trim()) {
+      toast.error('Give the column a name')
+      return
+    }
     try {
       await api.post('/api/columns', draft)
-      setAdding(false); setDraft({ name: '', color: COLUMN_COLORS[0], status: 'TODO' })
-      refresh(); toast.success('Column added')
-    } catch (err) { toast.error(err instanceof Error ? err.message : 'Could not add') }
+      setAdding(false)
+      setDraft({ name: '', color: COLUMN_COLORS[0], status: 'TODO' })
+      refresh()
+      toast.success('Column added')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add')
+    }
   }
 
-  const patch = async (id: string, body: any) => {
-    try { await api.patch(`/api/columns/${id}`, body); refresh() }
-    catch (err) { toast.error(err instanceof Error ? err.message : 'Could not save') }
+  const patch = async (id: string, body: { name?: string; color?: string; status?: string }) => {
+    try {
+      await api.patch(`/api/columns/${id}`, body)
+      refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save')
+    }
   }
 
   const remove = async (id: string) => {
-    try { await api.del(`/api/columns/${id}`); refresh(); toast.success('Column removed') }
-    catch (err) {
+    try {
+      await api.del(`/api/columns/${id}`)
+      refresh()
+      toast.success('Column removed')
+    } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not remove the column')
     }
   }
@@ -280,38 +403,78 @@ function ColumnsPanel() {
     try {
       await api.patch('/api/columns/reorder', { columnIds: next.map((c) => c.id) })
       refresh()
-    } catch { toast.error('Could not reorder') }
+    } catch {
+      toast.error('Could not reorder')
+    }
   }
 
   return (
-    <Panel icon={KanbanSquare} title="Board columns" hue="var(--hue-5)"
-      hint="The column a card sits in is what sets its status, so these are your workflow states.">
+    <Panel
+      icon={KanbanSquare}
+      title="Board columns"
+      hue="var(--hue-5)"
+      hint="The column a card sits in is what sets its status, so these are your workflow states."
+    >
       <div className="flex flex-col gap-2">
-        {(columns ?? []).map((c: any, i: number) => (
-          <div key={c.id} className="flex flex-wrap items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] p-2">
+        {(columns ?? []).map((c, i) => (
+          <div
+            key={c.id}
+            className="flex flex-wrap items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] p-2"
+          >
             <div className="flex flex-col">
-              <button onClick={() => move(i, -1)} disabled={i === 0}
-                className="px-1 text-[10px] leading-none text-[var(--muted-foreground)] disabled:opacity-25" aria-label="Move up">▲</button>
-              <button onClick={() => move(i, 1)} disabled={i === (columns?.length ?? 0) - 1}
-                className="px-1 text-[10px] leading-none text-[var(--muted-foreground)] disabled:opacity-25" aria-label="Move down">▼</button>
+              <button
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                className="px-1 text-[10px] leading-none text-[var(--muted-foreground)] disabled:opacity-25"
+                aria-label="Move up"
+              >
+                ▲
+              </button>
+              <button
+                onClick={() => move(i, 1)}
+                disabled={i === (columns?.length ?? 0) - 1}
+                className="px-1 text-[10px] leading-none text-[var(--muted-foreground)] disabled:opacity-25"
+                aria-label="Move down"
+              >
+                ▼
+              </button>
             </div>
-            <Input defaultValue={c.name} onBlur={(e) => e.target.value !== c.name && patch(c.id, { name: e.target.value })}
-              className="h-8 w-36 text-sm" />
-            <Select defaultValue={c.status} onChange={(e) => patch(c.id, { status: e.target.value })}
-              className="h-8 w-36 text-xs">
-              {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ').toLowerCase()}</option>)}
+            <Input
+              defaultValue={c.name}
+              onBlur={(e) => e.target.value !== c.name && patch(c.id, { name: e.target.value })}
+              className="h-8 w-36 text-sm"
+            />
+            <Select
+              defaultValue={c.status}
+              onChange={(e) => patch(c.id, { status: e.target.value })}
+              className="h-8 w-36 text-xs"
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s.replace('_', ' ').toLowerCase()}
+                </option>
+              ))}
             </Select>
             <div className="flex gap-1">
               {COLUMN_COLORS.map((col) => (
-                <button key={col} onClick={() => patch(c.id, { color: col })} aria-label={`Colour ${col}`}
-                  className={cn('h-5 w-5 rounded-full border-2 transition-transform',
-                    c.color === col ? 'scale-110 border-[var(--foreground)]' : 'border-transparent')}
-                  style={{ background: col }} />
+                <button
+                  key={col}
+                  onClick={() => patch(c.id, { color: col })}
+                  aria-label={`Colour ${col}`}
+                  className={cn(
+                    'h-5 w-5 rounded-full border-2 transition-transform',
+                    c.color === col ? 'scale-110 border-[var(--foreground)]' : 'border-transparent',
+                  )}
+                  style={{ background: col }}
+                />
               ))}
             </div>
             <span className="flex-1" />
-            <button onClick={() => remove(c.id)} aria-label="Remove column"
-              className="rounded p-1 text-[var(--muted-foreground)] transition hover:text-[var(--destructive)]">
+            <button
+              onClick={() => remove(c.id)}
+              aria-label="Remove column"
+              className="rounded p-1 text-[var(--muted-foreground)] transition hover:text-[var(--destructive)]"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -322,22 +485,39 @@ function ColumnsPanel() {
         <div className="flex flex-wrap items-end gap-2 rounded-[var(--radius-sm)] bg-[var(--muted)] p-2.5">
           <div className="flex flex-col gap-1">
             <Label>Name</Label>
-            <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              className="h-8 w-40 text-sm" placeholder="Waiting on" />
+            <Input
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              className="h-8 w-40 text-sm"
+              placeholder="Waiting on"
+            />
           </div>
           <div className="flex flex-col gap-1">
             <Label>Status</Label>
-            <Select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}
-              className="h-8 w-36 text-xs">
-              {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ').toLowerCase()}</option>)}
+            <Select
+              value={draft.status}
+              onChange={(e) => setDraft({ ...draft, status: e.target.value })}
+              className="h-8 w-36 text-xs"
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s.replace('_', ' ').toLowerCase()}
+                </option>
+              ))}
             </Select>
           </div>
-          <Button size="sm" onClick={add}>Add</Button>
-          <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
+          <Button size="sm" onClick={add}>
+            Add
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
+            Cancel
+          </Button>
         </div>
       ) : (
-        <button onClick={() => setAdding(true)}
-          className="inline-flex w-fit items-center gap-1 text-sm text-[var(--muted-foreground)] transition hover:text-[var(--primary)]">
+        <button
+          onClick={() => setAdding(true)}
+          className="inline-flex w-fit items-center gap-1 text-sm text-[var(--muted-foreground)] transition hover:text-[var(--primary)]"
+        >
           <Plus className="h-3.5 w-3.5" /> Add column
         </button>
       )}
@@ -373,7 +553,9 @@ function DataPanel() {
 
   const runImport = async (force: boolean) => {
     if (!file) return
-    setBusy(true); setFailure(null); setDone(null)
+    setBusy(true)
+    setFailure(null)
+    setDone(null)
     try {
       // The File goes to fetch as the body rather than being read into a string
       // first. An archive carrying a few hundred avatars is large, and there is
@@ -401,8 +583,12 @@ function DataPanel() {
   }
 
   return (
-    <Panel icon={DatabaseBackup} title="Data" hue="var(--hue-6)"
-      hint="One file holds everything: every contact, entry, task and tag, plus the avatar images. Use it to move this app to another machine, or to keep a backup.">
+    <Panel
+      icon={DatabaseBackup}
+      title="Data"
+      hue="var(--hue-6)"
+      hint="One file holds everything: every contact, entry, task and tag, plus the avatar images. Use it to move this app to another machine, or to keep a backup."
+    >
       <div className="flex flex-col gap-1.5">
         <Label>Export</Label>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -410,7 +596,9 @@ function DataPanel() {
               and names it from the Content-Disposition, so a large archive never
               passes through this tab's memory. */}
           <Button asChild variant="outline">
-            <a href="/api/export" download><Download className="h-4 w-4" /> Download archive</a>
+            <a href="/api/export" download>
+              <Download className="h-4 w-4" /> Download archive
+            </a>
           </Button>
           <span className="text-xs text-[var(--muted-foreground)]">
             Readable JSON. Keep it somewhere safe — it is all of your data in one file.
@@ -423,18 +611,29 @@ function DataPanel() {
       <div className="flex flex-col gap-2">
         <Label>Import</Label>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Restores an archive over this database. Everything currently here is deleted first —
-          all of it, not just the rows the archive replaces. Do this on the new machine, not the
-          old one.
+          Restores an archive over this database. Everything currently here is deleted first — all
+          of it, not just the rows the archive replaces. Do this on the new machine, not the old
+          one.
         </p>
 
         <div className="flex flex-wrap items-center gap-2">
-          <input ref={fileRef} type="file" accept="application/json,.json" hidden
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null)
-              setFailure(null); setDone(null)
-            }} />
-          <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+              setFailure(null)
+              setDone(null)
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileRef.current?.click()}
+          >
             <Upload className="h-3.5 w-3.5" /> Choose archive
           </Button>
           <span className="text-xs text-[var(--muted-foreground)]">
@@ -445,9 +644,16 @@ function DataPanel() {
         {file && !done && (
           <div className="flex flex-wrap items-end gap-2.5 rounded-[var(--radius-sm)] border border-[var(--destructive)]/40 bg-[var(--destructive)]/5 p-3">
             <div className="flex flex-col gap-1">
-              <Label>Type <span className="font-mono">replace</span> to confirm</Label>
-              <Input value={confirm} onChange={(e) => setConfirm(e.target.value)}
-                className="h-8 w-40 text-sm" placeholder="replace" autoComplete="off" />
+              <Label>
+                Type <span className="font-mono">replace</span> to confirm
+              </Label>
+              <Input
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                className="h-8 w-40 text-sm"
+                placeholder="replace"
+                autoComplete="off"
+              />
             </div>
             <Button variant="destructive" disabled={!armed} onClick={() => runImport(false)}>
               {busy ? 'Restoring…' : 'Replace everything'}

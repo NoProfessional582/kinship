@@ -68,7 +68,10 @@ export function MSheetBody({ className, ...props }: React.HTMLAttributes<HTMLDiv
 export function MSheetFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('flex shrink-0 items-center gap-2 border-t border-[var(--border)] px-4 py-3', className)}
+      className={cn(
+        'flex shrink-0 items-center gap-2 border-t border-[var(--border)] px-4 py-3',
+        className,
+      )}
       {...props}
     />
   )

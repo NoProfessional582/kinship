@@ -40,13 +40,27 @@
  */
 import * as React from 'react'
 import {
-  DndContext, DragOverlay, PointerSensor, KeyboardSensor,
-  closestCorners, pointerWithin, rectIntersection,
-  useSensor, useSensors, useDroppable,
-  type CollisionDetection, type DragStartEvent, type DragOverEvent, type DragEndEvent,
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  closestCorners,
+  pointerWithin,
+  rectIntersection,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type CollisionDetection,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+  type Over,
 } from '@dnd-kit/core'
 import {
-  SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
 } from '@dnd-kit/sortable'
 import { cn } from '@/lib/utils'
 import { SortableCard } from './sortable-card'
@@ -57,7 +71,9 @@ import { SortableCard } from './sortable-card'
 // carry far more than this; they satisfy these by having the right fields, and
 // the extra fields travel through untouched to the render props.
 
-export interface BoardColumn { id: string }
+export interface BoardColumn {
+  id: string
+}
 
 export interface BoardItem {
   id: string
@@ -163,8 +179,7 @@ export interface BoardProps<C extends BoardColumn, I extends BoardItem> {
   sortable?: boolean
   /**
    * True while a move is in flight or its refetch is outstanding. The board
-   * holds its local order until this clears — see the effect below, which is
-   * the single subtlest thing in this file.
+   * holds its local order until this clears, then resumes the server order.
    */
   settling?: boolean
   /** Rendered inside an empty column. */
@@ -173,17 +188,21 @@ export interface BoardProps<C extends BoardColumn, I extends BoardItem> {
 }
 
 export function Board<C extends BoardColumn, I extends BoardItem>({
-  columns, items, groups, groupIdsOf, renderColumnHeader, renderCard,
-  onMove, sortable = true, settling = false, emptyLabel = 'Drop a card here', className,
+  columns,
+  items,
+  groups,
+  groupIdsOf,
+  renderColumnHeader,
+  renderCard,
+  onMove,
+  sortable = true,
+  settling = false,
+  emptyLabel = 'Drop a card here',
+  className,
 }: BoardProps<C, I>) {
   const [activeId, setActiveId] = React.useState<string | null>(null)
 
-  // ⚠️ The fallback must be a constant, never a fresh `[UNGROUPED]`. `lanes` is
-  // a dependency of `serverZones`, which the effect below copies into state: a
-  // new array on every render made each render recompute the zones and set
-  // them again — an endless render loop (~1,300 commits/s) that pinned a CPU
-  // core and froze the page. It started on the first re-render after mount
-  // (opening the new-task dialog was enough) whenever the board was ungrouped.
+  // Keep the fallback stable so server-zone memoization survives unrelated renders.
   const lanes = groups && groups.length > 0 ? groups : UNGROUPED_LANES
   const grouped = groups != null && groups.length > 0
 
@@ -200,8 +219,7 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
    * only snapping once the server responds.
    */
   const serverZones = React.useMemo<ZoneMap>(() => {
-    const lanesOf = (item: I): string[] =>
-      groupIdsOf ? groupIdsOf(item) : [UNGROUPED.id]
+    const lanesOf = (item: I): string[] => (groupIdsOf ? groupIdsOf(item) : [UNGROUPED.id])
 
     const map: ZoneMap = {}
     for (const c of columns) for (const g of lanes) map[zoneId(c.id, g.id)] = []
@@ -214,14 +232,15 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
     return map
   }, [columns, lanes, items, groupIdsOf])
 
-  const [zones, setZones] = React.useState<ZoneMap>(serverZones)
+  const [localZones, setZones] = React.useState<ZoneMap>(serverZones)
+  const zones = activeId || settling ? localZones : serverZones
 
   /**
    * Local order wins from the moment a drag starts until the server has both
    * accepted the move and been re-read.
    *
    * Without the guard there is a window right after the drop — `activeId`
-   * already cleared, the mutation not yet applied — where this effect sees the
+   * already cleared, the mutation not yet applied — where a reset sees the
    * PRE-MOVE server order and resets the board to it. The card lands, snaps
    * back, then jumps forward again once the response arrives, which reads as a
    * ghost returning to the old position.
@@ -231,9 +250,7 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
    * resolved. Getting that wrong reintroduces the snap-back, and it is the one
    * thing an app adopting this board most easily gets wrong.
    */
-  React.useEffect(() => {
-    if (!activeId && !settling) setZones(serverZones)
-  }, [serverZones, activeId, settling])
+  // Idle renders use the server directly; dragging/settling retain local order.
 
   const sensors = useSensors(
     // 5px of travel before a drag starts, so a plain click still reaches the
@@ -242,16 +259,18 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const zoneOf = (map: ZoneMap, card: string) =>
-    Object.keys(map).find((z) => map[z].includes(card))
+  const zoneOf = (map: ZoneMap, card: string) => Object.keys(map).find((z) => map[z].includes(card))
 
-  const resolveZone = (over: any): string | null => {
+  const resolveZone = (over: Over | null): string | null => {
     if (!over) return null
     if (over.data.current?.type === 'zone') return String(over.id)
     return over.data.current?.zone ?? null
   }
 
-  const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id))
+  const onDragStart = (e: DragStartEvent) => {
+    setZones(zones)
+    setActiveId(String(e.active.id))
+  }
 
   const onDragOver = (e: DragOverEvent) => {
     const { active, over } = e
@@ -300,7 +319,10 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
     setActiveId(null)
 
     const finalZone = zoneOf(zones, id)
-    if (!finalZone) { setZones(serverZones); return }
+    if (!finalZone) {
+      setZones(serverZones)
+      return
+    }
 
     const { columnId } = parseZone(finalZone)
     const lane = zones[finalZone]
@@ -339,7 +361,10 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      onDragCancel={() => { setActiveId(null); setZones(serverZones) }}
+      onDragCancel={() => {
+        setActiveId(null)
+        setZones(serverZones)
+      }}
     >
       <div className={cn('flex flex-col gap-6', fullHeight && 'h-full', className)}>
         {lanes.map((group) => (
@@ -392,7 +417,9 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
 
       <DragOverlay dropAnimation={null}>
         {activeItem && (
-          <div className="w-[19rem] rotate-2">{renderCard({ item: activeItem, dragging: true })}</div>
+          <div className="w-[19rem] rotate-2">
+            {renderCard({ item: activeItem, dragging: true })}
+          </div>
         )}
       </DragOverlay>
     </DndContext>
@@ -408,7 +435,13 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
  * `renderColumnHeader` instead.
  */
 function Column({
-  zone, cardIds, fullHeight, dropDisabled, header, emptyLabel, children,
+  zone,
+  cardIds,
+  fullHeight,
+  dropDisabled,
+  header,
+  emptyLabel,
+  children,
 }: {
   zone: string
   cardIds: string[]
@@ -422,7 +455,9 @@ function Column({
   // of collision detection entirely, so a column in another lane never lights up
   // as a target it would then refuse.
   const { setNodeRef, isOver } = useDroppable({
-    id: zone, data: { type: 'zone' }, disabled: dropDisabled,
+    id: zone,
+    data: { type: 'zone' },
+    disabled: dropDisabled,
   })
 
   return (

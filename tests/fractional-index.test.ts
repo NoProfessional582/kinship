@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  STEP, GAP_EPSILON, positionBetween, positionForIndex,
-  needsRenormalize, renormalizedPositions,
+  STEP,
+  GAP_EPSILON,
+  positionBetween,
+  positionForIndex,
+  needsRenormalize,
+  renormalizedPositions,
 } from '@/lib/fractional-index'
 
 describe('positionBetween', () => {
@@ -66,7 +70,7 @@ describe('renormalization', () => {
   })
 
   it('recovers a column that subdivided to the epsilon', () => {
-    let before = 1000
+    const before = 1000
     const after = 1000 + GAP_EPSILON
     const squeezed = [before, positionBetween(before, after), after]
     expect(needsRenormalize(squeezed)).toBe(true)

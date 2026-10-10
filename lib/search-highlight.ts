@@ -38,6 +38,8 @@ export function escapeHtml(s: string): string {
 export function highlightSnippet(raw: string | null | undefined): string | null {
   if (!raw) return null
   return escapeHtml(raw)
-    .split(escapeHtml(HL_START)).join('<b>')
-    .split(escapeHtml(HL_END)).join('</b>')
+    .split(escapeHtml(HL_START))
+    .join('<b>')
+    .split(escapeHtml(HL_END))
+    .join('</b>')
 }

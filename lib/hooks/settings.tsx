@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { subscribeBrowser } from './platform'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
 import { browserTimezone, formatInstant, msUntilZoneMidnight, zonedToday } from '../format'
@@ -18,10 +19,16 @@ export interface Settings {
 }
 
 const FALLBACK: Settings = {
-  timezone: null, userName: 'You', appTitle: 'Kinship',
+  timezone: null,
+  userName: 'You',
+  appTitle: 'Kinship',
   tagline: 'Personal knowledge & relationships',
-  weatherEnabled: false, weatherLocation: 'San Francisco, CA', weatherUnit: 'fahrenheit',
-  calendarWeekStart: 'monday', fontScale: 1, defaultCadence: 'MONTHLY',
+  weatherEnabled: false,
+  weatherLocation: 'San Francisco, CA',
+  weatherUnit: 'fahrenheit',
+  calendarWeekStart: 'monday',
+  fontScale: 1,
+  defaultCadence: 'MONTHLY',
 }
 
 export function useSettings() {
@@ -47,10 +54,7 @@ export function useSaveSettings() {
  */
 export function useTimezone() {
   const settings = useSettings()
-  const [fallback, setFallback] = React.useState('UTC')
-  // Read after mount: the browser zone differs between server and client and
-  // would otherwise cause a hydration mismatch.
-  React.useEffect(() => setFallback(browserTimezone()), [])
+  const fallback = React.useSyncExternalStore(subscribeBrowser, browserTimezone, () => 'UTC')
 
   const timezone = settings.timezone ?? fallback
   const fmt = React.useCallback(

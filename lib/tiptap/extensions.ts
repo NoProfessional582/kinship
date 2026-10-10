@@ -3,13 +3,7 @@ import Suggestion, { type SuggestionOptions } from '@tiptap/suggestion'
 import { PluginKey } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/core'
 import { canOfferCreate, normalizeLabel } from '../utils'
-import {
-  CONTACT_MENTION,
-  ENTITY_REF,
-  isPendingId,
-  makePendingId,
-  type EntityKind,
-} from './nodes'
+import { CONTACT_MENTION, ENTITY_REF, isPendingId, makePendingId, type EntityKind } from './nodes'
 import type { SuggestionItem } from '@/components/editor/suggestion-list'
 
 /**
@@ -99,7 +93,7 @@ export const ContactMention = Node.create<{ render: RenderFn }>({
   selectable: false,
 
   addOptions() {
-    return { render: undefined as unknown as RenderFn }
+    return { render: undefined }
   },
 
   addAttributes() {
@@ -174,7 +168,7 @@ export const EntityRef = Node.create<{ render: RenderFn }>({
   selectable: false,
 
   addOptions() {
-    return { render: undefined as unknown as RenderFn }
+    return { render: undefined }
   },
 
   addAttributes() {
@@ -228,7 +222,12 @@ export const EntityRef = Node.create<{ render: RenderFn }>({
           return [
             ...results,
             { id: 'create-task', label: term, kind: 'task', createAs: 'task' } as SuggestionItem,
-            { id: 'create-project', label: term, kind: 'project', createAs: 'project' } as SuggestionItem,
+            {
+              id: 'create-project',
+              label: term,
+              kind: 'project',
+              createAs: 'project',
+            } as SuggestionItem,
           ]
         },
         command: ({ editor, range, props }) => {

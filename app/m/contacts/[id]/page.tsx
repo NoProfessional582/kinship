@@ -1,12 +1,22 @@
 'use client'
 import * as React from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, Loader2, Pencil, Cake, MapPin, Phone, Mail, Hash, Video,
-  Building2, MessageSquare, ExternalLink, ChevronDown, ChevronUp,
+  ArrowLeft,
+  Loader2,
+  Pencil,
+  MapPin,
+  Phone,
+  Mail,
+  Hash,
+  Video,
+  Building2,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
+  type LucideIcon,
 } from 'lucide-react'
 import { Avatar, Badge } from '@/components/ui/misc'
 import { Section, MEmpty, MList, MRow } from '@/components/mobile/bits'
@@ -18,15 +28,24 @@ import { CADENCE_LABEL, TIER_LABEL } from '@/lib/cadence'
 import { useTimezone } from '@/lib/hooks/settings'
 import { calendarDate, entryTitle, cn } from '@/lib/utils'
 import { m } from '@/lib/mobile/href'
+import type { ContactDossier } from '@/lib/api-types'
 
-const CHANNEL_ICON: Record<string, any> = {
-  PHONE: Phone, EMAIL: Mail, SLACK: Hash, TEAMS: Video, LINKEDIN: Building2, OTHER: MessageSquare,
+const CHANNEL_ICON: Record<string, LucideIcon> = {
+  PHONE: Phone,
+  EMAIL: Mail,
+  SLACK: Hash,
+  TEAMS: Video,
+  LINKEDIN: Building2,
+  OTHER: MessageSquare,
 }
 const CHANNEL_HREF = (type: string, value: string) =>
-  type === 'EMAIL' ? `mailto:${value}`
-  : type === 'PHONE' ? `tel:${value.replace(/\s+/g, '')}`
-  : type === 'LINKEDIN' ? `https://linkedin.com/in/${value.replace(/^@/, '')}`
-  : undefined
+  type === 'EMAIL'
+    ? `mailto:${value}`
+    : type === 'PHONE'
+      ? `tel:${value.replace(/\s+/g, '')}`
+      : type === 'LINKEDIN'
+        ? `https://linkedin.com/in/${value.replace(/^@/, '')}`
+        : undefined
 
 /**
  * The dossier on a phone.
@@ -51,7 +70,7 @@ export default function MobileDossier() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['contact', id],
-    queryFn: () => api.get<any>(`/api/contacts/${id}`),
+    queryFn: () => api.get<ContactDossier>(`/api/contacts/${id}`),
   })
   const c = data?.contact
 
@@ -75,14 +94,18 @@ export default function MobileDossier() {
     // one that did not.
     c.birthday && ['Birthday', format(calendarDate(c.birthday)!, 'MMMM d')],
     c.tier && ['Tier', TIER_LABEL[c.tier as keyof typeof TIER_LABEL]],
-    c.cadence && c.cadence !== 'NONE' && ['Cadence', CADENCE_LABEL[c.cadence as keyof typeof CADENCE_LABEL]],
+    c.cadence &&
+      c.cadence !== 'NONE' && ['Cadence', CADENCE_LABEL[c.cadence as keyof typeof CADENCE_LABEL]],
     c.howWeMet && ['How we met', c.howWeMet],
     c.lastContactAt && ['Last contact', fmt(c.lastContactAt, 'MMM d, yyyy')],
   ].filter(Boolean) as Array<[string, React.ReactNode]>
 
   return (
     <div className="flex flex-col gap-5">
-      <button onClick={() => router.back()} className="kb-tap -ml-1 flex items-center gap-1.5 self-start text-xs text-[var(--muted-foreground)]">
+      <button
+        onClick={() => router.back()}
+        className="kb-tap -ml-1 flex items-center gap-1.5 self-start text-xs text-[var(--muted-foreground)]"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
@@ -102,7 +125,11 @@ export default function MobileDossier() {
               </p>
             )}
           </div>
-          <button onClick={() => setEditing(true)} aria-label="Edit contact" className="kb-tap flex items-center justify-center rounded-[var(--radius-md)] text-[var(--muted-foreground)]">
+          <button
+            onClick={() => setEditing(true)}
+            aria-label="Edit contact"
+            className="kb-tap flex items-center justify-center rounded-[var(--radius-md)] text-[var(--muted-foreground)]"
+          >
             <Pencil className="h-4 w-4" />
           </button>
         </div>
@@ -113,14 +140,26 @@ export default function MobileDossier() {
             rather than being text to copy. */}
         {(c.channels?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {c.channels.map((ch: any) => {
+            {c.channels.map((ch) => {
               const Icon = CHANNEL_ICON[ch.type] ?? MessageSquare
               const href = CHANNEL_HREF(ch.type, ch.value)
-              const inner = <><Icon className="h-3.5 w-3.5" /><span className="max-w-[11rem] truncate">{ch.value}</span></>
-              const cls = 'kb-tap flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 text-xs'
-              return href
-                ? <a key={ch.id} href={href} className={cls}>{inner}</a>
-                : <span key={ch.id} className={cls}>{inner}</span>
+              const inner = (
+                <>
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="max-w-[11rem] truncate">{ch.value}</span>
+                </>
+              )
+              const cls =
+                'kb-tap flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 text-xs'
+              return href ? (
+                <a key={ch.id} href={href} className={cls}>
+                  {inner}
+                </a>
+              ) : (
+                <span key={ch.id} className={cls}>
+                  {inner}
+                </span>
+              )
             })}
           </div>
         )}
@@ -128,8 +167,15 @@ export default function MobileDossier() {
 
       {facts.length > 0 && (
         <div>
-          <button onClick={() => setDetails((v) => !v)} className="kb-tap flex w-full items-center gap-1.5 text-xs font-medium text-[var(--muted-foreground)]">
-            {details ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          <button
+            onClick={() => setDetails((v) => !v)}
+            className="kb-tap flex w-full items-center gap-1.5 text-xs font-medium text-[var(--muted-foreground)]"
+          >
+            {details ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
             Details
           </button>
           {details && (
@@ -140,12 +186,13 @@ export default function MobileDossier() {
                   <dd className="min-w-0 flex-1 break-words">{v}</dd>
                 </div>
               ))}
-              {(c.attributes?.length ?? 0) > 0 && c.attributes.map((a: any) => (
-                <div key={a.id} className="flex gap-3 text-[13px]">
-                  <dt className="w-28 shrink-0 text-[var(--muted-foreground)]">{a.label}</dt>
-                  <dd className="min-w-0 flex-1 break-words">{a.value}</dd>
-                </div>
-              ))}
+              {(c.attributes?.length ?? 0) > 0 &&
+                c.attributes.map((a) => (
+                  <div key={a.id} className="flex gap-3 text-[13px]">
+                    <dt className="w-28 shrink-0 text-[var(--muted-foreground)]">{a.key}</dt>
+                    <dd className="min-w-0 flex-1 break-words">{a.value}</dd>
+                  </div>
+                ))}
               {c.bio && <p className="mt-1 text-[13px] leading-relaxed">{c.bio}</p>}
             </dl>
           )}
@@ -155,12 +202,16 @@ export default function MobileDossier() {
       {(data.upcoming?.length ?? 0) > 0 && (
         <Section title="Planned">
           <MList>
-            {data.upcoming.map((e: any) => {
+            {data.upcoming.map((e) => {
               const Icon = KIND_ICON[e.kind] ?? KIND_ICON.NOTE
               return (
-                <MRow key={e.id} href={m(`/notes/${e.id}`)}
+                <MRow
+                  key={e.id}
+                  href={m(`/notes/${e.id}`)}
                   lead={<Icon className="h-4 w-4" style={{ color: KIND_COLOR[e.kind] }} />}
-                  title={entryTitle(e)} meta={fmt(e.occurredAt, 'MMM d')} />
+                  title={entryTitle(e)}
+                  meta={fmt(e.occurredAt, 'MMM d')}
+                />
               )
             })}
           </MList>
@@ -170,10 +221,17 @@ export default function MobileDossier() {
       {(data.tasks?.length ?? 0) > 0 && (
         <Section title="Tasks">
           <MList>
-            {data.tasks.map((t: any) => (
-              <MRow key={t.id} onClick={() => setOpenTask(t.id)}
-                title={<span className={cn(t.status === 'DONE' && 'line-through opacity-60')}>{t.title}</span>}
-                meta={t.status?.toLowerCase().replace(/_/g, ' ')} />
+            {data.tasks.map((t) => (
+              <MRow
+                key={t.id}
+                onClick={() => setOpenTask(t.id)}
+                title={
+                  <span className={cn(t.status === 'DONE' && 'line-through opacity-60')}>
+                    {t.title}
+                  </span>
+                }
+                meta={t.status?.toLowerCase().replace(/_/g, ' ')}
+              />
             ))}
           </MList>
         </Section>
@@ -182,7 +240,7 @@ export default function MobileDossier() {
       {(data.projects?.length ?? 0) > 0 && (
         <Section title="Projects">
           <MList>
-            {data.projects.map((p: any) => (
+            {data.projects.map((p) => (
               <MRow key={p.id} href={m(`/projects/${p.slug}`)} title={p.name} chevron />
             ))}
           </MList>
@@ -190,14 +248,20 @@ export default function MobileDossier() {
       )}
 
       <Section title="Timeline">
-        {(data.entries?.length ?? 0) === 0 ? <MEmpty>Nothing recorded with {c.displayName} yet.</MEmpty> : (
+        {(data.entries?.length ?? 0) === 0 ? (
+          <MEmpty>Nothing recorded with {c.displayName} yet.</MEmpty>
+        ) : (
           <MList>
-            {data.entries.map((e: any) => {
+            {data.entries.map((e) => {
               const Icon = KIND_ICON[e.kind] ?? KIND_ICON.NOTE
               return (
-                <MRow key={e.id} href={m(`/notes/${e.id}`)}
+                <MRow
+                  key={e.id}
+                  href={m(`/notes/${e.id}`)}
                   lead={<Icon className="h-4 w-4" style={{ color: KIND_COLOR[e.kind] }} />}
-                  title={entryTitle(e)} meta={fmt(e.occurredAt, 'MMM d')} />
+                  title={entryTitle(e)}
+                  meta={fmt(e.occurredAt, 'MMM d')}
+                />
               )
             })}
           </MList>

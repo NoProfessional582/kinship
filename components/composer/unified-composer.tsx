@@ -13,6 +13,7 @@ import { useComposer } from '@/lib/hooks/composer'
 import { useSettings } from '@/lib/hooks/settings'
 import { useModifierKey } from '@/lib/hooks/platform'
 import { cn } from '@/lib/utils'
+import { asDoc } from '@/lib/tiptap/doc'
 
 /**
  * The one capture surface: the dark card the dashboard opens with, rendered
@@ -25,7 +26,9 @@ import { cn } from '@/lib/utils'
  * mobile GUI builds a different surface on the same hook.
  */
 export function UnifiedComposer({
-  onSaved, prompt, hint,
+  onSaved,
+  prompt,
+  hint,
 }: {
   onSaved?: () => void
   prompt?: string
@@ -35,12 +38,35 @@ export function UnifiedComposer({
   const mod = useModifierKey()
 
   const {
-    open, setOpen, restored, hasDraft, setHasDraft,
-    kind, setKind, title, setTitle, occurredAt, setOccurredAt, dateTouched,
-    direction, setDirection, durationMin, setDurationMin,
-    location, setLocation, followUpAt, setFollowUpAt,
-    projectId, setProjectId, tags, setTags,
-    saving, setBodyRev, active, onReady, reset, save,
+    open,
+    setOpen,
+    restored,
+    hasDraft,
+    setHasDraft,
+    kind,
+    setKind,
+    title,
+    setTitle,
+    occurredAt,
+    setOccurredAt,
+    direction,
+    setDirection,
+    durationMin,
+    setDurationMin,
+    location,
+    setLocation,
+    followUpAt,
+    setFollowUpAt,
+    projectId,
+    setProjectId,
+    tags,
+    setTags,
+    saving,
+    setBodyRev,
+    active,
+    onReady,
+    reset,
+    save,
     projects,
   } = useComposer(onSaved)
 
@@ -81,51 +107,73 @@ export function UnifiedComposer({
       <div className="mt-3 overflow-hidden rounded-[var(--radius-md)] border border-[var(--hero-line)] bg-[var(--hero-soft)]">
         <RichEditor
           className="kb-editor-framed"
-          content={restored?.body}
+          content={asDoc(restored?.body)}
           autoFocus
           mentionShortcuts
           onSubmit={save}
           onReady={onReady}
-          onUpdate={() => { setHasDraft(true); setBodyRev((n) => n + 1) }}
+          onUpdate={() => {
+            setHasDraft(true)
+            setBodyRev((n) => n + 1)
+          }}
           placeholder="What happened? Type @ for people or [[ for tasks and projects…"
         />
       </div>
 
       {(active.comms || active.slot) && (
-        <div className={cn(
-          'mt-3 grid grid-cols-2 gap-3 rounded-[var(--radius-md)] bg-[var(--hero-soft)] p-3',
-          active.comms ? 'sm:grid-cols-4' : 'sm:grid-cols-3',
-        )}>
+        <div
+          className={cn(
+            'mt-3 grid grid-cols-2 gap-3 rounded-[var(--radius-md)] bg-[var(--hero-soft)] p-3',
+            active.comms ? 'sm:grid-cols-4' : 'sm:grid-cols-3',
+          )}
+        >
           {active.comms && (
-          <div className="flex flex-col gap-1">
-            <Label>Direction</Label>
-            <div className="flex gap-1">
-              {([['INBOUND', ArrowDownLeft], ['OUTBOUND', ArrowUpRight]] as const).map(([d, Icon]) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDirection(direction === d ? '' : d)}
-                  title={d.toLowerCase()}
-                  className={cn(
-                    'inline-flex h-8 flex-1 items-center justify-center rounded-md border text-xs transition-colors',
-                    direction === d
-                      ? 'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]'
-                      : 'border-[var(--hero-line)] hover:bg-[var(--hero-soft)]',
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </button>
-              ))}
+            <div className="flex flex-col gap-1">
+              <Label>Direction</Label>
+              <div className="flex gap-1">
+                {(
+                  [
+                    ['INBOUND', ArrowDownLeft],
+                    ['OUTBOUND', ArrowUpRight],
+                  ] as const
+                ).map(([d, Icon]) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDirection(direction === d ? '' : d)}
+                    title={d.toLowerCase()}
+                    className={cn(
+                      'inline-flex h-8 flex-1 items-center justify-center rounded-md border text-xs transition-colors',
+                      direction === d
+                        ? 'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]'
+                        : 'border-[var(--hero-line)] hover:bg-[var(--hero-soft)]',
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
           )}
           <div className="flex flex-col gap-1">
             <Label>Duration (min)</Label>
-            <Input type="number" min={0} value={durationMin} onChange={(e) => setDurationMin(e.target.value)} className={cn('h-8 text-xs', heroField)} placeholder="25" />
+            <Input
+              type="number"
+              min={0}
+              value={durationMin}
+              onChange={(e) => setDurationMin(e.target.value)}
+              className={cn('h-8 text-xs', heroField)}
+              placeholder="25"
+            />
           </div>
           <div className="col-span-2 flex flex-col gap-1">
             <Label>Location</Label>
-            <Input value={location} onChange={(e) => setLocation(e.target.value)} className={cn('h-8 text-xs', heroField)} placeholder="Zoom, office…" />
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className={cn('h-8 text-xs', heroField)}
+              placeholder="Zoom, office…"
+            />
           </div>
         </div>
       )}
@@ -135,7 +183,9 @@ export function UnifiedComposer({
           <Input
             type="datetime-local"
             value={occurredAt}
-            onChange={(e) => { dateTouched.current = true; setOccurredAt(e.target.value) }}
+            onChange={(e) => {
+              setOccurredAt(e.target.value)
+            }}
             className={cn('tabular', heroField)}
           />
         </Field>
@@ -160,8 +210,10 @@ export function UnifiedComposer({
             className={cn(heroField)}
           >
             <option value="">No project</option>
-            {(projects ?? []).map((p: any) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+            {(projects ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </Select>
         </Field>
@@ -178,7 +230,14 @@ export function UnifiedComposer({
           {hasDraft ? 'Draft saved locally' : 'Nothing to save yet'}
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => { reset(); setOpen(false) }} className="text-[var(--hero-muted)] hover:bg-[var(--hero-soft)] hover:text-[var(--hero-ink)]">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              reset()
+              setOpen(false)
+            }}
+            className="text-[var(--hero-muted)] hover:bg-[var(--hero-soft)] hover:text-[var(--hero-ink)]"
+          >
             Cancel
           </Button>
           <Button onClick={save} disabled={saving} className="shrink-0">
@@ -201,7 +260,8 @@ export function UnifiedComposer({
           {prompt ?? 'What’s worth remembering?'}
         </h2>
         <p className="mt-1 text-sm text-[var(--hero-muted)]">
-          {hint ?? 'Capture a conversation, a thought, or a commitment. Connections happen automatically.'}
+          {hint ??
+            'Capture a conversation, a thought, or a commitment. Connections happen automatically.'}
         </p>
       </div>
 
@@ -209,7 +269,10 @@ export function UnifiedComposer({
         <>
           <button
             type="button"
-            onClick={() => { reset(); setOpen(false) }}
+            onClick={() => {
+              reset()
+              setOpen(false)
+            }}
             aria-label="Close composer"
             className="absolute right-4 top-4 rounded-full p-1.5 text-[var(--hero-muted)] transition-colors hover:bg-[var(--hero-soft)] hover:text-[var(--hero-ink)]"
           >
@@ -235,13 +298,20 @@ export function UnifiedComposer({
   )
 }
 
-function Field({ label, optional, children }: {
-  label: string; optional?: boolean; children: React.ReactNode
+function Field({
+  label,
+  optional,
+  children,
+}: {
+  label: string
+  optional?: boolean
+  children: React.ReactNode
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--hero-muted)]">
-        {label}{optional && <span className="ml-1.5 opacity-60">optional</span>}
+        {label}
+        {optional && <span className="ml-1.5 opacity-60">optional</span>}
       </span>
       {children}
     </div>

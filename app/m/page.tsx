@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useInitialNow } from '@/lib/hooks/platform'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
@@ -15,6 +16,7 @@ import { api } from '@/lib/hooks/api'
 import { useSettings, useTimezone, useWeather, weatherLabel } from '@/lib/hooks/settings'
 import { calendarDate, entryTitle } from '@/lib/utils'
 import { m } from '@/lib/mobile/href'
+import type { EntryListItem } from '@/lib/api-types'
 
 /**
  * Today, then capture, then what happened recently.
@@ -30,17 +32,14 @@ export default function MobileToday() {
   const { fmt } = useTimezone()
   const { data: weather } = useWeather()
   const [openTask, setOpenTask] = React.useState<string | null>(null)
-  const [now, setNow] = React.useState<Date | null>(null)
-  // After mount only: the greeting depends on the clock and would otherwise
-  // differ between the server and client renders.
-  React.useEffect(() => setNow(new Date()), [])
+  const now = useInitialNow()
 
   const { events, counts } = useToday()
   const nextUp = useUpcoming()
 
   const { data: entries } = useQuery({
     queryKey: ['entries', 'recent'],
-    queryFn: () => api.get<any[]>('/api/entries?take=6&past=1'),
+    queryFn: () => api.get<EntryListItem[]>('/api/entries?take=6&past=1'),
   })
 
   const greeting = React.useMemo(() => {
@@ -62,7 +61,9 @@ export default function MobileToday() {
         <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--primary)]">
           {now ? `${fmt(now, 'EEEE')} · ${fmt(now, 'MMM d')}` : ' '}
         </p>
-        <h1 className="mt-1 text-[1.6rem] leading-[1.15]">{greeting}, {settings.userName}.</h1>
+        <h1 className="mt-1 text-[1.6rem] leading-[1.15]">
+          {greeting}, {settings.userName}.
+        </h1>
         <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
           {now
             ? `${counts.comms} communication${counts.comms === 1 ? '' : 's'} · ${counts.tasks} task${counts.tasks === 1 ? '' : 's'} today.`
@@ -79,13 +80,21 @@ export default function MobileToday() {
       <MobileCapture />
 
       <Section title="Today">
-        {events.length === 0 ? <MEmpty>A clear day.</MEmpty> : (
+        {events.length === 0 ? (
+          <MEmpty>A clear day.</MEmpty>
+        ) : (
           <MList>
             {events.map((e) => (
               <MRow
                 key={e.id}
                 onClick={() => open(e.source, e.entityId)}
-                lead={<span className="h-2 w-2 rounded-full" style={{ background: e.color }} title={CATEGORY_META[e.category].short} />}
+                lead={
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: e.color }}
+                    title={CATEGORY_META[e.category].short}
+                  />
+                }
                 title={e.title}
                 meta={e.allDay ? 'All day' : fmt(e.start, 'HH:mm')}
               />
@@ -114,7 +123,14 @@ export default function MobileToday() {
 
       <Section
         title="Recent"
-        action={<Link href={m('/notes')} className="kb-tap-inline gap-1 text-[11px] text-[var(--muted-foreground)]">All <ArrowRight className="h-3 w-3" /></Link>}
+        action={
+          <Link
+            href={m('/notes')}
+            className="kb-tap-inline gap-1 text-[11px] text-[var(--muted-foreground)]"
+          >
+            All <ArrowRight className="h-3 w-3" />
+          </Link>
+        }
       >
         {!entries && (
           <div className="flex items-center justify-center gap-2 py-5 text-sm text-[var(--muted-foreground)]">
