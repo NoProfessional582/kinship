@@ -45,7 +45,7 @@ WORKDIR /app
 LABEL org.opencontainers.image.title="Kinship" \
       org.opencontainers.image.description="One person's contacts, notes and tasks, on their own computer" \
       org.opencontainers.image.source="https://github.com/NoProfessional582/kinship" \
-      org.opencontainers.image.version="0.1.1" \
+      org.opencontainers.image.version="0.1.2" \
       org.opencontainers.image.licenses="MIT"
 
 ENV NODE_ENV=production

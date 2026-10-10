@@ -145,7 +145,7 @@ avatar=$(in_web '
   const png = Buffer.from(process.argv[1], "base64")
   const form = new FormData()
   form.append("file", new Blob([png], { type: "image/png" }), "avatar.png")
-  const base = "http://127.0.0.1:3000"
+  const base = "http://web:3000"
   const ok = async (r) => { if (!r.ok) throw new Error(`${r.url}: ${r.status} ${await r.text()}`); return r.json() }
   ;(async () => {
     const { url } = await ok(await fetch(`${base}/api/upload`, { method: "POST", body: form }))
@@ -169,6 +169,19 @@ avatar_sha256() {
     }).catch((e) => { console.error(e); process.exit(1) })
   ' "$avatar"
 }
+
+step "Previous version: deliberately stale recency, with source rows to preserve"
+sql "$(cat tests/fixtures/recency-upgrade.sql)" >/dev/null
+# A fingerprint of all fixture source fields; only derived recency may change.
+recency_sources() {
+  sql "SELECT md5(string_agg(row::text, '' ORDER BY row::text)) FROM (
+    SELECT to_jsonb(c) - 'lastContactAt' AS row FROM \"Contact\" c WHERE id LIKE '__recency_upgrade_%'
+    UNION ALL SELECT to_jsonb(e) FROM \"Entry\" e WHERE id LIKE '__recency_upgrade_%'
+    UNION ALL SELECT to_jsonb(m) FROM \"Mention\" m WHERE id LIKE '__recency_upgrade_%'
+  ) AS source"
+}
+recency_sources_before=$(recency_sources)
+test "$(sql "SELECT count(*) FROM \"Contact\" WHERE id LIKE '__recency_upgrade_%' AND \"lastContactAt\" = timestamp '2002-01-01'")" = 7
 
 step "Previous version: what the database and the uploads hold"
 row_counts | tee "$STACK_RUNTIME/rows-before"
@@ -202,6 +215,22 @@ step "The avatar is still served, byte for byte, and still $avatar_contact's pho
 test "$(avatar_sha256)" = "$avatar_before"
 test "$(sql "SELECT \"avatarUrl\" FROM \"Contact\" WHERE \"displayName\" = '$avatar_contact'")" = "$avatar"
 echo "same sha256, same photo"
+
+step "Derived recency corrected; source records unchanged; migrate again is a no-op"
+recency_expected() {
+  sql "SELECT count(*) FROM \"Contact\" WHERE id LIKE '__recency_upgrade_%'
+    AND \"lastContactAt\" IS NOT DISTINCT FROM
+      CASE WHEN slug IN ('backdated','other-owner') THEN timestamp '2001-01-01'
+           WHEN slug IN ('fallback','unchanged') THEN timestamp '2000-01-01'
+           ELSE NULL END"
+}
+test "$(recency_expected)" = 8
+test "$(recency_sources)" = "$recency_sources_before"
+"${compose[@]}" run --rm -T --no-deps migrate >"$STACK_RUNTIME/migrate-again.log" 2>&1
+grep -q 'No pending migrations to apply' "$STACK_RUNTIME/migrate-again.log"
+test "$(recency_expected)" = 8
+test "$(recency_sources)" = "$recency_sources_before"
+echo "8 exact recency values; unchanged source fingerprint; repeat migration no-op"
 
 step "Playwright: every desktop page, on the upgraded data"
 "${compose[@]}" run --rm --no-deps browser npm run --silent test:e2e -- pages.spec.ts --project=desktop

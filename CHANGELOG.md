@@ -6,6 +6,19 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-10
+
+### Fixed
+
+- Reject task-parent cycles on saves and archive restore, including concurrent reparent operations. Add a read-only task hierarchy inventory.
+- Include task and project spans encompassing a calendar window, while keeping timed windows exclusive and all-day timezone handling intact.
+- Recompute contact recency after earlier/future date edits, calendar moves, follow-up edits, mention changes and restore. Coordinate concurrent source changes and rebuild stale archive values.
+- Correct existing derived contact recency with an in-place migration preserving source records and photos.
+
+### Tests
+
+- Cover concurrent task and entry edits, cyclic archive rollback, deep trees, interior calendar months, and exact recency correction on previous-version upgrades.
+
 ## [0.1.1] - 2026-10-10
 
 ### Fixed
