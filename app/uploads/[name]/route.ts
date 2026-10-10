@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-import { ownerUploadDir } from '@/lib/uploads'
+import { STORED_NAME, readPhoto } from '@/lib/uploads'
 import { requireIdentity } from '@/lib/identity'
-import { ALLOWED_IMAGE_TYPES, extensionFor, sniffImageType } from '@/lib/image-types'
+import { sniffImageType } from '@/lib/image-types'
 
 /**
  * Serve an uploaded contact avatar.
@@ -36,33 +34,17 @@ export const runtime = 'nodejs'
  * reach for. This pattern cannot express a path at all — no separators, no
  * dots beyond the single extension one, fixed length.
  */
-const STORED_NAME = new RegExp(
-  `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\.(?:${ALLOWED_IMAGE_TYPES.map(
-    extensionFor,
-  ).join('|')})$`,
-)
-
 export async function GET(req: Request, { params }: { params: Promise<{ name: string }> }) {
-  const directory = ownerUploadDir(requireIdentity(req).subject)
+  const owner = requireIdentity(req).subject
   const { name } = await params
 
   if (!STORED_NAME.test(name)) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  // Belt and braces behind the allowlist: resolve, then prove the result is
-  // still inside the directory. The pattern above already makes this
-  // unreachable; it costs one syscall-free comparison and it is what survives
-  // if that pattern is ever loosened by someone adding an extension.
-  // The comment keeps the build from tracing this run-time path (api/upload).
-  const full = path.resolve(/*turbopackIgnore: true*/ directory, name)
-  if (path.dirname(full) !== path.resolve(directory)) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-
   let bytes: Buffer
   try {
-    bytes = await readFile(full)
+    bytes = await readPhoto(owner, name)
   } catch {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }

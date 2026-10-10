@@ -4,6 +4,7 @@ import type { UpsertContactInput } from '../validation'
 import { followUpEdges } from './edges'
 import { resolveTagIds } from './tags'
 import { softDelete } from './trash'
+import { ownerTransaction } from '../owner-lock'
 
 /**
  * How many times you have actually spoken to someone. Forward-dated entries are
@@ -187,7 +188,7 @@ async function replaceAttributes(
 }
 
 export async function createContact(owner: string, input: UpsertContactInput) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     const slug = await uniqueSlug('contact', owner, input.displayName, tx)
     const tagIds = await resolveTagIds(tx, owner, input.tags)
     const contact = await tx.contact.create({
@@ -208,7 +209,7 @@ export async function createContact(owner: string, input: UpsertContactInput) {
 
 /** Saving from the enrichment modal or the dossier editor clears `isDraft`. */
 export async function updateContact(owner: string, id: string, input: UpsertContactInput) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     await tx.contact.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     const tagIds = await resolveTagIds(tx, owner, input.tags)
 

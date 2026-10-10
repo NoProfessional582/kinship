@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { ownerUploadDir, uploadUrl } from '@/lib/uploads'
+import { writePhoto, uploadUrl } from '@/lib/uploads'
+import { ownerTransaction } from '@/lib/owner-lock'
 import { requireIdentity } from '@/lib/identity'
 import {
   ALLOWED_IMAGE_TYPES,
@@ -79,11 +78,7 @@ export async function POST(req: Request) {
   const name = `${randomUUID()}.${extensionFor(sniffed)}`
 
   try {
-    const directory = ownerUploadDir(owner)
-    await mkdir(directory, { recursive: true })
-    // The comment keeps the build from following a path it can only know at run
-    // time; without it, the build copies the whole project into the image.
-    await writeFile(path.join(/*turbopackIgnore: true*/ directory, name), bytes)
+    await ownerTransaction(owner, async () => writePhoto(owner, name, bytes))
   } catch (err) {
     console.error('[upload]', err)
     return NextResponse.json({ error: 'Could not save the file' }, { status: 500 })

@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import {
@@ -20,9 +20,9 @@ import {
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { ValidationError } from '../errors'
-import { lockOwnerGraph } from '../owner-lock'
+import { lockOwnerGraph, ownerSnapshot } from '../owner-lock'
 import { recomputeLastContact } from './recency'
-import { ownerUploadDir, uploadUrl } from '../uploads'
+import { ownerUploadDir, uploadUrl, localPhotoName, readPhoto, writePhoto } from '../uploads'
 import { allowedImageLabel, extensionFor, sniffImageType } from '../image-types'
 
 /**
@@ -54,9 +54,9 @@ interface ArchiveReader {
 }
 
 /** `Contact` -> `prisma.contact`, the Prisma delegate naming rule. */
-function delegate(model: ModelName): ArchiveReader {
+function delegate(model: ModelName, db: Tx | Client = prisma): ArchiveReader {
   const key = (model[0].toLowerCase() + model.slice(1)) as Uncapitalize<ModelName>
-  const d: ArchiveReader = prisma[key]
+  const d: ArchiveReader = db[key]
   return d
 }
 
@@ -138,27 +138,29 @@ function ownerWhere(model: ModelName, owner: string): Record<string, unknown> {
 }
 
 export async function exportArchive(owner: string): Promise<Archive> {
-  const data: Archive['data'] = {}
-  const counts: Record<string, number> = {}
+  return ownerSnapshot(owner, async (tx) => {
+    const data: Archive['data'] = {}
+    const counts: Record<string, number> = {}
 
-  for (const model of MODEL_ORDER) {
-    const rows: Record<string, unknown>[] = await delegate(model).findMany({
-      where: ownerWhere(model, owner),
-      orderBy: orderBy(model),
-    })
-    data[model] = rows
-    counts[model] = rows.length
-  }
+    for (const model of MODEL_ORDER) {
+      const rows: Record<string, unknown>[] = await delegate(model, tx).findMany({
+        where: ownerWhere(model, owner),
+        orderBy: orderBy(model),
+      })
+      data[model] = rows
+      counts[model] = rows.length
+    }
 
-  return {
-    format: ARCHIVE_FORMAT,
-    version: ARCHIVE_VERSION,
-    exportedAt: new Date().toISOString(),
-    migrations: await appliedMigrations(),
-    counts,
-    data,
-    uploads: await readUploads(owner),
-  }
+    return {
+      format: ARCHIVE_FORMAT,
+      version: ARCHIVE_VERSION,
+      exportedAt: new Date().toISOString(),
+      migrations: await appliedMigrations(tx),
+      counts,
+      data,
+      uploads: await readUploads(owner, data.Contact ?? []),
+    }
+  })
 }
 
 /**
@@ -172,9 +174,13 @@ export async function currentCounts(owner: string): Promise<Record<string, numbe
   return counts
 }
 
-async function appliedMigrations(): Promise<string[]> {
+async function appliedMigrations(db: Tx | Client = prisma): Promise<string[]> {
   try {
-    const rows = await prisma.$queryRaw<{ migration_name: string }[]>`
+    const [ledger] = await db.$queryRaw<{ present: boolean }[]>`
+      SELECT to_regclass('"_prisma_migrations"') IS NOT NULL AS present
+    `
+    if (!ledger.present) return []
+    const rows = await db.$queryRaw<{ migration_name: string }[]>`
       SELECT migration_name FROM "_prisma_migrations"
       WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
       ORDER BY migration_name ASC
@@ -188,24 +194,18 @@ async function appliedMigrations(): Promise<string[]> {
   }
 }
 
-async function readUploads(owner: string): Promise<ArchiveUpload[]> {
-  const directory = ownerUploadDir(owner)
-  let entries
-  try {
-    entries = await readdir(directory, { withFileTypes: true })
-  } catch {
-    return [] // nothing has ever been uploaded on this machine
+async function readUploads(owner: string, contacts: Row[]): Promise<ArchiveUpload[]> {
+  const names = new Set<string>()
+  for (const row of contacts) {
+    const name = localPhotoName(row.avatarUrl)
+    if (name) names.add(name)
   }
-
   const uploads: ArchiveUpload[] = []
-  for (const entry of entries) {
-    // `.gitkeep` is the only dotfile expected here, but skipping all of them
-    // keeps editor and sync droppings out of the archive too.
-    if (!entry.isFile() || entry.name.startsWith('.')) continue
-    const bytes = await readFile(path.join(directory, entry.name))
-    uploads.push({ name: entry.name, data: bytes.toString('base64') })
+  for (const name of [...names].sort()) {
+    const bytes = await readPhoto(owner, name)
+    uploads.push({ name, data: bytes.toString('base64') })
   }
-  return uploads.sort((a, b) => a.name.localeCompare(b.name))
+  return uploads
 }
 
 // ------------------------------------------------------------------- Import
@@ -556,18 +556,8 @@ async function stageUploads(owner: string, uploads: ArchiveUpload[]): Promise<Ma
     checked.push({ from: file.name, to: `${randomUUID()}.${extensionFor(mime)}`, bytes })
   }
 
-  const directory = ownerUploadDir(owner)
-  await mkdir(directory, { recursive: true })
   for (const item of checked) {
-    const target = path.join(directory, item.to)
-    // Belt and braces. The name is ours now, not the archive's, so this can no
-    // longer fail — which is exactly why it is cheap to keep asserting.
-    if (path.dirname(path.resolve(target)) !== path.resolve(directory)) {
-      throw new ValidationError(
-        `Refusing to write an upload outside the uploads directory: ${item.to}`,
-      )
-    }
-    await writeFile(target, item.bytes)
+    await writePhoto(owner, item.to, item.bytes)
     staged.set(item.from, item.to)
   }
   return staged

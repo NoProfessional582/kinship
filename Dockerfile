@@ -70,8 +70,8 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # The command-line jobs, run by compose.yaml's `migrate` service from /app/cli.
-# Their uploads folder is the web server's: lib/uploads.ts finds it from the
-# working directory, so /app/cli/public points at /app/public.
+# lib/uploads.ts uses the physical /app/public/uploads root for both entry
+# points. Keep the public alias for the existing command-line folder layout.
 COPY --from=cli /app/cli ./cli
 RUN ln -s ../public ./cli/public
 
