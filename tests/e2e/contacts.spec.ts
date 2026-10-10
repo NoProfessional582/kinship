@@ -52,6 +52,10 @@ for (const phone of [false, true]) {
       await expect(form).toHaveCount(0)
       await page.reload()
       if (phone) {
+        // The detail's own label, not a blank one: the phone dossier once read
+        // a field attributes do not have.
+        await page.getByRole('button', { name: 'Details', exact: true }).click()
+        await expect(page.getByRole('term').filter({ hasText: /^Tea$/ })).toBeVisible()
         await page.getByRole('button', { name: 'Edit contact', exact: true }).click()
         await expect(page.getByPlaceholder('One line that captures who they are')).toHaveValue(
           'A fictional botanist',

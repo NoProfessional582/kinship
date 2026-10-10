@@ -32,6 +32,12 @@ for (const phone of [false, true]) {
       expect(task.projectId).toBe(project.id)
       await page.reload()
       await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
+      if (phone) {
+        // The list's done/total count comes from the counts the list endpoint
+        // sends; it once read a task list that endpoint never includes.
+        await page.goto('/m/projects')
+        await expect(page.getByRole('link').filter({ hasText: project.name })).toContainText('0/1')
+      }
       await page.goto(`${phone ? '/m' : ''}/notes`)
       await page.getByRole('button', { name: phone ? /Write$/ : /Start writing/ }).click()
       const noteTitle = unique('Projectjournal')
