@@ -27,6 +27,8 @@ export default function MobileContacts() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* The tab bar names the page on screen; the heading is for screen readers. */}
+      <h1 className="sr-only">People</h1>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
         <Input

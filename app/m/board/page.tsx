@@ -19,6 +19,8 @@ export default function MobileBoardPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* The tab bar names the page on screen; the heading is for screen readers. */}
+      <h1 className="sr-only">Board</h1>
       <div className="flex items-center gap-2">
         <Select
           value={projectId}

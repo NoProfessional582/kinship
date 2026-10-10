@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/misc'
 import { NotFound } from '@/components/shared/not-found'
 import { api, refreshAfterDelete } from '@/lib/hooks/api'
 import { relationLabel } from '@/lib/relations'
+import { entryTitle } from '@/lib/utils'
 import type { Edge, EntryDetail } from '@/lib/api-types'
 
 export default function EntryPage() {
@@ -68,6 +69,8 @@ export default function EntryPage() {
         </div>
       )}
       {!isLoading && !entry && <NotFound error={error} what="Note" href="/notes" back="Notes" />}
+      {/* The card shows the title; the heading is for screen readers. */}
+      {entry && <h1 className="sr-only">{entryTitle(entry)}</h1>}
       {entry && <EntryCard entry={entry} />}
 
       {entry && (edges ?? []).length > 0 && (

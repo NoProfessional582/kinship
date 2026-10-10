@@ -1,8 +1,8 @@
 /**
  * Every page loads clean on its own project: the eleven desktop pages in Desktop Chrome,
- * and the same eleven under /m on a Pixel 7. Each shows what makes it that page (its main
- * heading where it has one, its own content where it has none), and nothing on it errs
- * (support/fixtures.ts).
+ * and the same eleven under /m on a Pixel 7. Each has exactly one main heading and shows
+ * what makes it that page (its heading, and its own content where the heading is read only
+ * by screen readers), and nothing on it errs (support/fixtures.ts).
  *
  * Nothing picks a GUI by device (app/layout.tsx): /m is where the installed phone app
  * starts (app/manifest.ts), and a phone that opens / stays there, on the desktop page in
@@ -22,7 +22,7 @@ const heading =
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
   }
 
-/** A piece of its own content, for a page with no heading. */
+/** A piece of its own content, for a page whose heading only screen readers read. */
 const content =
   (text: string): Shows =>
   async (page) => {
@@ -51,8 +51,8 @@ const DESKTOP: PageCase[] = [
   { path: '/contacts', shows: heading('Contacts') },
   { path: '/contacts/:contact', shows: heading(SEEDED.contact) },
   { path: '/notes', shows: heading('Notes & communications') },
-  // A note's page has no heading of its own: it shows the note.
-  { path: '/notes/:note', shows: content(SEEDED.note) },
+  // A note's heading is for screen readers; on screen the note itself shows its title.
+  { path: '/notes/:note', shows: both(heading(SEEDED.note), content(SEEDED.note)) },
   { path: '/projects', shows: heading('Projects') },
   { path: '/projects/:project', shows: heading(SEEDED.project) },
   { path: '/board', shows: heading('Board') },
@@ -62,37 +62,41 @@ const DESKTOP: PageCase[] = [
   { path: '/trash', shows: heading('Trash') },
 ]
 
-// Five phone pages have no heading below the shell's top bar: they show their own
-// controls and content instead.
+// Five phone pages have a heading only screen readers read: on screen they go straight to
+// their own controls and content, which are checked too.
 const PHONE: PageCase[] = [
   { path: '/m', tab: 'Today', shows: heading(GREETING) },
   {
     path: '/m/contacts',
     tab: 'People',
-    shows: both(async (page) => {
-      await expect(page.getByPlaceholder('Search people…')).toBeVisible()
-    }, content(SEEDED.contact)),
+    shows: both(
+      heading('People'),
+      async (page) => {
+        await expect(page.getByPlaceholder('Search people…')).toBeVisible()
+      },
+      content(SEEDED.contact),
+    ),
   },
   { path: '/m/contacts/:contact', tab: 'People', shows: heading(SEEDED.contact) },
-  { path: '/m/notes', tab: 'Notes', shows: content(SEEDED.note) },
+  { path: '/m/notes', tab: 'Notes', shows: both(heading('Notes'), content(SEEDED.note)) },
   { path: '/m/notes/:note', tab: 'Notes', shows: heading(SEEDED.note) },
-  { path: '/m/projects', shows: content(SEEDED.project) },
+  { path: '/m/projects', shows: both(heading('Projects'), content(SEEDED.project)) },
   { path: '/m/projects/:project', shows: heading(SEEDED.project) },
   {
     path: '/m/board',
     tab: 'Board',
-    shows: async (page) => {
+    shows: both(heading('Board'), async (page) => {
       await expect(page.getByLabel('Filter by project')).toBeVisible()
       await expect(page.getByRole('button', { name: /^Backlog/ })).toBeVisible()
-    },
+    }),
   },
   {
     path: '/m/calendar',
     tab: 'Calendar',
-    shows: async (page) => {
+    shows: both(heading('Calendar'), async (page) => {
       await expect(page.getByRole('button', { name: 'Previous week' })).toBeVisible()
       await expect(page.getByRole('button', { name: 'week', pressed: true })).toBeVisible()
-    },
+    }),
   },
   { path: '/m/settings', shows: heading('Settings') },
   { path: '/m/trash', shows: heading('Trash') },
@@ -106,10 +110,16 @@ async function open(page: Page, path: string) {
   expect(response?.status(), `GET ${path}`).toBe(200)
 }
 
+/** One main heading, no more: checked once the page has shown its own. */
+async function oneMainHeading(page: Page) {
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+}
+
 for (const { path, shows } of DESKTOP) {
   test(`${path} loads clean`, { tag: '@desktop' }, async ({ page, request }) => {
     await open(page, path.includes(':') ? withIds(path, await seededIds(request)) : path)
     await shows(page)
+    await oneMainHeading(page)
     await page.waitForLoadState('networkidle')
   })
 }
@@ -118,6 +128,7 @@ for (const { path, shows, tab } of PHONE) {
   test(`${path} loads clean`, { tag: '@phone' }, async ({ page, request }) => {
     await open(page, path.includes(':') ? withIds(path, await seededIds(request)) : path)
     await shows(page)
+    await oneMainHeading(page)
     const current = page.getByRole('navigation').locator('a[aria-current="page"]')
     if (tab) await expect(current).toHaveText(tab)
     else await expect(current).toHaveCount(0)

@@ -55,6 +55,8 @@ export default function MobileNotes() {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* The tab bar names the page on screen; the heading is for screen readers. */}
+      <h1 className="sr-only">Notes</h1>
       <MobileCapture />
 
       <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
