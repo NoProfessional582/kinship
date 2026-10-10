@@ -64,6 +64,7 @@ All notable changes to Kinship are recorded here. The format follows
 - Archive downloads are named `kinship-archive-<time>.json`, and a file that is
   not an archive is refused as "Not a Kinship archive". The marker inside stays
   `kb-archive`, so archives move both ways between the old app and Kinship.
+- Refresh dependencies (`upstream upgrade`): package-lock.json: @alloc/quick-lru 5.2.0 → 5.3.0, @bramus/specificity 2.4.2 → 2.4.3, @csstools/color-helpers 6.1.1 → 6.1.2, @csstools/css-calc 3.3.0 → 3.4.3, @csstools/css-color-parser 4.2.0 → 4.2.6, @csstools/css-parser-algorithms 4.0.0 → 4.0.2, @csstools/css-syntax-patches-for-csstree 1.1.8 → 1.1.15, @csstools/css-tokenizer 4.0.0 → 4.0.2 (+114 more) (package.json pins: @tiptap/core, @tiptap/extension-placeholder, @tiptap/extension-task-item, @tiptap/extension-task-list, @tiptap/pm, @tiptap/react, @tiptap/starter-kit, @tiptap/suggestion).
 
 ### Fixed
 
