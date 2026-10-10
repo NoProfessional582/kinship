@@ -330,3 +330,22 @@ describe('recency across every date mutation', () => {
     }
   })
 })
+
+it('a valid archive round trip preserves contact modification metadata', async () => {
+  const owner = `${OWNER}-metadata`
+  const c = await prisma.contact.create({
+    data: { owner, slug: 'metadata', displayName: 'Metadata contact' },
+  })
+  try {
+    await createEntryOwned(
+      owner,
+      createEntrySchema.parse({ occurredAt: days(-7), bodyJson: body([c.id]) }),
+    )
+    const before = await prisma.contact.findUniqueOrThrow({ where: { id: c.id } })
+    await importArchive(owner, await exportArchive(owner))
+    expect(await prisma.contact.findUniqueOrThrow({ where: { id: c.id } })).toEqual(before)
+  } finally {
+    await prisma.entry.deleteMany({ where: { owner } })
+    await prisma.contact.deleteMany({ where: { owner } })
+  }
+})

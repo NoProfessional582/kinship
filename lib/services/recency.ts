@@ -24,9 +24,18 @@ export async function recomputeLastContact(
       orderBy: { occurredAt: 'desc' },
       select: { occurredAt: true },
     })
+    const value = latest?.occurredAt ?? null
+    // Prisma also changes updatedAt on an update. An unchanged derived value
+    // must preserve metadata, particularly across an archive round trip.
     await db.contact.updateMany({
-      where: { id: contactId, owner },
-      data: { lastContactAt: latest?.occurredAt ?? null },
+      where: {
+        id: contactId,
+        owner,
+        ...(value
+          ? { OR: [{ lastContactAt: null }, { lastContactAt: { not: value } }] }
+          : { lastContactAt: { not: null } }),
+      },
+      data: { lastContactAt: value },
     })
   }
 }
