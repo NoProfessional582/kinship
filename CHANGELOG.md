@@ -83,6 +83,13 @@ All notable changes to Kinship are recorded here. The format follows
   way back, on a desktop and on a phone, where the note and contact pages used
   to keep loading forever. A refused request is no longer retried.
 - Moving an unknown task on the calendar is refused before anything is written.
+- Every page has one main heading for screen readers: the desktop note page and
+  the phone's people, notes, projects, board and calendar pages had none. Nothing
+  changes on screen.
+- On a phone, `@` and `[[` suggestions in the capture sheet can be tapped; before,
+  only the keyboard could pick one.
+- On a phone, search results open the phone's own pages instead of the desktop
+  ones, and a task result opens the task on the phone board (`/m/board?task=`).
 
 ### Security
 
