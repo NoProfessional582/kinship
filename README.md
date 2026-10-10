@@ -261,7 +261,7 @@ scripts/check.sh quick privacy   # only those parts
 The computer running them needs bash 4 or later, git, Docker with Compose and Buildx,
 and [gitleaks](https://github.com/gitleaks/gitleaks). Node.js runs in the Dockerfile's
 own image through `scripts/node.sh`, so it does not need to be installed. A full run
-takes about eight minutes, most of it in `stack`; the first run downloads the images
+takes about five minutes, most of it in `stack`; the first run downloads the images
 and takes longer.
 
 The personal-data sweep reads a list of what must never be published (names, email
