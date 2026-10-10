@@ -6,6 +6,9 @@ import { appendPosition, defaultColumnId, ensureColumns, renormalizeColumn } fro
 import type { Prisma, TaskStatus } from '@prisma/client'
 import { resolveTagIds } from './tags'
 import { softDelete } from './trash'
+import { ownerTransaction } from '../owner-lock'
+import { ValidationError } from '../errors'
+import { taskCycles } from '../task-hierarchy'
 
 // Position, then id, like the board: two subtasks at one position always come
 // back in the same order. Typed outside `taskDetail`, whose `as const` would
@@ -95,8 +98,38 @@ export async function getTask(owner: string, idOrSlug: string) {
   })
 }
 
+/** Includes trashed ancestors: restoring them must not expose a new cycle. */
+async function validateParent(tx: Tx, owner: string, id: string | null, parentId?: string | null) {
+  const seen = new Set<string>()
+  let current = parentId
+  while (current) {
+    if (current === id || seen.has(current)) {
+      throw new ValidationError('Task parents must not form a cycle.')
+    }
+    seen.add(current)
+    const parent = await tx.task.findFirstOrThrow({
+      where: { id: current, owner },
+      select: { parentTaskId: true },
+    })
+    current = parent.parentTaskId
+  }
+}
+
+/** Read-only inventory, including trash. Never edits existing task links. */
+export async function taskHierarchyReport(owner: string) {
+  const rows = await prisma.task.findMany({
+    where: { owner },
+    select: { id: true, parentTaskId: true, deletedAt: true },
+    orderBy: { id: 'asc' },
+  })
+  const cycles = taskCycles(rows)
+  const affected = new Set(cycles.flat())
+  return { cycles, tasks: rows.filter((r) => affected.has(r.id)) }
+}
+
 export async function createTask(owner: string, input: UpsertTaskInput) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
+    await validateParent(tx, owner, null, input.parentTaskId)
     await validateLinks(tx, owner, input)
     const slug = await uniqueSlug('task', owner, input.title, tx)
     const columnId = input.columnId ?? (await defaultColumnId(tx, owner))
@@ -130,7 +163,8 @@ export async function createTask(owner: string, input: UpsertTaskInput) {
 }
 
 export async function updateTask(owner: string, id: string, input: UpsertTaskInput) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
+    await validateParent(tx, owner, id, input.parentTaskId)
     await tx.task.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     await validateLinks(tx, owner, input)
     const tagIds = await resolveTagIds(tx, owner, input.tags)

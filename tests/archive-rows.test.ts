@@ -147,9 +147,16 @@ describe('parentsFirst', () => {
     expect(idsOf(parentsFirst([task('orphan', 'gone')]))).toEqual(['orphan'])
   })
 
-  it('terminates on a cycle instead of overflowing the stack', () => {
-    const out = parentsFirst([task('a', 'b'), task('b', 'a')])
-    expect(out).toHaveLength(2)
+  it('rejects cycles before import', () => {
+    expect(() => parentsFirst([task('a', 'b'), task('b', 'a')])).toThrow(/cycle/)
+    expect(() => parentsFirst([task('a', 'a')])).toThrow(/cycle/)
+  })
+
+  it('orders a deep valid tree without overflowing the stack', () => {
+    const rows = Array.from({ length: 20000 }, (_, i) =>
+      task(String(i), i ? String(i - 1) : null),
+    ).reverse()
+    expect(idsOf(parentsFirst(rows))).toEqual(rows.map((r) => r.id).reverse())
   })
 })
 

@@ -191,3 +191,21 @@ test.describe('refusals', () => {
     await refused(await request.get(`/api/tasks/${UNKNOWN}`), 404, 'Not found')
   })
 })
+
+test('task saves refuse cycles and retain the original task', async ({ request, cleanup }) => {
+  const a = await newTask(request, cleanup)
+  const b = await newTask(request, cleanup, { parentTaskId: a.id })
+  for (const parentTaskId of [a.id, b.id]) {
+    await refused(
+      await request.patch(`/api/tasks/${a.id}`, {
+        data: { ...a, title: 'must not save', parentTaskId },
+      }),
+      400,
+      /cycle/,
+    )
+    expect(await json<Task>(await request.get(`/api/tasks/${a.id}`))).toMatchObject({
+      title: a.title,
+      parentTaskId: null,
+    })
+  }
+})

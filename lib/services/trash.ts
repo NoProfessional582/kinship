@@ -1,6 +1,8 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { ConflictError } from '../errors'
+import { ownerTransaction } from '../owner-lock'
+import { contactsMentionedBy, recomputeLastContact } from './recency'
 
 export type TrashKind = 'contact' | 'entry' | 'task' | 'project'
 
@@ -46,13 +48,23 @@ const model = (db: Db, kind: TrashKind): TrashDelegate => db[kind]
  * personal history is recoverable; every list query filters `deletedAt: null`.
  */
 export async function softDelete(owner: string, kind: TrashKind, id: string) {
-  await model(prisma, kind).findFirstOrThrow({ where: { id, owner }, select: { id: true } })
-  return model(prisma, kind).update({ where: { id }, data: { deletedAt: new Date() } })
+  return ownerTransaction(owner, async (tx) => {
+    await model(tx, kind).findFirstOrThrow({ where: { id, owner }, select: { id: true } })
+    const row = await model(tx, kind).update({ where: { id }, data: { deletedAt: new Date() } })
+    if (kind === 'entry')
+      await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, id))
+    return row
+  })
 }
 
 export async function restore(owner: string, kind: TrashKind, id: string) {
-  await model(prisma, kind).findFirstOrThrow({ where: { id, owner }, select: { id: true } })
-  return model(prisma, kind).update({ where: { id }, data: { deletedAt: null } })
+  return ownerTransaction(owner, async (tx) => {
+    await model(tx, kind).findFirstOrThrow({ where: { id, owner }, select: { id: true } })
+    const row = await model(tx, kind).update({ where: { id }, data: { deletedAt: null } })
+    if (kind === 'entry')
+      await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, id))
+    return row
+  })
 }
 
 /**
@@ -162,7 +174,7 @@ export async function purge(
   id: string,
   expectedDeletedAt?: Date | string | null,
 ) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     // Read the row INSIDE the transaction. The old code deleted by id alone, so
     // a purge could destroy a row that had been restored elsewhere, and a
     // request made directly against the API could skip the soft-delete stage
@@ -201,7 +213,7 @@ export async function purge(
 }
 
 export async function emptyTrash(owner: string) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     const deleted = { owner, deletedAt: { not: null } } as const
 
     // Capture the ids inside the transaction and delete by exactly those ids

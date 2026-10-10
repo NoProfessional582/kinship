@@ -48,3 +48,23 @@ for (const phone of [false, true]) {
     },
   )
 }
+
+for (const phone of [false, true]) {
+  test(
+    `calendar shows a task throughout an interior month (${phone ? 'phone' : 'desktop'})`,
+    { tag: phone ? '@phone' : '@desktop' },
+    async ({ page, request, cleanup }) => {
+      const now = new Date()
+      const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1))
+        .toISOString()
+        .slice(0, 10)
+      const dueDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 3, 1))
+        .toISOString()
+        .slice(0, 10)
+      const task = await newTask(request, cleanup, { startDate, dueDate, allDay: true })
+      await page.goto(phone ? '/m/calendar' : '/calendar')
+      if (phone) await page.getByRole('button', { name: 'month', exact: true }).click()
+      await expect(page.getByText(task.title, { exact: true }).first()).toBeVisible()
+    },
+  )
+}

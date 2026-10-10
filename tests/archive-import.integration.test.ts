@@ -144,3 +144,21 @@ describe('import — only raster images reach the public origin (K08)', () => {
     ).rejects.toThrow(/not an image this app accepts/)
   })
 })
+
+it('rejects cyclic archives before staging files or replacing rows', async () => {
+  const before = await prisma.contact.count()
+  const files = (await listUploads()).sort()
+  const archive = archiveWith([{ name: `${MARK}cycle.png`, data: PNG_A.toString('base64') }], [])
+  const raw = {
+    ...archive,
+    data: {
+      Task: [
+        { id: 'cycle-a', parentTaskId: 'cycle-b' },
+        { id: 'cycle-b', parentTaskId: 'cycle-a' },
+      ],
+    },
+  }
+  await expect(importArchive(raw)).rejects.toThrow(/cycle/)
+  expect(await prisma.contact.count()).toBe(before)
+  expect((await listUploads()).sort()).toEqual(files)
+})

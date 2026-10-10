@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { ARCHIVE_FORMAT } from './archive-format'
 import { ValidationError } from './errors'
+import { assertTaskTree } from './task-hierarchy'
 
 /**
  * What an archive's rows are, and how they survive the trip through JSON.
@@ -193,25 +194,26 @@ export function reviveRow(model: ModelName, row: Record<string, unknown>): Recor
  * `Task.parentTaskId` points at `Task`, so a subtask written ahead of its parent
  * breaks the foreign key. Emit every parent before its children.
  *
- * Marking a row seen *before* recursing means a cycle — impossible through the
- * app, possible in a hand-edited file — terminates here and is rejected by
- * Postgres, rather than overflowing the stack.
+ * Validate cycles before any file staging, then order iteratively so a deep
+ * valid tree cannot overflow the JavaScript call stack.
  */
 export function parentsFirst(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  assertTaskTree(
+    rows.map((r) => ({ id: r.id as string, parentTaskId: r.parentTaskId as string | null })),
+  )
   const byId = new Map(rows.map((r) => [r.id as string, r]))
   const seen = new Set<string>()
   const ordered: Record<string, unknown>[] = []
-
-  const visit = (row: Record<string, unknown>) => {
-    const id = row.id as string
-    if (seen.has(id)) return
-    seen.add(id)
-    const parentId = row.parentTaskId as string | null | undefined
-    const parent = parentId ? byId.get(parentId) : undefined
-    if (parent) visit(parent)
-    ordered.push(row)
+  for (const row of rows) {
+    const chain: Record<string, unknown>[] = []
+    let current: Record<string, unknown> | undefined = row
+    while (current && !seen.has(current.id as string)) {
+      seen.add(current.id as string)
+      chain.push(current)
+      current = byId.get(current.parentTaskId as string)
+    }
+    for (const ancestor of chain.reverse()) ordered.push(ancestor)
   }
 
-  for (const row of rows) visit(row)
   return ordered
 }

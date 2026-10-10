@@ -532,3 +532,11 @@ itself, which is why that file imports `dotenv/config`.
 ## License
 
 [MIT](LICENSE)
+
+### Task hierarchy inventory
+
+`docker compose run --rm migrate npm run --silent tasks:check` prints a read-only JSON report of the configured owner's task-parent cycles, including trashed tasks. It does not repair links. Review affected task IDs and back up data before choosing an explicit repair. New task saves and archive restores reject cycles.
+
+Calendar queries use an exclusive timed window end. All-day date ranges retain timezone widening and inclusive stored deadlines. Task/project spans are included throughout their duration. A legacy reversed span is not rewritten: its start remains selectable within the window.
+
+Contact “last contacted” is derived from the latest live, already-happened entry mentioning that contact. Editing a date into the past or future, calendar rescheduling and changing follow-ups recompute it. The 0.1.2 migration repairs old cached values without altering source entries. Back up the database and uploads before upgrading an existing installation. Earlier code can still read the corrected dates; reverting code does not restore the original incorrect cache.

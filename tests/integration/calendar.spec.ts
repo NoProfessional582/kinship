@@ -177,3 +177,73 @@ test.describe('refusals', () => {
     )
   })
 })
+
+test('includes encompassing spans and keeps timed windows exclusive', async ({
+  request,
+  cleanup,
+}) => {
+  const task = await newTask(request, cleanup, {
+    startDate: '2031-02-01',
+    dueDate: '2031-05-01',
+    allDay: true,
+  })
+  const project = await newProject(request, cleanup, {
+    startDate: '2031-02-01',
+    targetDate: '2031-05-01',
+    allDay: true,
+  })
+  const timed = await newTask(request, cleanup, {
+    startDate: '2031-02-01T12:00:00Z',
+    dueDate: '2031-05-01T12:00:00Z',
+    allDay: false,
+  })
+  const before = await newTask(request, cleanup, {
+    startDate: '2031-02-20T12:00:00Z',
+    dueDate: '2031-03-01T00:00:00Z',
+    allDay: false,
+  })
+  const after = await newTask(request, cleanup, {
+    startDate: '2031-04-01T00:00:00Z',
+    dueDate: '2031-04-02T00:00:00Z',
+    allDay: false,
+  })
+  const single = await newTask(request, cleanup, { dueDate: '2031-03-01T00:00:00Z', allDay: false })
+  const startOnly = await newTask(request, cleanup, {
+    startDate: '2031-03-31T23:59:00Z',
+    allDay: false,
+  })
+  const zero = await newTask(request, cleanup, {
+    startDate: '2031-03-01T00:00:00Z',
+    dueDate: '2031-03-01T00:00:00Z',
+    allDay: false,
+  })
+  const events = await feed(request)
+  const ids = events.map((e) => e.id)
+  for (const t of [task, timed, single, startOnly, zero]) expect(ids).toContain(`task:${t.id}`)
+  for (const t of [before, after]) expect(ids).not.toContain(`task:${t.id}`)
+  expect(events.find((e) => e.id === `project:${project.id}`)).toMatchObject({
+    start: '2031-02-01',
+    end: '2031-05-02',
+  })
+  expect(events.find((e) => e.id === `task:${timed.id}`)).toMatchObject({
+    start: '2031-02-01T12:00:00.000Z',
+    end: '2031-05-01T12:00:00.000Z',
+  })
+})
+
+test('timezone widening is limited to all-day dates', async ({ request, cleanup }) => {
+  const allDay = await newTask(request, cleanup, { dueDate: '2031-03-01', allDay: true })
+  const timed = await newTask(request, cleanup, { dueDate: '2031-03-01T00:00:00Z', allDay: false })
+  const allDayOutside = await newTask(request, cleanup, {
+    startDate: '2031-01-01',
+    dueDate: '2031-01-31',
+    allDay: true,
+  })
+  const project = await newProject(request, cleanup, { targetDate: '2031-03-01', allDay: true })
+  const events = await feed(request, 'start=2031-03-01T08:00:00Z&end=2031-04-01T07:00:00Z')
+  const ids = events.map((e) => e.id)
+  expect(ids).toContain(`task:${allDay.id}`)
+  expect(ids).toContain(`project:${project.id}`)
+  expect(ids).not.toContain(`task:${timed.id}`)
+  expect(ids).not.toContain(`task:${allDayOutside.id}`)
+})

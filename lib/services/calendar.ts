@@ -4,6 +4,7 @@ import { NotFoundError } from '../errors'
 import { monthDayInUTC } from '../format'
 import { type CalendarEvent } from '../calendar-categories'
 import { FOLLOWS_UP } from './edges'
+import { updateEntry } from './entries'
 
 /**
  * A due date is a day on a wall calendar, not an instant. Emitting it as a full
@@ -73,8 +74,22 @@ export async function getCalendarEvents(
         deletedAt: null,
         status: { not: 'ARCHIVED' },
         OR: [
-          { dueDate: { gte: dayStart, lte: dayEnd } },
-          { startDate: { gte: dayStart, lte: dayEnd } },
+          {
+            allDay: true,
+            OR: [
+              { startDate: { gte: dayStart, lt: dayEnd } },
+              { startDate: null, dueDate: { gte: dayStart, lt: dayEnd } },
+              { startDate: { lt: dayEnd }, dueDate: { gte: dayStart } },
+            ],
+          },
+          {
+            allDay: false,
+            OR: [
+              { startDate: { gte: start, lt: end } },
+              { startDate: null, dueDate: { gte: start, lt: end } },
+              { startDate: { lt: end }, dueDate: { gt: start } },
+            ],
+          },
         ],
       },
       select: {
@@ -89,7 +104,7 @@ export async function getCalendarEvents(
       },
     }),
     prisma.entry.findMany({
-      where: { owner, deletedAt: null, occurredAt: { gte: start, lte: end } },
+      where: { owner, deletedAt: null, occurredAt: { gte: start, lt: end } },
       select: {
         id: true,
         title: true,
@@ -110,8 +125,22 @@ export async function getCalendarEvents(
         deletedAt: null,
         status: { not: 'ARCHIVED' },
         OR: [
-          { targetDate: { gte: dayStart, lte: dayEnd } },
-          { startDate: { gte: dayStart, lte: dayEnd } },
+          {
+            allDay: true,
+            OR: [
+              { startDate: { gte: dayStart, lt: dayEnd } },
+              { startDate: null, targetDate: { gte: dayStart, lt: dayEnd } },
+              { startDate: { lt: dayEnd }, targetDate: { gte: dayStart } },
+            ],
+          },
+          {
+            allDay: false,
+            OR: [
+              { startDate: { gte: start, lt: end } },
+              { startDate: null, targetDate: { gte: start, lt: end } },
+              { startDate: { lt: end }, targetDate: { gt: start } },
+            ],
+          },
         ],
       },
       select: {
@@ -344,12 +373,12 @@ export async function rescheduleEvent(
     return prisma.task.update({ where: { id: entityId }, data: { dueDate: start } })
   }
 
-  await prisma.entry.findFirstOrThrow({ where: { id: entityId, owner }, select: { id: true } })
   const durationMin = end
     ? Math.max(0, Math.round((end.getTime() - start.getTime()) / 60_000))
     : undefined
-  return prisma.entry.update({
-    where: { id: entityId },
-    data: { occurredAt: start, ...(durationMin !== undefined ? { durationMin } : {}) },
+  const { entry } = await updateEntry(owner, entityId, {
+    occurredAt: start,
+    ...(durationMin !== undefined ? { durationMin } : {}),
   })
+  return entry
 }

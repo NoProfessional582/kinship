@@ -8,6 +8,9 @@ import {
 } from '@/lib/services/entries'
 import { createEntrySchema, type CreateEntryInput } from '@/lib/validation'
 import { CONTACT_MENTION } from '@/lib/tiptap/nodes'
+import { rescheduleEvent } from '@/lib/services/calendar'
+import { exportArchive, importArchive } from '@/lib/services/archive'
+import { contend } from './support/owner-contention'
 
 /**
  * `lastContactAt` maintenance across entry edits (K14).
@@ -58,7 +61,7 @@ const lastContact = async (id: string) =>
 
 afterAll(async () => {
   const entries = await prisma.entry.findMany({
-    where: { title: { startsWith: MARK } },
+    where: { owner: OWNER },
     select: { id: true },
   })
   const ids = entries.map((e) => e.id)
@@ -67,6 +70,7 @@ afterAll(async () => {
   await prisma.entityRef.deleteMany({ where: { entryId: { in: ids } } })
   await prisma.entry.deleteMany({ where: { id: { in: ids } } })
   await prisma.contact.deleteMany({ where: { displayName: { startsWith: MARK } } })
+  await prisma.entityEdge.deleteMany({ where: { owner: OWNER } })
   await prisma.$disconnect()
 })
 
@@ -104,7 +108,7 @@ describe('updateEntry — recency follows the edit (K14)', () => {
     expect(at((await lastContact(a.id)) as Date)).toBe(at(days(-3)))
   })
 
-  it('does NOT move recency backwards when an entry is backdated', async () => {
+  it('moves recency backwards when the only supporting entry is backdated', async () => {
     const a = await contact('back')
     const { entry } = await make({
       title: `${MARK}back`,
@@ -112,11 +116,9 @@ describe('updateEntry — recency follows the edit (K14)', () => {
       occurredAt: days(-2),
       bodyJson: body([a.id]),
     })
-    const before = await lastContact(a.id)
+    await updateEntry(entry.id, { occurredAt: days(-30) })
 
-    await updateEntry(entry.id, { occurredAt: days(-30), bodyJson: body([a.id]) })
-
-    expect(at((await lastContact(a.id)) as Date)).toBe(at(before as Date))
+    expect(at((await lastContact(a.id)) as Date)).toBe(at(days(-30)))
   })
 
   it('does not treat a future entry as contact', async () => {
@@ -127,11 +129,9 @@ describe('updateEntry — recency follows the edit (K14)', () => {
       occurredAt: days(-8),
       bodyJson: body([a.id]),
     })
-    const before = await lastContact(a.id)
+    await updateEntry(entry.id, { occurredAt: days(+5) })
 
-    await updateEntry(entry.id, { occurredAt: days(+5), bodyJson: body([a.id]) })
-
-    expect(at((await lastContact(a.id)) as Date)).toBe(at(before as Date))
+    expect(await lastContact(a.id)).toBeNull()
   })
 
   it('REMOVED contact: recency falls back to the entries that remain', async () => {
@@ -251,5 +251,82 @@ describe('deleteEntry / restoreEntry — recency follows the trash', () => {
 
     expect(await lastContact(a.id)).toBeNull()
     expect(at((await lastContact(b.id)) as Date)).toBe(at(bBefore as Date))
+  })
+})
+
+describe('recency across every date mutation', () => {
+  it('falls back to the latest remaining entry after backdating or a calendar drag', async () => {
+    const a = await contact('date-fallback')
+    const older = days(-10)
+    await make({ title: `${MARK}fallback-old`, occurredAt: older, bodyJson: body([a.id]) })
+    const { entry } = await make({
+      title: `${MARK}fallback-new`,
+      occurredAt: days(-1),
+      bodyJson: body([a.id]),
+    })
+    await updateEntry(entry.id, { occurredAt: days(-30) })
+    expect(await lastContact(a.id)).toEqual(older)
+    await rescheduleEvent(OWNER, 'entry', entry.id, days(-2))
+    expect(at((await lastContact(a.id))!)).toBe(at(days(-2)))
+    await rescheduleEvent(OWNER, 'entry', entry.id, days(10))
+    expect(await lastContact(a.id)).toEqual(older)
+  })
+
+  it('recomputes people on an edited or withdrawn follow-up', async () => {
+    const a = await contact('followup')
+    const old = days(-20)
+    const { entry } = await make({
+      title: `${MARK}followup`,
+      occurredAt: old,
+      bodyJson: body([a.id]),
+      followUpAt: days(-2),
+    })
+    expect(at((await lastContact(a.id))!)).toBe(at(days(-2)))
+    await updateEntry(entry.id, { followUpAt: days(-8) })
+    expect(at((await lastContact(a.id))!)).toBe(at(days(-8)))
+    await updateEntry(entry.id, { followUpAt: null })
+    expect(await lastContact(a.id)).toEqual(old)
+  })
+
+  it('serializes concurrent edits affecting one contact', async () => {
+    const a = await contact('concurrent')
+    const { entry: first } = await make({
+      title: `${MARK}race-first`,
+      occurredAt: days(-1),
+      bodyJson: body([a.id]),
+    })
+    const { entry: second } = await make({
+      title: `${MARK}race-second`,
+      occurredAt: days(-2),
+      bodyJson: body([a.id]),
+    })
+    const expected = days(-10)
+    const results = await contend(OWNER, [
+      () => updateEntry(first.id, { occurredAt: days(10) }),
+      () => updateEntry(second.id, { occurredAt: expected }),
+    ])
+    expect(results.every((r) => r.status === 'fulfilled')).toBe(true)
+    expect(await lastContact(a.id)).toEqual(expected)
+  })
+
+  it('rebuilds stale archive recency instead of trusting the cached field', async () => {
+    const owner = `${OWNER}-import`
+    const c = await prisma.contact.create({
+      data: { owner, slug: 'archive-contact', displayName: 'Archive contact' },
+    })
+    const expected = days(-7)
+    await createEntryOwned(
+      owner,
+      createEntrySchema.parse({ occurredAt: expected, bodyJson: body([c.id]) }),
+    )
+    try {
+      const archive = await exportArchive(owner)
+      archive.data.Contact[0].lastContactAt = days(30).toISOString()
+      await importArchive(owner, archive)
+      expect(await lastContact(c.id)).toEqual(expected)
+    } finally {
+      await prisma.entry.deleteMany({ where: { owner } })
+      await prisma.contact.deleteMany({ where: { owner } })
+    }
   })
 })

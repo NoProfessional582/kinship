@@ -20,6 +20,8 @@ import {
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { ValidationError } from '../errors'
+import { lockOwnerGraph } from '../owner-lock'
+import { recomputeLastContact } from './recency'
 import { ownerUploadDir, uploadUrl } from '../uploads'
 import { allowedImageLabel, extensionFor, sniffImageType } from '../image-types'
 
@@ -340,6 +342,7 @@ export async function importArchive(
   try {
     counts = await prisma.$transaction(
       async (tx) => {
+        await lockOwnerGraph(tx, owner)
         // Delete only this owner's graph. Root cascades remove all child/join
         // rows; no import may replace another owner's data.
         await tx.entityEdge.deleteMany({ where: { owner } })
@@ -361,11 +364,16 @@ export async function importArchive(
             await WRITERS[model](tx, rows.slice(i, i + CHUNK))
           }
         }
+        await recomputeLastContact(
+          tx,
+          owner,
+          (prepared.Contact ?? []).map((r) => r.id as string),
+        )
         return written
       },
       // A few hundred contacts restore in well under a second, but the default
       // 5 s ceiling is not a budget worth betting a whole migration on.
-      { timeout: 120_000, maxWait: 20_000 },
+      { timeout: 120_000, maxWait: 20_000, isolationLevel: 'ReadCommitted' },
     )
   } catch (err) {
     // The database is back where it was; take the staged files with it, so a

@@ -13,6 +13,7 @@ import { appendPosition, defaultColumnId } from './board'
 import { FOLLOWS_UP, followUpEdges } from './edges'
 import { resolveTagIds } from './tags'
 import { contactsMentionedBy, recomputeLastContact } from './recency'
+import { ownerTransaction } from '../owner-lock'
 
 export interface CreatedEntity {
   type: 'contact' | 'task' | 'project'
@@ -86,6 +87,7 @@ async function createFollowUp(
     },
   })
 
+  await recomputeLastContact(tx, owner, contactIds)
   return followUp
 }
 
@@ -122,6 +124,7 @@ async function syncFollowUp(tx: Tx, owner: string, parentId: string, at: Date | 
   if (at) {
     if (existing) {
       await tx.entry.update({ where: { id: existing.id }, data: { occurredAt: at } })
+      await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, existing.id))
       return
     }
     const parent = await tx.entry.findUnique({
@@ -147,6 +150,7 @@ async function syncFollowUp(tx: Tx, owner: string, parentId: string, at: Date | 
 
   if (existing && existing.bodyText.trim() === '') {
     await tx.entry.update({ where: { id: existing.id }, data: { deletedAt: new Date() } })
+    await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, existing.id))
   }
 }
 
@@ -246,7 +250,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
   // authority on *which* placeholders exist.
   const labelHints = new Map(input.pendingEntities.map((p) => [p.tempId, p.label]))
 
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     const { idMap, createdEntities, newContactIds, newTaskIds, newProjectIds } =
       await materializePending(tx, owner, refs.pending, labelHints)
 
@@ -291,30 +295,13 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
       include: entryInclude,
     })
 
-    // Only move `lastContactAt` forward — backfilling an old call must not make
-    // someone look more recently contacted than they are.
-    //
-    // A future entry is not contact at all: dating next week's review forward
-    // must not report that you have spoken, or the check-in rail falls silent
-    // for everyone whose next meeting is already in the diary — which is
-    // precisely the set of people it exists to nudge you about.
-    if (contactIds.length > 0 && input.occurredAt <= new Date()) {
-      await tx.contact.updateMany({
-        where: {
-          owner,
-          id: { in: contactIds },
-          OR: [{ lastContactAt: null }, { lastContactAt: { lt: input.occurredAt } }],
-        },
-        data: { lastContactAt: input.occurredAt },
-      })
-    }
-
     // Inside the transaction: a rolled-back save must not leave a promise to
     // continue a conversation that was never recorded.
     if (input.followUpAt) {
       await createFollowUp(tx, owner, entry, input.followUpAt, contactIds)
     }
 
+    await recomputeLastContact(tx, owner, contactIds)
     return { entry, createdEntities }
   })
 }
@@ -402,7 +389,7 @@ async function existingIds(
 }
 
 export async function updateEntry(owner: string, id: string, input: Partial<CreateEntryInput>) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     const doc = (input.bodyJson as ProseNode) ?? null
     const data: Record<string, unknown> = {}
 
@@ -490,36 +477,11 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
     // and people this very save just wrote rather than the ones it replaced.
     if (input.followUpAt !== undefined) await syncFollowUp(tx, owner, id, input.followUpAt ?? null)
 
-    // ── K14 ──────────────────────────────────────────────────────────────────
-    // `createEntry` has always advanced `lastContactAt` for the people an entry
-    // names. `updateEntry` accepted a new `occurredAt` AND a different contact
-    // set, wrote both, and never touched recency — so correcting an entry's
-    // date, or adding someone to a conversation already recorded, left those
-    // contacts reporting overdue on the check-in rail for ever.
-    //
-    // Both halves run inside this transaction: recency that disagrees with the
-    // entry it was derived from is the bug, so it must not be able to survive a
-    // rollback of the entry.
-    const resultingContacts = contactsAfter ?? contactsBefore
-    const occurredAt = (data.occurredAt as Date | undefined) ?? before.occurredAt
-
-    // Forward-only, and never for an entry that has not happened yet — the same
-    // rule and the same reasoning as createEntry.
-    if (resultingContacts.length > 0 && occurredAt <= new Date()) {
-      await tx.contact.updateMany({
-        where: {
-          owner,
-          id: { in: resultingContacts },
-          OR: [{ lastContactAt: null }, { lastContactAt: { lt: occurredAt } }],
-        },
-        data: { lastContactAt: occurredAt },
-      })
-    }
-
-    // Contacts this edit dropped: see recomputeLastContact for why these are
-    // rebuilt rather than left alone.
-    const removed = contactsBefore.filter((c: string) => !resultingContacts.includes(c))
-    if (removed.length) await recomputeLastContact(tx, owner, removed)
+    // Dates can move backwards or into the future. Rebuild the union after
+    // the entry/mentions change, rather than advancing a cached maximum.
+    await recomputeLastContact(tx, owner, [
+      ...new Set([...contactsBefore, ...(contactsAfter ?? contactsBefore)]),
+    ])
 
     return { entry, createdEntities }
   })
@@ -593,7 +555,7 @@ export async function getEntry(owner: string, id: string) {
  * would take them.
  */
 export async function deleteEntry(owner: string, id: string) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     await tx.entry.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     const contactIds = await contactsMentionedBy(tx, owner, id)
     const row = await tx.entry.update({
@@ -616,7 +578,7 @@ export async function deleteEntry(owner: string, id: string) {
  * event that changes its inputs, or it is not derived — it is just stale.
  */
 export async function restoreEntry(owner: string, id: string) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     await tx.entry.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     const row = await tx.entry.update({ where: { id }, data: { deletedAt: null } })
     await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, id))

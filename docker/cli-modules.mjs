@@ -29,6 +29,7 @@ if (!from || !to) {
 const entryPoints = [
   'prisma/seed.ts',
   'prisma/archive.ts',
+  'prisma/check-task-hierarchy.ts',
   'prisma/import-linkedin.ts',
   'prisma.config.ts',
 ]

@@ -203,6 +203,14 @@ test "$(sql "SELECT a.value FROM \"ContactAttribute\" a JOIN \"Contact\" c ON c.
   WHERE c.\"displayName\" = 'Otto Pemberly' AND a.key = 'Credentials'")" = PMP
 echo "both contacts are in, once each, with Otto's credentials split off"
 
+step "Read-only task hierarchy inventory"
+"${compose[@]}" run --rm -T --no-deps migrate npm run --silent tasks:check >"$STACK_RUNTIME/task-hierarchy.json"
+scripts/node.sh node -e '
+  const report = JSON.parse(process.argv[1])
+  if (report.cycles.length || report.tasks.length) throw new Error("Seed task hierarchy is cyclic")
+  console.log("Packaged hierarchy check: no cycles")
+' "$(cat "$STACK_RUNTIME/task-hierarchy.json")"
+
 step "Playwright: every page, on a desktop and on a phone"
 # Page-sweep logs stay strict: run the pages before the deliberate API refusals.
 "${compose[@]}" run --rm --no-deps browser npm run --silent test:e2e -- pages.spec.ts --project=desktop --project=phone
