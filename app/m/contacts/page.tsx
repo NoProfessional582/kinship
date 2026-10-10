@@ -50,7 +50,7 @@ export default function MobileContacts() {
       {(contacts?.length ?? 0) > 0 && (
         <MTile>
           <MList>
-            {contacts!.map((c: any) => (
+            {contacts!.map((c) => (
               <MRow
                 key={c.id}
                 href={m(`/contacts/${c.slug}`)}

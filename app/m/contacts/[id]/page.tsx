@@ -16,6 +16,7 @@ import {
   MessageSquare,
   ChevronDown,
   ChevronUp,
+  type LucideIcon,
 } from 'lucide-react'
 import { Avatar, Badge } from '@/components/ui/misc'
 import { Section, MEmpty, MList, MRow } from '@/components/mobile/bits'
@@ -27,8 +28,9 @@ import { CADENCE_LABEL, TIER_LABEL } from '@/lib/cadence'
 import { useTimezone } from '@/lib/hooks/settings'
 import { calendarDate, entryTitle, cn } from '@/lib/utils'
 import { m } from '@/lib/mobile/href'
+import type { ContactDossier } from '@/lib/api-types'
 
-const CHANNEL_ICON: Record<string, any> = {
+const CHANNEL_ICON: Record<string, LucideIcon> = {
   PHONE: Phone,
   EMAIL: Mail,
   SLACK: Hash,
@@ -68,7 +70,7 @@ export default function MobileDossier() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['contact', id],
-    queryFn: () => api.get<any>(`/api/contacts/${id}`),
+    queryFn: () => api.get<ContactDossier>(`/api/contacts/${id}`),
   })
   const c = data?.contact
 
@@ -138,7 +140,7 @@ export default function MobileDossier() {
             rather than being text to copy. */}
         {(c.channels?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {c.channels.map((ch: any) => {
+            {c.channels.map((ch) => {
               const Icon = CHANNEL_ICON[ch.type] ?? MessageSquare
               const href = CHANNEL_HREF(ch.type, ch.value)
               const inner = (
@@ -185,9 +187,9 @@ export default function MobileDossier() {
                 </div>
               ))}
               {(c.attributes?.length ?? 0) > 0 &&
-                c.attributes.map((a: any) => (
+                c.attributes.map((a) => (
                   <div key={a.id} className="flex gap-3 text-[13px]">
-                    <dt className="w-28 shrink-0 text-[var(--muted-foreground)]">{a.label}</dt>
+                    <dt className="w-28 shrink-0 text-[var(--muted-foreground)]">{a.key}</dt>
                     <dd className="min-w-0 flex-1 break-words">{a.value}</dd>
                   </div>
                 ))}
@@ -200,7 +202,7 @@ export default function MobileDossier() {
       {(data.upcoming?.length ?? 0) > 0 && (
         <Section title="Planned">
           <MList>
-            {data.upcoming.map((e: any) => {
+            {data.upcoming.map((e) => {
               const Icon = KIND_ICON[e.kind] ?? KIND_ICON.NOTE
               return (
                 <MRow
@@ -219,7 +221,7 @@ export default function MobileDossier() {
       {(data.tasks?.length ?? 0) > 0 && (
         <Section title="Tasks">
           <MList>
-            {data.tasks.map((t: any) => (
+            {data.tasks.map((t) => (
               <MRow
                 key={t.id}
                 onClick={() => setOpenTask(t.id)}
@@ -238,7 +240,7 @@ export default function MobileDossier() {
       {(data.projects?.length ?? 0) > 0 && (
         <Section title="Projects">
           <MList>
-            {data.projects.map((p: any) => (
+            {data.projects.map((p) => (
               <MRow key={p.id} href={m(`/projects/${p.slug}`)} title={p.name} chevron />
             ))}
           </MList>
@@ -250,7 +252,7 @@ export default function MobileDossier() {
           <MEmpty>Nothing recorded with {c.displayName} yet.</MEmpty>
         ) : (
           <MList>
-            {data.entries.map((e: any) => {
+            {data.entries.map((e) => {
               const Icon = KIND_ICON[e.kind] ?? KIND_ICON.NOTE
               return (
                 <MRow

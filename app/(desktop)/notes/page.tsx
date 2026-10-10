@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/misc'
 import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/hooks/api'
+import type { EntryListItem } from '@/lib/api-types'
 
 export default function NotesPage() {
   const [kind, setKind] = React.useState('')
@@ -18,7 +19,7 @@ export default function NotesPage() {
   // until the day it arrives. It gets its own group at the top instead.
   const query = (extra: string) => {
     const params = [kind && `kind=${kind}`, extra].filter(Boolean).join('&')
-    return api.get<any[]>(`/api/entries${params ? `?${params}` : ''}`)
+    return api.get<EntryListItem[]>(`/api/entries${params ? `?${params}` : ''}`)
   }
 
   const { data: upcoming } = useQuery({

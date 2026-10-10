@@ -10,6 +10,7 @@ import { MobileTaskSheet } from '@/components/mobile/task-sheet'
 import { NewTaskDialog } from '@/components/board/new-task-dialog'
 import { api, useBoard } from '@/lib/hooks/api'
 import { m } from '@/lib/mobile/href'
+import type { ProjectDetail } from '@/lib/api-types'
 
 export default function MobileProject() {
   const { id } = useParams<{ id: string }>()
@@ -19,7 +20,7 @@ export default function MobileProject() {
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', id],
-    queryFn: () => api.get<any>(`/api/projects/${id}`),
+    queryFn: () => api.get<ProjectDetail>(`/api/projects/${id}`),
   })
 
   // The board is scoped by the project's real id, which the slug resolves to.

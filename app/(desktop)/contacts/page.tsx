@@ -23,6 +23,7 @@ import {
 } from '@/components/entity-modal/contact-form'
 import { api, useContacts } from '@/lib/hooks/api'
 import { formatDistanceToNowStrict } from 'date-fns'
+import type { ContactDossier, ContactSummary } from '@/lib/api-types'
 
 export default function ContactsPage() {
   const [q, setQ] = React.useState('')
@@ -46,10 +47,10 @@ export default function ContactsPage() {
    * links. Seeding the editor from one and saving it would send empty arrays
    * for all of them and delete the rows, so the full record is fetched first.
    */
-  const openEditor = async (c: any) => {
+  const openEditor = async (c: ContactSummary) => {
     setOpening(c.id)
     try {
-      const data = await api.get<any>(`/api/contacts/${c.id}`)
+      const data = await api.get<ContactDossier>(`/api/contacts/${c.id}`)
       if (!data?.contact) throw new Error('Contact not found')
       setForm(contactFromRecord(data.contact))
       setEditing({ id: c.id, name: data.contact.displayName })
@@ -126,7 +127,7 @@ export default function ContactsPage() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 3xl:grid-cols-4">
-        {(contacts ?? []).map((c: any) => (
+        {(contacts ?? []).map((c) => (
           <Card
             key={c.id}
             className="relative h-full p-3.5 transition-colors hover:bg-[var(--muted)]"

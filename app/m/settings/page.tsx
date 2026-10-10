@@ -70,7 +70,9 @@ export default function MobileSettings() {
             <Label>Week starts on</Label>
             <Select
               value={v.calendarWeekStart}
-              onChange={(e) => set({ calendarWeekStart: e.target.value as any })}
+              onChange={(e) =>
+                set({ calendarWeekStart: e.target.value === 'sunday' ? 'sunday' : 'monday' })
+              }
             >
               <option value="sunday">Sunday</option>
               <option value="monday">Monday</option>
@@ -117,7 +119,9 @@ export default function MobileSettings() {
                 <Label>Units</Label>
                 <Select
                   value={v.weatherUnit}
-                  onChange={(e) => set({ weatherUnit: e.target.value as any })}
+                  onChange={(e) =>
+                    set({ weatherUnit: e.target.value === 'celsius' ? 'celsius' : 'fahrenheit' })
+                  }
                 >
                   <option value="fahrenheit">Fahrenheit</option>
                   <option value="celsius">Celsius</option>

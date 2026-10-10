@@ -34,6 +34,7 @@ import {
   Home,
   CalendarClock,
   ArrowRight,
+  type LucideIcon,
 } from 'lucide-react'
 import { differenceInCalendarDays, format, formatDistanceToNowStrict, isBefore } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -62,8 +63,11 @@ import { relationLabel } from '@/lib/relations'
 import { useTimezone, useZonedToday } from '@/lib/hooks/settings'
 import { nextAnniversary } from '@/lib/format'
 import { calendarDate, cn } from '@/lib/utils'
+import type { ContactDossier, Edge, ProjectSummary } from '@/lib/api-types'
 
-const CHANNEL_ICON: Record<string, any> = {
+type Dossier = NonNullable<ContactDossier>
+
+const CHANNEL_ICON: Record<string, LucideIcon> = {
   PHONE: Phone,
   EMAIL: Mail,
   SLACK: Hash,
@@ -91,12 +95,12 @@ export default function ContactPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['contact', id],
-    queryFn: () => api.get<any>(`/api/contacts/${id}`),
+    queryFn: () => api.get<ContactDossier>(`/api/contacts/${id}`),
   })
   const contact = data?.contact
 
   const save = async () => {
-    if (!form) return
+    if (!form || !contact) return
     setSaving(true)
     try {
       // One call: the payload carries the attribute rows now, so this no longer
@@ -113,6 +117,7 @@ export default function ContactPage() {
   }
 
   const remove = async () => {
+    if (!contact) return
     try {
       await api.del(`/api/contacts/${contact.id}`)
       qc.invalidateQueries()
@@ -142,8 +147,8 @@ export default function ContactPage() {
   }
 
   const positions = contact.positions ?? []
-  const current = positions.find((p: any) => p.isCurrent)
-  const preferred = (contact.channels ?? []).find((c: any) => c.isPreferred)
+  const current = positions.find((p) => p.isCurrent)
+  const preferred = (contact.channels ?? []).find((c) => c.isPreferred)
   const facts = [
     ['Location', contact.location],
     ['Birthday', contact.birthday ? format(calendarDate(contact.birthday)!, 'MMMM d, yyyy') : null],
@@ -270,7 +275,7 @@ export default function ContactPage() {
           <Block title="Channels" icon={MessagesSquare} hue="var(--hue-2)">
             {(contact.channels ?? []).length === 0 && <Muted>No channels recorded.</Muted>}
             <ul className="flex flex-col gap-2.5">
-              {(contact.channels ?? []).map((ch: any) => {
+              {(contact.channels ?? []).map((ch) => {
                 const Icon = CHANNEL_ICON[ch.type] ?? MessageSquare
                 const href = CHANNEL_HREF(ch.type, ch.value)
                 return (
@@ -342,7 +347,7 @@ export default function ContactPage() {
           {(contact.links ?? []).length > 0 && (
             <Block title="Key links" icon={Link2} hue="var(--hue-1)">
               <ul className="flex flex-col gap-1.5">
-                {contact.links.map((l: any) => (
+                {contact.links.map((l) => (
                   <li key={l.id}>
                     <a
                       href={l.url}
@@ -402,8 +407,8 @@ export default function ContactPage() {
           {positions.length > 0 && (
             <Block title="Career" icon={Briefcase} hue="var(--hue-1)">
               <ol className="flex flex-col gap-4">
-                {[...(current ? [current] : []), ...positions.filter((p: any) => !p.isCurrent)].map(
-                  (p: any) => (
+                {[...(current ? [current] : []), ...positions.filter((p) => !p.isCurrent)].map(
+                  (p) => (
                     <li key={p.id} className="relative pl-5">
                       <span
                         className="absolute left-0 top-1.5 h-2 w-2 rounded-full"
@@ -440,17 +445,20 @@ export default function ContactPage() {
             <Block title="Other details" icon={Layers} hue="var(--hue-2)">
               <div className="flex flex-col gap-4">
                 {Object.entries(
-                  (contact.attributes as any[]).reduce((acc: Record<string, any[]>, a: any) => {
-                    ;(acc[a.category] ??= []).push(a)
-                    return acc
-                  }, {}),
+                  contact.attributes.reduce<Record<string, Dossier['contact']['attributes']>>(
+                    (acc, a) => {
+                      ;(acc[a.category] ??= []).push(a)
+                      return acc
+                    },
+                    {},
+                  ),
                 ).map(([category, rows]) => (
                   <div key={category}>
                     <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
                       {category}
                     </p>
                     <dl className="flex flex-col gap-1.5">
-                      {(rows as any[]).map((a) => (
+                      {rows.map((a) => (
                         <div key={a.id} className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
                           <dt className="shrink-0 text-sm text-[var(--muted-foreground)] sm:w-40">
                             {a.key}
@@ -468,7 +476,7 @@ export default function ContactPage() {
           {(contact.milestones ?? []).length > 0 && (
             <Block title="Milestones" icon={Flag} hue="var(--hue-4)">
               <ul className="flex flex-col gap-2.5">
-                {contact.milestones.map((m: any) => (
+                {contact.milestones.map((m) => (
                   <li key={m.id}>
                     <div className="flex flex-wrap items-baseline gap-2">
                       <span className="break-words text-sm font-medium">{m.title}</span>
@@ -490,7 +498,7 @@ export default function ContactPage() {
           {data.tasks.length > 0 && (
             <Block title={`Tasks (${data.tasks.length})`} icon={SquareCheck} hue="var(--hue-3)">
               <div className="flex flex-col gap-1.5">
-                {data.tasks.map((t: any) => (
+                {data.tasks.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setOpenTask(t.id)}
@@ -524,7 +532,7 @@ export default function ContactPage() {
           {data.projects.length > 0 && (
             <Block title="Projects" icon={FolderKanban} hue="var(--hue-5)">
               <div className="flex flex-wrap gap-2">
-                {data.projects.map((p: any) => (
+                {data.projects.map((p) => (
                   <Link
                     key={p.id}
                     href={`/projects/${p.slug}`}
@@ -553,7 +561,7 @@ export default function ContactPage() {
                   hint={`Write a note tagging @${contact.displayName} to start the history.`}
                 />
               )}
-              {data.entries.map((e: any) => (
+              {data.entries.map((e) => (
                 <EntryCard key={e.id} entry={e} compact />
               ))}
             </div>
@@ -583,8 +591,8 @@ export default function ContactPage() {
   )
 }
 
-function dateRange(start?: string, end?: string, isCurrent?: boolean) {
-  const f = (d?: string) => {
+function dateRange(start: string | null, end: string | null, isCurrent: boolean) {
+  const f = (d: string | null) => {
     const c = calendarDate(d)
     return c ? format(c, 'MMM yyyy') : null
   }
@@ -601,7 +609,7 @@ function Block({
   children,
 }: {
   title: string
-  icon: any
+  icon: LucideIcon
   hue: string
   children: React.ReactNode
 }) {
@@ -646,7 +654,7 @@ function Origin({
   empty,
   onAdd,
 }: {
-  icon: any
+  icon: LucideIcon
   hue: string
   eyebrow: string
   title: string
@@ -708,9 +716,9 @@ function UpcomingBlock({
   entries,
   tasks,
 }: {
-  contact: any
-  entries: any[]
-  tasks: any[]
+  contact: Dossier['contact']
+  entries: Dossier['upcoming']
+  tasks: Dossier['tasks']
 }) {
   const { fmt } = useTimezone()
   // Instants compare against the instant; calendar dates compare against the
@@ -876,11 +884,11 @@ function EdgesBlock({ contactId }: { contactId: string }) {
   const { data: everyone } = useContacts()
   const { data: projects } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get<any[]>('/api/projects'),
+    queryFn: () => api.get<ProjectSummary[]>('/api/projects'),
   })
   const { data: edges } = useQuery({
     queryKey: ['edges', contactId],
-    queryFn: () => api.get<any[]>(`/api/edges?type=contact&id=${contactId}`),
+    queryFn: () => api.get<Edge[]>(`/api/edges?type=contact&id=${contactId}`),
   })
 
   const [adding, setAdding] = React.useState(false)
@@ -891,9 +899,9 @@ function EdgesBlock({ contactId }: { contactId: string }) {
   const options =
     targetType === 'contact'
       ? (everyone ?? [])
-          .filter((c: any) => c.id !== contactId)
-          .map((c: any) => ({ id: c.id, label: c.displayName }))
-      : (projects ?? []).map((p: any) => ({ id: p.id, label: p.name }))
+          .filter((c) => c.id !== contactId)
+          .map((c) => ({ id: c.id, label: c.displayName }))
+      : (projects ?? []).map((p) => ({ id: p.id, label: p.name }))
 
   const add = async () => {
     if (!targetId || !relation.trim()) {
@@ -955,7 +963,7 @@ function EdgesBlock({ contactId }: { contactId: string }) {
             <Select
               value={targetType}
               onChange={(e) => {
-                setTargetType(e.target.value as any)
+                setTargetType(e.target.value === 'project' ? 'project' : 'contact')
                 setTargetId('')
               }}
               className="h-8 text-xs"
@@ -969,7 +977,7 @@ function EdgesBlock({ contactId }: { contactId: string }) {
               className="h-8 text-xs"
             >
               <option value="">Choose…</option>
-              {options.map((o: any) => (
+              {options.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.label}
                 </option>
@@ -989,7 +997,7 @@ function EdgesBlock({ contactId }: { contactId: string }) {
         {(edges ?? []).length === 0 && !adding && (
           <Muted>None yet. Link this person to someone else, or to a project.</Muted>
         )}
-        {(edges ?? []).map((e: any) => (
+        {(edges ?? []).map((e) => (
           <div key={e.id} className="group flex items-center gap-2 text-sm">
             {e.otherType === 'contact' ? (
               <Avatar src={e.avatarUrl} name={e.label} size={22} />

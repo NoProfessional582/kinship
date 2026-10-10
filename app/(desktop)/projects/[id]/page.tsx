@@ -9,6 +9,7 @@ import { Board } from '@/components/board/board'
 import { TaskDialog } from '@/components/shared/task-dialog'
 import { NewTaskDialog } from '@/components/board/new-task-dialog'
 import { api, useBoard } from '@/lib/hooks/api'
+import type { ProjectDetail } from '@/lib/api-types'
 
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>()
@@ -18,7 +19,7 @@ export default function ProjectPage() {
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', id],
-    queryFn: () => api.get<any>(`/api/projects/${id}`),
+    queryFn: () => api.get<ProjectDetail>(`/api/projects/${id}`),
   })
 
   // The board is scoped by the project's real id, which the slug resolves to.

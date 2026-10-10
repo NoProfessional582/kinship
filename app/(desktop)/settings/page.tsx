@@ -17,6 +17,7 @@ import {
   Download,
   Upload,
   AlertTriangle,
+  type LucideIcon,
 } from 'lucide-react'
 import { Card } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
@@ -24,11 +25,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { api } from '@/lib/hooks/api'
-import { useSaveSettings, useSettings } from '@/lib/hooks/settings'
+import { useSaveSettings, useSettings, type Settings } from '@/lib/hooks/settings'
 import { allTimezones, browserTimezone, formatInstant, zoneOffsetLabel } from '@/lib/format'
 import { CADENCE_LABEL } from '@/lib/cadence'
 import { SCHEMA_MISMATCH, type ImportSummary } from '@/lib/archive-format'
 import { cn } from '@/lib/utils'
+import type { BoardColumn } from '@/lib/api-types'
+
+type Commit = (patch: Partial<Settings>, message: string) => Promise<void>
+type PanelProps = { settings: Settings; commit: Commit }
 
 const COLUMN_COLORS = ['#bd5b3f', '#ba8a42', '#697760', '#4a6572', '#8c5a4a', '#7a6a86', '#74746c']
 const STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'ARCHIVED']
@@ -37,7 +42,7 @@ export default function SettingsPage() {
   const settings = useSettings()
   const save = useSaveSettings()
 
-  const commit = async (patch: any, message: string) => {
+  const commit: Commit = async (patch, message) => {
     try {
       await save.mutateAsync(patch)
       toast.success(message)
@@ -81,7 +86,7 @@ function Panel({
   hue = 'var(--hue-1)',
   children,
 }: {
-  icon: any
+  icon: LucideIcon
   title: string
   hint?: string
   hue?: string
@@ -106,7 +111,7 @@ function Panel({
   )
 }
 
-function IdentityPanel({ settings, commit }: any) {
+function IdentityPanel({ settings, commit }: PanelProps) {
   const [v, setV] = React.useState(() => ({
     userName: settings.userName,
     appTitle: settings.appTitle,
@@ -140,7 +145,7 @@ function IdentityPanel({ settings, commit }: any) {
   )
 }
 
-function DisplayPanel({ settings, commit }: any) {
+function DisplayPanel({ settings, commit }: PanelProps) {
   const scales = [
     { v: 0.9, label: 'Compact' },
     { v: 1, label: 'Default' },
@@ -178,7 +183,12 @@ function DisplayPanel({ settings, commit }: any) {
           <Label>Week starts on</Label>
           <Select
             value={settings.calendarWeekStart}
-            onChange={(e) => commit({ calendarWeekStart: e.target.value }, 'Week start saved')}
+            onChange={(e) =>
+              commit(
+                { calendarWeekStart: e.target.value === 'sunday' ? 'sunday' : 'monday' },
+                'Week start saved',
+              )
+            }
           >
             <option value="monday">Monday</option>
             <option value="sunday">Sunday</option>
@@ -202,7 +212,7 @@ function DisplayPanel({ settings, commit }: any) {
   )
 }
 
-function TimezonePanel({ settings, commit }: any) {
+function TimezonePanel({ settings, commit }: PanelProps) {
   const [filter, setFilter] = React.useState('')
   const ready = useBrowserReady()
   const detected = React.useSyncExternalStore(subscribeBrowser, browserTimezone, () => 'UTC')
@@ -276,7 +286,7 @@ function TimezonePanel({ settings, commit }: any) {
   )
 }
 
-function WeatherPanel({ settings, commit }: any) {
+function WeatherPanel({ settings, commit }: PanelProps) {
   const [location, setLocation] = React.useState(settings.weatherLocation)
 
   return (
@@ -313,7 +323,12 @@ function WeatherPanel({ settings, commit }: any) {
             <Label>Units</Label>
             <Select
               value={settings.weatherUnit}
-              onChange={(e) => commit({ weatherUnit: e.target.value }, 'Units saved')}
+              onChange={(e) =>
+                commit(
+                  { weatherUnit: e.target.value === 'celsius' ? 'celsius' : 'fahrenheit' },
+                  'Units saved',
+                )
+              }
             >
               <option value="fahrenheit">°F</option>
               <option value="celsius">°C</option>
@@ -337,7 +352,7 @@ function ColumnsPanel() {
   const qc = useQueryClient()
   const { data: columns } = useQuery({
     queryKey: ['columns'],
-    queryFn: () => api.get<any[]>('/api/columns'),
+    queryFn: () => api.get<BoardColumn[]>('/api/columns'),
   })
   const [adding, setAdding] = React.useState(false)
   const [draft, setDraft] = React.useState({ name: '', color: COLUMN_COLORS[0], status: 'TODO' })
@@ -360,7 +375,7 @@ function ColumnsPanel() {
     }
   }
 
-  const patch = async (id: string, body: any) => {
+  const patch = async (id: string, body: { name?: string; color?: string; status?: string }) => {
     try {
       await api.patch(`/api/columns/${id}`, body)
       refresh()
@@ -401,7 +416,7 @@ function ColumnsPanel() {
       hint="The column a card sits in is what sets its status, so these are your workflow states."
     >
       <div className="flex flex-col gap-2">
-        {(columns ?? []).map((c: any, i: number) => (
+        {(columns ?? []).map((c, i) => (
           <div
             key={c.id}
             className="flex flex-wrap items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] p-2"

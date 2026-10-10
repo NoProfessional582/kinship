@@ -16,6 +16,7 @@ import { api } from '@/lib/hooks/api'
 import { useSettings, useTimezone, useWeather, weatherLabel } from '@/lib/hooks/settings'
 import { calendarDate, entryTitle } from '@/lib/utils'
 import { m } from '@/lib/mobile/href'
+import type { EntryListItem } from '@/lib/api-types'
 
 /**
  * Today, then capture, then what happened recently.
@@ -38,7 +39,7 @@ export default function MobileToday() {
 
   const { data: entries } = useQuery({
     queryKey: ['entries', 'recent'],
-    queryFn: () => api.get<any[]>('/api/entries?take=6&past=1'),
+    queryFn: () => api.get<EntryListItem[]>('/api/entries?take=6&past=1'),
   })
 
   const greeting = React.useMemo(() => {

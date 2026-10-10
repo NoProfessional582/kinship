@@ -14,6 +14,7 @@ import { relationLabel } from '@/lib/relations'
 import { useTimezone } from '@/lib/hooks/settings'
 import { entryTitle } from '@/lib/utils'
 import { m } from '@/lib/mobile/href'
+import type { Edge, EntryDetail } from '@/lib/api-types'
 
 /** One entry, read first and edited from a sheet. */
 export default function MobileEntry() {
@@ -25,14 +26,14 @@ export default function MobileEntry() {
 
   const { data: entry, isLoading } = useQuery({
     queryKey: ['entry', id],
-    queryFn: () => api.get<any>(`/api/entries/${id}`),
+    queryFn: () => api.get<EntryDetail>(`/api/entries/${id}`),
   })
 
   // Edges are a free-standing table, so they arrive on their own rather than
   // inside the entry. This is where a follow-up chain becomes readable.
   const { data: edges } = useQuery({
     queryKey: ['edges', 'entry', id],
-    queryFn: () => api.get<any[]>(`/api/edges?type=entry&id=${id}`),
+    queryFn: () => api.get<Edge[]>(`/api/edges?type=entry&id=${id}`),
   })
 
   const remove = async () => {
@@ -108,7 +109,7 @@ export default function MobileEntry() {
         {(entry.mentions?.length ?? 0) > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {entry.mentions.map(
-              (x: any) =>
+              (x) =>
                 x.contact && (
                   <Link
                     key={x.contact.id}
@@ -130,7 +131,7 @@ export default function MobileEntry() {
       {(edges?.length ?? 0) > 0 && (
         <Section title="Linked">
           <MList>
-            {edges!.map((e: any) => (
+            {edges!.map((e) => (
               /* The service builds desktop hrefs (/notes/x, /contacts/y);
                  m() keeps the tap inside the mobile tree. */
               <MRow

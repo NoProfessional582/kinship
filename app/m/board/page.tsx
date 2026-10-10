@@ -27,7 +27,7 @@ export default function MobileBoardPage() {
           aria-label="Filter by project"
         >
           <option value="">All projects</option>
-          {(projects ?? []).map((p: any) => (
+          {(projects ?? []).map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>

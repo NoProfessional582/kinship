@@ -38,7 +38,7 @@ export default function ProjectsPage() {
   const qc = useQueryClient()
 
   const list = projects ?? []
-  const totalTasks = list.reduce((n: number, p: any) => n + (p.taskTotal ?? 0), 0)
+  const totalTasks = list.reduce((n, p) => n + (p.taskTotal ?? 0), 0)
 
   const submit = async () => {
     if (!form.name.trim()) {
@@ -97,7 +97,7 @@ export default function ProjectsPage() {
       )}
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
-        {list.map((p: any) => {
+        {list.map((p) => {
           const color = p.color ?? 'var(--primary)'
           const total = p.taskTotal ?? 0
           const pct = total ? Math.round(((p.doneCount ?? 0) / total) * 100) : 0
@@ -177,7 +177,7 @@ export default function ProjectsPage() {
                   {(p.people ?? []).length > 0 ? 'Linked people' : 'No one assigned yet'}
                 </span>
                 <div className="flex -space-x-2">
-                  {(p.people ?? []).slice(0, 5).map((c: any) => (
+                  {(p.people ?? []).slice(0, 5).map((c) => (
                     <Avatar
                       key={c.id}
                       src={c.avatarUrl}

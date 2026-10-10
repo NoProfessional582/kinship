@@ -10,6 +10,7 @@ import { api } from '@/lib/hooks/api'
 import { useTimezone } from '@/lib/hooks/settings'
 import { entryTitle, cn } from '@/lib/utils'
 import { m } from '@/lib/mobile/href'
+import type { EntryListItem } from '@/lib/api-types'
 
 /**
  * The feed. Same two-list split as the desktop page — a conversation you have
@@ -24,7 +25,7 @@ export default function MobileNotes() {
 
   const query = (extra: string) => {
     const params = [kind && `kind=${kind}`, extra].filter(Boolean).join('&')
-    return api.get<any[]>(`/api/entries${params ? `?${params}` : ''}`)
+    return api.get<EntryListItem[]>(`/api/entries${params ? `?${params}` : ''}`)
   }
 
   const { data: upcoming } = useQuery({
@@ -36,7 +37,7 @@ export default function MobileNotes() {
     queryFn: () => query('past=1'),
   })
 
-  const row = (e: any) => {
+  const row = (e: EntryListItem) => {
     const Icon = KIND_ICON[e.kind] ?? KIND_ICON.NOTE
     return (
       <MRow
@@ -45,12 +46,7 @@ export default function MobileNotes() {
         lead={<Icon className="h-4 w-4" style={{ color: KIND_COLOR[e.kind] }} />}
         title={entryTitle(e)}
         sub={
-          e.mentions?.length
-            ? e.mentions
-                .map((x: any) => x.contact?.displayName)
-                .filter(Boolean)
-                .join(', ')
-            : undefined
+          e.mentions?.length ? e.mentions.map((x) => x.contact.displayName).join(', ') : undefined
         }
         meta={fmt(e.occurredAt, 'MMM d')}
       />

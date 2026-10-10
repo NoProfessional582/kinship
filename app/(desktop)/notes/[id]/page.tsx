@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/misc'
 import { api } from '@/lib/hooks/api'
 import { relationLabel } from '@/lib/relations'
+import type { Edge, EntryDetail } from '@/lib/api-types'
 
 export default function EntryPage() {
   const { id } = useParams<{ id: string }>()
@@ -18,7 +19,7 @@ export default function EntryPage() {
 
   const { data: entry, isLoading } = useQuery({
     queryKey: ['entry', id],
-    queryFn: () => api.get<any>(`/api/entries/${id}`),
+    queryFn: () => api.get<EntryDetail>(`/api/entries/${id}`),
   })
 
   // Edges are a free-standing table, so they arrive on their own rather than
@@ -26,7 +27,7 @@ export default function EntryPage() {
   // the card carries one hop in each direction, the panel carries every link.
   const { data: edges } = useQuery({
     queryKey: ['edges', 'entry', id],
-    queryFn: () => api.get<any[]>(`/api/edges?type=entry&id=${id}`),
+    queryFn: () => api.get<Edge[]>(`/api/edges?type=entry&id=${id}`),
   })
 
   const remove = async () => {
