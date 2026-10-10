@@ -8,14 +8,6 @@ All notable changes to Kinship are recorded here. The format follows
 
 ### Added
 
-- Browser flow tests on desktop and phone for contacts and avatars, tagged notes with
-  mentions, projects, board moves, calendar events, settings, search and trash. A CDP
-  CPU guard checks the board stays idle after closing New task.
-- Archive download/restore tests and a fictional legacy `kb-archive` v1 fixture, with a
-  command-line dry run that checks the database stays unchanged before import.
-- Strict per-service test log checks with exact allowances for intentional API and
-  database refusals; startup and page-sweep logs still allow no errors.
-
 - Kinship as a standalone app: one `compose.yaml` runs its own PostgreSQL 18
   database, a one-shot migration job and the web app, and keeps everything in
   `./data`.
@@ -34,10 +26,19 @@ All notable changes to Kinship are recorded here. The format follows
   builds the image and runs the app in a throwaway test stack with its own
   database, no published port and no way out, then checks health and logs and
   runs the database tests, the command-line jobs (seed, export, import, LinkedIn
-  import) and the Playwright tests. It removes everything it made, pass or fail.
+  import) and the Playwright tests. Its log checks allow no errors at start-up or
+  while the pages load, and afterwards only the exact refusals the tests ask for.
+  `upgrade` (`scripts/test-upgrade.sh`): the previous version makes a database
+  and uploads a photo, then this version migrates and runs on it; every table
+  must keep its rows, the photo its bytes, and every page must load. Each part
+  removes everything it made, pass or fail. The README's "Checks" explains them.
 - Playwright tests (`npm run test:e2e`, run inside the test stack): every page
   loads with no errors, the eleven desktop pages in Desktop Chrome and the same
-  eleven under `/m` on a Pixel 7.
+  eleven under `/m` on a Pixel 7. API tests for every route, `/uploads` and
+  `/icons`. Browser flows on a desktop and a phone: contacts and photos, notes
+  with mentions, projects, board moves, calendar events, settings, search, trash,
+  and archive download and restore, including a made-up archive in the old app's
+  format. A guard checks the board stays idle after New task closes.
 - `scripts/node.sh` runs npm in the Dockerfile's Node image, so the checks need
   no Node on the host.
 - Prettier and ESLint (`npm run format`, `format:check`, `lint`). The whole
@@ -48,8 +49,15 @@ All notable changes to Kinship are recorded here. The format follows
 
 ### Changed
 
-- `npm run lint` runs ESLint 9 with Next.js's rules, since Next.js 16 no longer
-  has `next lint`.
+- `npm run lint` runs ESLint 9 with Next.js's React, hooks, accessibility, import
+  and TypeScript rules, since Next.js 16 no longer has `next lint`. For now it
+  runs without Next.js's own plugin (see Security), and `eslint.config.mjs` sets
+  the same rules up directly.
+- The three fonts are bundled with the app through `next/font` instead of loaded
+  from Google Fonts in the browser.
+- Components no longer copy props into state from effects, or read refs while
+  rendering, as React's hooks rules ask; the code is typed throughout, with no
+  `any`. What the app does is unchanged.
 - `@types/node` 24, to match Node 24.
 - The single-user gate is `proxy.ts`, Next.js 16's new name for
   `middleware.ts`, and now runs in the Node.js runtime.
@@ -65,6 +73,8 @@ All notable changes to Kinship are recorded here. The format follows
   only at run time, made the build copy the whole project into it.
 - Board cards, subtasks and columns that share a position always come back in
   the same order (by id), instead of whichever order the database chose.
+- On a phone, the projects list shows each project's done and total task counts
+  again, and a contact's "other details" show their labels.
 
 ### Security
 
@@ -77,3 +87,6 @@ All notable changes to Kinship are recorded here. The format follows
 - npm `overrides` force mysql2 3.24.5 and deepmerge-ts 8.0.2 under the Prisma
   7 command-line tool, which pins older versions with high advisories. They go
   when Kinship moves to Prisma 8.
+- The lint tools no longer include `eslint-config-next`: its Next.js plugin
+  brings in braces, which has a high advisory (GHSA-vfj7-8cjw-p6xm) and no fixed
+  release yet. It comes back once braces is fixed.
