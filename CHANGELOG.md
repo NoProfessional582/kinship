@@ -76,6 +76,13 @@ All notable changes to Kinship are recorded here. The format follows
   the same order (by id), instead of whichever order the database chose.
 - On a phone, the projects list shows each project's done and total task counts
   again, and a contact's "other details" show their labels.
+- Reading a contact, note, project or task that doesn't exist answers 404
+  instead of `200 null`; moving an unknown project on the calendar answers 404,
+  and listing relationships for an unknown type answers 400, instead of a 500.
+  The contact, note and project pages and the task view say "not found", with a
+  way back, on a desktop and on a phone, where the note and contact pages used
+  to keep loading forever. A refused request is no longer retried.
+- Moving an unknown task on the calendar is refused before anything is written.
 
 ### Security
 

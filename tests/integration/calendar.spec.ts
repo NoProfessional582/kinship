@@ -158,7 +158,7 @@ test.describe('refusals', () => {
     )
   })
 
-  test('an unknown task or entry is not found', async ({ request }) => {
+  test('an unknown task, entry or project is not found', async ({ request }) => {
     const start = '2031-03-01'
     await refused(
       await reschedule(request, { source: 'task', entityId: 'no-such-task', start }),
@@ -170,18 +170,10 @@ test.describe('refusals', () => {
       404,
       'Not found',
     )
-  })
-
-  // ⚠️ Not a 404: an unknown project fails as a server error (master.md, open question 13).
-  test('an unknown project fails as a server error', async ({ request }) => {
     await refused(
-      await reschedule(request, {
-        source: 'project',
-        entityId: 'no-such-project',
-        start: '2031-03-01',
-      }),
-      500,
-      'Project not found',
+      await reschedule(request, { source: 'project', entityId: 'no-such-project', start }),
+      404,
+      'Not found',
     )
   })
 })
