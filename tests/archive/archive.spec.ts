@@ -32,6 +32,9 @@ test('download and restore an archive without changing its records', async ({ pa
   })
   await expect(page.getByRole('button', { name: 'Replace everything', exact: true })).toBeDisabled()
   await page.getByPlaceholder('replace', { exact: true }).fill('replace')
+  const reloaded = page.waitForEvent('framenavigated', {
+    predicate: (frame) => frame === page.mainFrame(),
+  })
   const importing = page.waitForResponse((r) => r.url().includes('/api/import?confirm=replace'))
   await page.getByRole('button', { name: 'Replace everything', exact: true }).click()
   expect((await importing).status()).toBe(200)
@@ -55,6 +58,8 @@ test('download and restore an archive without changing its records', async ({ pa
   )
   expect(new Set(after.uploads.map((u) => u.name)).size).toBe(after.uploads.length)
   await expect(page.getByText(/Restored \d+ rows/)).toBeVisible()
+  await reloaded
+  await page.waitForLoadState('networkidle')
 })
 
 test('the legacy kb-archive v1 seed imports through settings with an explicit schema override', async ({
@@ -97,4 +102,6 @@ test('the legacy kb-archive v1 seed imports through settings with an explicit sc
   // Import stages archive assets; it preserves unrelated existing files.
   expect(after.uploads).toEqual(before.uploads)
   await expect(page.getByText(/Restored 58 rows/)).toBeVisible()
+  await reloaded
+  await page.waitForLoadState('networkidle')
 })

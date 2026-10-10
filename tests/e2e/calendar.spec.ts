@@ -65,6 +65,7 @@ for (const phone of [false, true]) {
       await page.goto(phone ? '/m/calendar' : '/calendar')
       if (phone) await page.getByRole('button', { name: 'month', exact: true }).click()
       await expect(page.getByText(task.title, { exact: true }).first()).toBeVisible()
+      await page.waitForLoadState('networkidle')
     },
   )
 }
