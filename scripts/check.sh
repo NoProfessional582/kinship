@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 
 PARTS=(quick privacy stack upgrade)
 declare -A ABOUT=(
-  [quick]="format, lint, types, unit tests, dependency audit, compose ports"
+  [quick]="versions, format, lint, types, unit tests, dependency audit, compose ports"
   [privacy]="secret scans and the personal-data sweep, on the files and this branch's commits"
   [stack]="image build, then a throwaway test stack: health, logs, database tests, CLI jobs, Playwright"
   [upgrade]="the previous version's database, upgraded to this one with its data kept"
@@ -44,6 +44,25 @@ part_quick() {
     return 1
   fi
   echo "$image_dockerfile"
+
+  step "Version: package.json, its lockfile, compose.yaml, the Dockerfile and CHANGELOG.md agree"
+  # Each line: where, then the version found there. compose.yaml names the image twice
+  # (once per service, through a YAML anchor), which is one line here.
+  local version places
+  version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' package.json)
+  places=$(
+    sed -n '1,12s/^ *"version": "\(.*\)",$/package-lock.json \1/p' package-lock.json
+    sed -n 's|.*ghcr\.io/noprofessional582/kinship:\([^ ]*\)$|compose.yaml \1|p' compose.yaml
+    sed -n 's/.*org\.opencontainers\.image\.version="\(.*\)".*/Dockerfile \1/p' Dockerfile
+    sed -n 's/^## \[\([0-9][^]]*\)\].*/CHANGELOG.md \1/p' CHANGELOG.md | head -n 1
+  )
+  printf '%s\n' "$places"
+  if [[ -z $version ]] || [[ $(wc -l <<<"$places") -ne 5 ]] ||
+    grep -qv " $version\$" <<<"$places"; then
+    echo "package.json says '$version'; the five places above must all say the same." >&2
+    return 1
+  fi
+  echo "all say $version"
 
   step "Install from the lockfile (npm ci)"
   scripts/node.sh npm ci --no-audit --no-fund
