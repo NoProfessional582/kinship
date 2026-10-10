@@ -2,6 +2,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Board, ContactSummary, Drafts, ProjectSummary } from '@/lib/api-types'
 
+/** A refusal from the API: its `{ error }` message, and the status it came with. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+/** The record asked for does not exist: the page says so, rather than erring or retrying. */
+export const isNotFound = (err: unknown) => err instanceof ApiError && err.status === 404
+
+/** Worth asking again: a network fault or a server error, never a refusal (400-499). */
+export const isRetryable = (err: unknown) =>
+  !(err instanceof ApiError && err.status >= 400 && err.status < 500)
+
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
@@ -9,7 +27,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.error || `Request failed: ${res.status}`)
+    throw new ApiError(body.error || `Request failed: ${res.status}`, res.status)
   }
   return res.json()
 }

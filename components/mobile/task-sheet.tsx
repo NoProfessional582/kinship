@@ -4,6 +4,7 @@ import { Loader2, Trash2, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TaskView } from '@/components/shared/task-view'
 import { TaskForm } from '@/components/entity-modal/task-form'
+import { notFoundText } from '@/components/shared/not-found'
 import { useTaskDetail } from '@/lib/hooks/task-detail'
 import {
   MSheet,
@@ -29,6 +30,7 @@ export function MobileTaskSheet({
     data,
     entries,
     isLoading,
+    error,
     mode,
     setMode,
     form,
@@ -39,6 +41,7 @@ export function MobileTaskSheet({
     startEdit,
     openTask,
   } = useTaskDetail(taskId, onClose)
+  const missing = notFoundText(error, 'Task')
 
   return (
     <MSheet
@@ -48,10 +51,22 @@ export function MobileTaskSheet({
       }}
     >
       <MSheetContent tall hideClose>
-        {isLoading || !data ? (
+        {isLoading ? (
           <div className="flex h-40 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-[var(--muted-foreground)]" />
           </div>
+        ) : !data ? (
+          <>
+            <MSheetBody className="flex flex-col items-center gap-2 pt-6 text-center">
+              <MSheetTitle className="text-base font-semibold">{missing.title}</MSheetTitle>
+              <p className="max-w-xs text-sm text-[var(--muted-foreground)]">{missing.hint}</p>
+            </MSheetBody>
+            <MSheetFooter>
+              <Button variant="ghost" className="w-full" onClick={onClose}>
+                Close
+              </Button>
+            </MSheetFooter>
+          </>
         ) : (
           <>
             <MSheetTitle className="sr-only">{data.title}</MSheetTitle>

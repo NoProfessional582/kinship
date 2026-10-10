@@ -51,7 +51,6 @@ export default function ContactsPage() {
     setOpening(c.id)
     try {
       const data = await api.get<ContactDossier>(`/api/contacts/${c.id}`)
-      if (!data?.contact) throw new Error('Contact not found')
       setForm(contactFromRecord(data.contact))
       setEditing({ id: c.id, name: data.contact.displayName })
     } catch (err) {

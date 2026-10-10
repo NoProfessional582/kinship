@@ -41,7 +41,7 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
     setForm(null)
   }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['task', activeId],
     queryFn: () => api.get<TaskDetail>(`/api/tasks/${activeId}`),
     enabled: Boolean(activeId),
@@ -96,6 +96,7 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
     data,
     entries,
     isLoading,
+    error,
     mode,
     setMode,
     form,
