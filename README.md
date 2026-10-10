@@ -17,21 +17,31 @@ interrupted by data entry.
 No cloud, no telemetry, no sign-in. Kinship is for one person on their own
 computer: everything is stored under the single owner named by `KINSHIP_OWNER`.
 
-> **Pre-release.** Kinship is not ready for everyday use yet; the first release
-> will be 0.1.0.
-
 > **Never expose Kinship to a network.** It has no sign-in, so anyone who can
 > reach it can read and change everything in it. It listens on `127.0.0.1` only;
 > keep it that way, and don't put it behind a reverse proxy or a tunnel.
 
-Screenshots will come with the first release.
+![The Today page: tasks due, people to get back to, and recent notes](docs/screenshots/today.png)
+
+| A contact | Notes and communications |
+|---|---|
+| ![A contact's page: channels, how you met, follow-ups and what they care about](docs/screenshots/contact.png) | ![Every note, call, email and meeting in one timeline, with its mentions](docs/screenshots/notes.png) |
+
+| The board | On a phone |
+|---|---|
+| ![The Kanban board of tasks, by column](docs/screenshots/board.png) | <img src="docs/screenshots/phone-today.png" width="180" alt="The phone's Today page"> <img src="docs/screenshots/phone-contact.png" width="180" alt="A contact on a phone"> |
+
+All of it is the demo data from `npm run db:seed`; none of these people exist.
 
 ---
 
 ## Quick start
 
 You need [Docker](https://docs.docker.com/get-docker/) with the Compose plugin
-(`docker compose`) and git.
+(`docker compose`) and git, on a 64-bit Intel or AMD computer (Linux, or Windows
+or macOS with Docker Desktop). The published image is built for that kind of
+computer only; on any other, such as an Apple silicon Mac or a Raspberry Pi,
+[build it from source](#build-from-source).
 
 ```bash
 git clone https://github.com/NoProfessional582/kinship.git
@@ -52,7 +62,8 @@ Then start it:
 docker compose up -d
 ```
 
-The first start builds the app from source, which takes a few minutes. When
+The first start downloads Kinship's image,
+`ghcr.io/noprofessional582/kinship`, and the PostgreSQL image. When
 `docker compose ps` shows `db` and `web` as healthy, open
 **http://127.0.0.1:3000**. (`migrate` is a one-shot job: it sets up the database,
 then exits, so it isn't listed.)
@@ -67,6 +78,20 @@ The seed only fills an empty database; it does nothing once you have contacts.
 
 Stop Kinship with `docker compose down`. Your data stays in `./data` and is
 there again on the next `docker compose up -d`.
+
+### Build from source
+
+The image is built from this repo's `Dockerfile`, and compose can build it
+instead of downloading it:
+
+```bash
+docker compose up -d --build
+```
+
+The build takes a few minutes. It is tagged with the same name as the published
+image, so later `docker compose up -d` runs use your build until a newer version
+is downloaded. If the image cannot be downloaded at all (no network, or a version
+that is not published yet), `docker compose up -d` builds it by itself.
 
 ## Settings
 
@@ -193,12 +218,20 @@ same `KINSHIP_OWNER`.
 
 ## Upgrading
 
+Each release is a git tag (`v0.1.0`) and an image with the same version
+(`ghcr.io/noprofessional582/kinship:0.1.0`), named in `compose.yaml`. To upgrade,
+take an archive first, then get the new `compose.yaml` and start it:
+
 ```bash
 docker compose run --rm -T migrate npm run --silent export > kinship-archive-before-upgrade.json
 git pull
-docker compose up -d --build
+docker compose up -d
 docker compose logs migrate
 ```
+
+`docker compose up -d` downloads the version the new `compose.yaml` names and
+replaces the running app with it. If you build from source, use
+`docker compose up -d --build` instead.
 
 Database changes apply by themselves on every `docker compose up`, before the app
 starts, and keep your data. The last command shows what was applied ("No pending migrations"
@@ -219,12 +252,13 @@ npm run format:check # npm run format rewrites what it flags
 npm test             # unit tests, no database needed
 ```
 
-The integration tests need a database. With the stack running, this runs them
-inside it, against its database:
+The integration tests need a database and the whole toolchain, which the
+released image leaves out. `scripts/test-stack.sh` runs them in a throwaway stack
+of its own (see [Checks](#checks)). To run them against a database of your own,
+with `DATABASE_URL` set as for `npm run dev`:
 
 ```bash
-docker compose build migrate     # after changing code: the tests run from that image
-docker compose run --rm migrate npm run test:integration
+npm run test:integration
 ```
 
 They create and remove their own records under throwaway owners, but run them
@@ -274,13 +308,17 @@ skipped. It stays outside the repo, since committing it would publish what it gu
 When a Playwright test fails, its trace is kept in `test-results/`; open it with
 `npx playwright show-trace test-results/<test>/trace.zip`.
 
+`scripts/screenshots.sh` remakes the pictures at the top of this file from the demo
+data, in a throwaway stack of its own (`tests/screenshots/`). Look at them before
+committing them.
+
 ### Architecture
 
 | Layer | Choice |
 |---|---|
 | Framework | Next.js 16.3 App Router, `output: 'standalone'` |
 | UI | React 19.2, Tailwind CSS v4, Radix primitives |
-| Data | Prisma 7.9 and PostgreSQL 18 (through `@prisma/adapter-pg`) |
+| Data | Prisma 7.10 and PostgreSQL 18 (through `@prisma/adapter-pg`) |
 | Editor | TipTap 3.31 with two `@tiptap/suggestion` instances |
 | Drag and drop | dnd-kit |
 | Calendar | FullCalendar 6.1.21 |
@@ -467,9 +505,12 @@ to the migrations, and Postgres rebuilds `searchVector` from the restored rows.
 
 ### Migrations
 
-Migrations run in the one-shot `migrate` service, built from the image's
-`builder` stage, which `web` waits on (`service_completed_successfully`). That
-keeps the Prisma CLI out of the runtime image. Prisma 7 moved the database URL
+Migrations run in the one-shot `migrate` service, which `web` waits on
+(`service_completed_successfully`). It runs the same image as `web`, from
+`/app/cli`: the npm scripts, `prisma/`, `lib/` and only the packages the
+command-line jobs use, the Prisma CLI and tsx among them
+(`docker/cli-modules.mjs` picks them). The web server keeps its own
+`node_modules` in `/app`, so neither can change the other's packages. Prisma 7 moved the database URL
 out of `schema.prisma` into `prisma.config.ts` and no longer loads `.env` by
 itself, which is why that file imports `dotenv/config`.
 
