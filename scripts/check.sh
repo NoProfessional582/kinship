@@ -12,11 +12,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-PARTS=(quick privacy stack)
+PARTS=(quick privacy stack upgrade)
 declare -A ABOUT=(
   [quick]="format, lint, types, unit tests, dependency audit, compose ports"
   [privacy]="secret scans and the personal-data sweep, on the files and this branch's commits"
   [stack]="image build, then a throwaway test stack: health, logs, database tests, CLI jobs, Playwright"
+  [upgrade]="the previous version's database, upgraded to this one with its data kept"
 )
 
 # The private list of what must never be published (names, emails, the home domain): one
@@ -156,6 +157,12 @@ part_stack() {
   # The image and the app running: scripts/test-stack.sh says what it covers, and removes
   # everything it made, pass or fail.
   scripts/test-stack.sh
+}
+
+part_upgrade() {
+  # Previous version to this checkout: scripts/test-upgrade.sh says which version and what
+  # it checks, and removes everything it made, pass or fail.
+  scripts/test-upgrade.sh
 }
 
 usage() {

@@ -2,7 +2,8 @@
 # real stack. It keeps the database and the uploads in the run's private folder
 # (STACK_RUNTIME), uses the images the script built once instead of building, publishes no
 # port, and puts everything on an internal network: nothing reaches out or in. The
-# `browser` service runs Playwright against the app.
+# `browser` service runs Playwright against the app. scripts/test-upgrade.sh layers it the
+# same way, with its own images in KINSHIP_BUILDER_IMAGE and KINSHIP_APP_IMAGE.
 #
 #   docker compose -p test-kinship --env-file "$STACK_RUNTIME/settings.env" \
 #     -f compose.yaml -f tests/compose.test.yaml --profile tests ...
@@ -19,13 +20,13 @@ services:
       start_interval: 1s
 
   migrate:
-    image: test-kinship:builder
+    image: ${KINSHIP_BUILDER_IMAGE:-test-kinship:builder}
     build: !reset null
     volumes: !override
       - ${STACK_RUNTIME:?}/data/uploads:/app/public/uploads
 
   web:
-    image: test-kinship:app
+    image: ${KINSHIP_APP_IMAGE:-test-kinship:app}
     build: !reset null
     restart: 'no'
     ports: !reset []
