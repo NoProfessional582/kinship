@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Loader2,
   CloudSun,
+  type LucideIcon,
 } from 'lucide-react'
 import { UnifiedComposer } from '@/components/composer/unified-composer'
 import { EntryCard } from '@/components/shared/entry-card'
@@ -24,6 +25,10 @@ import { api, useDrafts } from '@/lib/hooks/api'
 import { useSettings, useTimezone, useWeather, weatherLabel } from '@/lib/hooks/settings'
 import { format } from 'date-fns'
 import { calendarDate } from '@/lib/utils'
+import type { EntryListItem } from '@/lib/api-types'
+
+/** A half-created record: drafts open their page, draft tasks open the task dialog. */
+type DraftItem = { id: string; label: string; icon: LucideIcon; href?: string; task?: string }
 
 export default function Dashboard() {
   const router = useRouter()
@@ -50,25 +55,25 @@ export default function Dashboard() {
   // the right, not to the top of a history feed.
   const { data: entries } = useQuery({
     queryKey: ['entries', 'recent'],
-    queryFn: () => api.get<any[]>('/api/entries?take=8&past=1'),
+    queryFn: () => api.get<EntryListItem[]>('/api/entries?take=8&past=1'),
   })
   const { data: drafts } = useDrafts()
 
   const draftItems = React.useMemo(
-    () => [
-      ...(drafts?.contacts ?? []).map((c: any) => ({
+    (): DraftItem[] => [
+      ...(drafts?.contacts ?? []).map((c) => ({
         id: c.id,
         label: c.displayName,
         icon: Users,
         href: `/contacts/${c.slug}`,
       })),
-      ...(drafts?.projects ?? []).map((p: any) => ({
+      ...(drafts?.projects ?? []).map((p) => ({
         id: p.id,
         label: p.name,
         icon: FolderKanban,
         href: `/projects/${p.slug}`,
       })),
-      ...(drafts?.tasks ?? []).map((t: any) => ({
+      ...(drafts?.tasks ?? []).map((t) => ({
         id: t.id,
         label: t.title,
         icon: SquareCheck,

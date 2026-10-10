@@ -19,6 +19,7 @@ import {
   MSheetHeader,
 } from '@/components/mobile/sheet'
 import { cn } from '@/lib/utils'
+import { asDoc } from '@/lib/tiptap/doc'
 
 /**
  * Capture on a phone.
@@ -139,7 +140,7 @@ export function MobileCapture() {
             >
               <RichEditor
                 className="kb-editor-framed"
-                content={restored?.body}
+                content={asDoc(restored?.body)}
                 mentionShortcuts
                 onReady={onReady}
                 onUpdate={() => {
@@ -170,7 +171,13 @@ export function MobileCapture() {
                 {active.comms && (
                   <div className="flex flex-col gap-1">
                     <Label>Direction</Label>
-                    <Select value={direction} onChange={(e) => setDirection(e.target.value as any)}>
+                    <Select
+                      value={direction}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setDirection(v === 'INBOUND' || v === 'OUTBOUND' ? v : '')
+                      }}
+                    >
                       <option value="">—</option>
                       <option value="INBOUND">Inbound</option>
                       <option value="OUTBOUND">Outbound</option>
@@ -223,7 +230,7 @@ export function MobileCapture() {
                   <Label>Project</Label>
                   <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
                     <option value="">None</option>
-                    {(projects ?? []).map((p: any) => (
+                    {(projects ?? []).map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
                       </option>

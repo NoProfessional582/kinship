@@ -6,6 +6,7 @@ import { AllDayToggle, DateTimeField, toAllDay, toTimed } from '@/components/ui/
 import { useTimezone } from '@/lib/hooks/settings'
 import { Field } from './contact-form'
 import { cn } from '@/lib/utils'
+import type { ProjectSummary } from '@/lib/api-types'
 
 export interface ProjectFormValue {
   name: string
@@ -45,7 +46,7 @@ export function blankProject(name = ''): ProjectFormValue {
   }
 }
 
-export function projectFromRecord(p: any): ProjectFormValue {
+export function projectFromRecord(p: ProjectSummary): ProjectFormValue {
   return {
     name: p.name ?? '',
     description: p.description ?? '',

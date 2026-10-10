@@ -54,6 +54,7 @@ import {
   type DragStartEvent,
   type DragOverEvent,
   type DragEndEvent,
+  type Over,
 } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -260,7 +261,7 @@ export function Board<C extends BoardColumn, I extends BoardItem>({
 
   const zoneOf = (map: ZoneMap, card: string) => Object.keys(map).find((z) => map[z].includes(card))
 
-  const resolveZone = (over: any): string | null => {
+  const resolveZone = (over: Over | null): string | null => {
     if (!over) return null
     if (over.data.current?.type === 'zone') return String(over.id)
     return over.data.current?.zone ?? null

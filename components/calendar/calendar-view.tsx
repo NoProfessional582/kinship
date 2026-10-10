@@ -6,6 +6,8 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import listPlugin from '@fullcalendar/list'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon3'
+import type { EventApi, EventContentArg, EventDropArg } from '@fullcalendar/core'
+import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/hooks/api'
@@ -60,7 +62,7 @@ export function CalendarView({
   onSelectDay?: (day: Date) => void
 }) {
   const qc = useQueryClient()
-  const calRef = React.useRef<any>(null)
+  const calRef = React.useRef<FullCalendar>(null)
   const rootRef = React.useRef<HTMLDivElement>(null)
   const { fmt, timezone } = useTimezone()
   const { calendarWeekStart } = useSettings()
@@ -72,7 +74,7 @@ export function CalendarView({
    * and the real interval in every view, month and list included.
    */
   const tipFor = React.useCallback(
-    (event: any) => {
+    (event: EventApi) => {
       const when = event.allDay
         ? isoDayLabel(String(event.startStr).slice(0, 10))
         : [fmt(event.start, 'EEE d MMM, h:mm a'), event.end ? fmt(event.end, 'h:mm a') : null]
@@ -164,8 +166,8 @@ export function CalendarView({
       }))
   }, [])
 
-  const reschedule = async (info: any) => {
-    const { source, entityId } = info.event.extendedProps
+  const reschedule = async (info: EventDropArg | EventResizeDoneArg) => {
+    const { source, entityId } = eventProps(info.event)
     if (source === 'birthday') {
       info.revert()
       return
@@ -235,7 +237,7 @@ export function CalendarView({
           arg.view.type === 'timeGridWeek' ? `${arg.text} ${arg.date.getUTCDate()}` : arg.text
         }
         moreLinkContent={(arg) => `+${arg.num} more`}
-        events={fetchEvents as any}
+        events={fetchEvents}
         datesSet={(info) => {
           onRangeChange?.(info.view.currentStart)
           paintSelection()
@@ -246,7 +248,7 @@ export function CalendarView({
         eventDrop={reschedule}
         eventResize={reschedule}
         eventClick={(info) => {
-          const { source, entityId } = info.event.extendedProps as any
+          const { source, entityId } = eventProps(info.event)
           onOpen(source, entityId)
         }}
         eventMouseEnter={(info) => tip.show(info.el, tipFor(info.event))}
@@ -257,7 +259,7 @@ export function CalendarView({
          same string FullCalendar joins with. */
         defaultRangeSeparator={RANGE_SEP}
         eventContent={(arg) => {
-          const tint = (arg.event.extendedProps as any).tint as string
+          const { tint } = eventProps(arg.event)
           if (arg.view.type === 'listWeek') {
             return <span style={{ color: tint }}>{arg.event.title}</span>
           }
@@ -279,6 +281,19 @@ export function CalendarView({
   )
 }
 
+/**
+ * What `fetchEvents` stored on an event. FullCalendar types its extended props
+ * as a loose dictionary, so they are read back through this one place.
+ */
+function eventProps(event: EventApi): {
+  source: CalendarEvent['source']
+  entityId: string
+  tint: string
+} {
+  const { source, entityId, tint } = event.extendedProps
+  return { source, entityId, tint }
+}
+
 /** How FullCalendar joins the two ends of an interval, and how `blockTime` cuts it. */
 const RANGE_SEP = ' - '
 
@@ -293,9 +308,9 @@ const RANGE_SEP = ' - '
  * whole row and left the title clipped to nothing. The tooltip prints the full
  * interval either way, in every view.
  */
-function blockTime(arg: any) {
+function blockTime(arg: EventContentArg) {
   const { start, end } = arg.event
-  const floored = !end || end.getTime() - start.getTime() < 30 * 60_000
+  const floored = !start || !end || end.getTime() - start.getTime() < 30 * 60_000
   return floored ? arg.timeText : arg.timeText.split(RANGE_SEP)[0]
 }
 

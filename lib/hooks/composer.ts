@@ -3,11 +3,12 @@ import * as React from 'react'
 import { useBrowserReady, subscribeBrowser } from './platform'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import type { Editor } from '@tiptap/core'
+import type { Editor, JSONContent } from '@tiptap/core'
 import { entryKind } from '@/components/entity-modal/entry-form'
 import { api, useProjects } from '@/lib/hooks/api'
 import { useEnrichmentQueue } from '@/lib/store'
 import { useTimezone } from '@/lib/hooks/settings'
+import type { EntrySaved } from '@/lib/api-types'
 import { collectDocRefs } from '@/lib/tiptap/doc'
 import { fromLocalInputValue, toLocalInputValue } from '@/lib/format'
 
@@ -70,7 +71,7 @@ const store = (() => {
   }
 })()
 
-const isEmptyDoc = (doc: any) =>
+const isEmptyDoc = (doc: JSONContent | null | undefined) =>
   !doc?.content?.length || (doc.content.length === 1 && !doc.content[0].content?.length)
 
 /**
@@ -214,7 +215,7 @@ export function useComposer(onSaved?: () => void) {
     if (!editor || saving) return
 
     const doc = editor.getJSON()
-    const refs = collectDocRefs(doc as any)
+    const refs = collectDocRefs(doc)
 
     if (editor.getText().trim().length === 0 && !title.trim()) {
       toast.error('Write something first')
@@ -223,7 +224,7 @@ export function useComposer(onSaved?: () => void) {
 
     setSaving(true)
     try {
-      const res = await api.post<{ entry: any; createdEntities: any[] }>('/api/entries', {
+      const res = await api.post<EntrySaved>('/api/entries', {
         kind,
         title: title.trim() || null,
         bodyJson: doc,

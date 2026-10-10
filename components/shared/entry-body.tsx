@@ -2,6 +2,7 @@
 import * as React from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { renderEntryHtml } from '@/lib/tiptap/render'
+import { asDoc } from '@/lib/tiptap/doc'
 import { cn } from '@/lib/utils'
 
 /**
@@ -11,8 +12,8 @@ import { cn } from '@/lib/utils'
  * actually overflows gets a toggle that opens it in place. Reading the rest of
  * a note on a dossier should not cost you the dossier.
  */
-export function EntryBody({ doc, compact }: { doc: any; compact?: boolean }) {
-  const html = React.useMemo(() => renderEntryHtml(doc), [doc])
+export function EntryBody({ doc, compact }: { doc: unknown; compact?: boolean }) {
+  const html = React.useMemo(() => renderEntryHtml(asDoc(doc)), [doc])
   const ref = React.useRef<HTMLDivElement>(null)
   const [clipped, setClipped] = React.useState(false)
   const [open, setOpen] = React.useState(false)

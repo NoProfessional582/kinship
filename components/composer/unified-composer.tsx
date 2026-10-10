@@ -13,6 +13,7 @@ import { useComposer } from '@/lib/hooks/composer'
 import { useSettings } from '@/lib/hooks/settings'
 import { useModifierKey } from '@/lib/hooks/platform'
 import { cn } from '@/lib/utils'
+import { asDoc } from '@/lib/tiptap/doc'
 
 /**
  * The one capture surface: the dark card the dashboard opens with, rendered
@@ -106,7 +107,7 @@ export function UnifiedComposer({
       <div className="mt-3 overflow-hidden rounded-[var(--radius-md)] border border-[var(--hero-line)] bg-[var(--hero-soft)]">
         <RichEditor
           className="kb-editor-framed"
-          content={restored?.body}
+          content={asDoc(restored?.body)}
           autoFocus
           mentionShortcuts
           onSubmit={save}
@@ -209,7 +210,7 @@ export function UnifiedComposer({
             className={cn(heroField)}
           >
             <option value="">No project</option>
-            {(projects ?? []).map((p: any) => (
+            {(projects ?? []).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>

@@ -1,6 +1,6 @@
 'use client'
 import * as React from 'react'
-import { useEditor, EditorContent, type Editor } from '@tiptap/react'
+import { useEditor, EditorContent, type Content, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
@@ -26,7 +26,7 @@ interface Props {
   onReady?: (editor: Editor) => void
   placeholder?: string
   className?: string
-  content?: any
+  content?: Content
   editable?: boolean
   autoFocus?: boolean
   /** Adds the @ / [[ trigger buttons to the right of the toolbar. */

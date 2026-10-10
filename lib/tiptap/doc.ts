@@ -1,3 +1,4 @@
+import type { JSONContent } from '@tiptap/core'
 import { CONTACT_MENTION, ENTITY_REF, isPendingId, type EntityKind } from './nodes'
 
 /**
@@ -16,6 +17,14 @@ export type ProseNode = {
   content?: ProseNode[]
   text?: string
   marks?: { type: string; attrs?: Record<string, JsonValue> }[]
+}
+
+/**
+ * A stored or restored body as editor content. Bodies arrive as JSON from the
+ * database or from a saved draft; only an object can be a document.
+ */
+export function asDoc(value: unknown): JSONContent | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value : null
 }
 
 export interface DocRefs {

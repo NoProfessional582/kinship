@@ -17,14 +17,16 @@ import {
   FolderKanban,
   Pencil,
   CornerUpLeft,
+  type LucideIcon,
 } from 'lucide-react'
 import { useTimezone } from '@/lib/hooks/settings'
 import { Card, Badge, Avatar } from '@/components/ui/misc'
 import { EntryBody } from './entry-body'
 import { EntryEditDialog } from './entry-edit-dialog'
 import { entryTitle } from '@/lib/utils'
+import type { EntryRecord } from '@/lib/api-types'
 
-export const KIND_ICON: Record<string, any> = {
+export const KIND_ICON: Record<string, LucideIcon> = {
   NOTE: NotebookPen,
   CALL: Phone,
   EMAIL: Mail,
@@ -57,7 +59,7 @@ export function EntryCard({
   compact,
   editable = true,
 }: {
-  entry: any
+  entry: EntryRecord
   compact?: boolean
   editable?: boolean
 }) {
@@ -190,9 +192,9 @@ export function EntryCard({
           links and the people/task chips. */}
       <EntryBody doc={entry.bodyJson} compact={compact} />
 
-      {(entry.mentions?.length > 0 || entry.refs?.length > 0 || entry.tags?.length > 0) && (
+      {!!(entry.mentions?.length || entry.refs?.length || entry.tags.length) && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[var(--border)] pt-2.5">
-          {(entry.mentions ?? []).map((m: any) => (
+          {(entry.mentions ?? []).map((m) => (
             <Link
               key={m.id}
               href={`/contacts/${m.contact.slug}`}
@@ -202,7 +204,7 @@ export function EntryCard({
               {m.contact.displayName}
             </Link>
           ))}
-          {(entry.refs ?? []).map((r: any) => (
+          {(entry.refs ?? []).map((r) => (
             <Link
               key={r.id}
               href={r.project ? `/projects/${r.project.slug}` : `/board?task=${r.taskId}`}
@@ -211,7 +213,7 @@ export function EntryCard({
               {r.project ? r.project.name : (r.task?.title ?? 'task')}
             </Link>
           ))}
-          {(entry.tags ?? []).map((t: any) => (
+          {entry.tags.map((t) => (
             <span
               key={t.tagId}
               className="rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[11px] text-[var(--muted-foreground)]"

@@ -9,6 +9,7 @@ import { Inset } from './today-panel'
 import { api, useContacts } from '@/lib/hooks/api'
 import { useZonedToday } from '@/lib/hooks/settings'
 import { nextAnniversary } from '@/lib/format'
+import type { CadenceContact, ContactSummary } from '@/lib/api-types'
 
 /**
  * The next birthday to fall due. Anything past the horizon is not a thing you
@@ -17,9 +18,9 @@ import { nextAnniversary } from '@/lib/format'
  */
 const MILESTONE_HORIZON_DAYS = 90
 
-function nextBirthday(contacts: any[], today: Date) {
+function nextBirthday(contacts: ContactSummary[], today: Date) {
   const upcoming = contacts
-    .filter((c) => c.birthday)
+    .flatMap((c) => (c.birthday ? [{ ...c, birthday: c.birthday }] : []))
     .map((c) => {
       // Birthdays are stored as a UTC calendar date; comparing them in local
       // time would shift half of them by a day. `nextAnniversary` also clamps
@@ -36,7 +37,7 @@ export function PeopleOrbit() {
   const { data: contacts } = useContacts()
   const { data: reconnect } = useQuery({
     queryKey: ['cadence'],
-    queryFn: () => api.get<any[]>('/api/cadence'),
+    queryFn: () => api.get<CadenceContact[]>('/api/cadence'),
   })
   const today = useZonedToday()
 
@@ -46,9 +47,8 @@ export function PeopleOrbit() {
     if (!today) return null
     const weekAgo = new Date(today.getTime() - 7 * 86_400_000)
     return {
-      active: list.filter((c: any) => c.lastContactAt && new Date(c.lastContactAt) >= weekAgo)
-        .length,
-      interactions: list.reduce((n: number, c: any) => n + (c._count?.mentions ?? 0), 0),
+      active: list.filter((c) => c.lastContactAt && new Date(c.lastContactAt) >= weekAgo).length,
+      interactions: list.reduce((n, c) => n + c._count.mentions, 0),
     }
   }, [list, today])
 
@@ -56,7 +56,7 @@ export function PeopleOrbit() {
     () =>
       [...list]
         .sort(
-          (a: any, b: any) =>
+          (a, b) =>
             new Date(b.lastContactAt ?? 0).getTime() - new Date(a.lastContactAt ?? 0).getTime(),
         )
         .slice(0, 4),
@@ -79,7 +79,7 @@ export function PeopleOrbit() {
 
       <div className="mb-3 flex items-center gap-3 px-4">
         <div className="flex shrink-0 -space-x-2.5">
-          {faces.map((c: any) => (
+          {faces.map((c) => (
             <Link key={c.id} href={`/contacts/${c.slug}`} title={c.displayName}>
               <Avatar
                 src={c.avatarUrl}
@@ -110,7 +110,7 @@ export function PeopleOrbit() {
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {(reconnect ?? []).slice(0, 3).map((c: any) => (
+            {(reconnect ?? []).slice(0, 3).map((c) => (
               <Link
                 key={c.id}
                 href={`/contacts/${c.slug}`}
@@ -122,7 +122,7 @@ export function PeopleOrbit() {
                   {c.health.state === 'never'
                     ? 'never'
                     : c.health.state === 'overdue'
-                      ? `${Math.abs(c.health.dueInDays)}d over`
+                      ? `${Math.abs(c.health.dueInDays ?? 0)}d over`
                       : `due in ${c.health.dueInDays}d`}
                 </span>
               </Link>

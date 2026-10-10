@@ -5,6 +5,7 @@ import { X, Search, Loader2 } from 'lucide-react'
 import { Avatar } from '@/components/ui/misc'
 import { api } from '@/lib/hooks/api'
 import { cn } from '@/lib/utils'
+import type { MentionSuggestion } from '@/lib/services/search'
 
 export interface ContactRef {
   id: string
@@ -52,7 +53,9 @@ export function ContactPicker({
   const { data, isFetching } = useQuery({
     queryKey: ['mentions', 'contact', debounced],
     queryFn: () =>
-      api.get<any[]>(`/api/search/mentions?type=contact&q=${encodeURIComponent(debounced)}`),
+      api.get<MentionSuggestion[]>(
+        `/api/search/mentions?type=contact&q=${encodeURIComponent(debounced)}`,
+      ),
     enabled: open,
     staleTime: 30_000,
   })
@@ -77,9 +80,10 @@ export function ContactPicker({
     return () => document.removeEventListener('pointerdown', onDown)
   }, [open])
 
-  const add = (r: any) => {
+  const add = (r: MentionSuggestion) => {
     if (selected.has(r.id)) return
-    onChange([...value, { id: r.id, displayName: r.label, avatarUrl: r.avatarUrl ?? null }])
+    // Suggestions carry no avatar; the chip shows initials until the record reloads.
+    onChange([...value, { id: r.id, displayName: r.label, avatarUrl: null }])
     setQuery('')
     setDebounced('')
     inputRef.current?.focus()
@@ -184,7 +188,7 @@ export function ContactPicker({
                 i === active ? 'bg-[var(--muted)]' : 'hover:bg-[var(--muted)]',
               )}
             >
-              <Avatar src={r.avatarUrl} name={r.label} size={22} />
+              <Avatar src={null} name={r.label} size={22} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{r.label}</span>
                 {r.sublabel && (

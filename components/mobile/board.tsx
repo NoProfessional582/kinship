@@ -14,6 +14,7 @@ import { MEmpty, MTile } from '@/components/mobile/bits'
 import { MSheet, MSheetContent, MSheetTitle, MSheetHeader } from '@/components/mobile/sheet'
 import { useMoveTask } from '@/lib/hooks/api'
 import { cn } from '@/lib/utils'
+import type { BoardColumn, BoardTask } from '@/lib/api-types'
 
 /** Which columns the phone last had shut. Survives a reload, and a tab switch. */
 const COLLAPSED_KEY = 'kb.m.board.collapsed'
@@ -56,8 +57,8 @@ export function MobileBoard({
   projectId,
   onOpenTask,
 }: {
-  columns: any[]
-  tasks: any[]
+  columns: BoardColumn[]
+  tasks: BoardTask[]
   projectId: string | null
   onOpenTask: (id: string) => void
 }) {
@@ -71,7 +72,7 @@ export function MobileBoard({
   }, [raw])
   const [choice, setCollapsed] = React.useState<Set<string> | null>(null)
   const collapsed = choice ?? saved
-  const [moving, setMoving] = React.useState<any | null>(null)
+  const [moving, setMoving] = React.useState<BoardTask | null>(null)
   const move = useMoveTask(projectId)
 
   const persist = (next: Set<string>) => {
@@ -91,7 +92,7 @@ export function MobileBoard({
   }
 
   const byColumn = React.useMemo(() => {
-    const out = new Map<string, any[]>()
+    const out = new Map<string, BoardTask[]>()
     for (const c of columns) out.set(c.id, [])
     for (const t of tasks) out.get(t.columnId)?.push(t)
     return out
@@ -103,7 +104,7 @@ export function MobileBoard({
   // no-op: the one-tap way back to a readable board.
   const allShut = columns.every((c) => collapsed.has(c.id))
 
-  const commit = async (task: any, toColumnId: string) => {
+  const commit = async (task: BoardTask, toColumnId: string) => {
     setMoving(null)
     try {
       // toIndex 0: dropped at the top of the target column. The server owns the
@@ -202,13 +203,11 @@ export function MobileBoard({
                                 {t.project.name}
                               </span>
                             )}
-                            {t.priority && t.priority !== 'NONE' && (
-                              <span>{String(t.priority).toLowerCase()}</span>
-                            )}
-                            {(t.assignees?.length ?? 0) > 0 && (
+                            <span>{t.priority.toLowerCase()}</span>
+                            {t.assignees.length > 0 && (
                               <span className="truncate">
                                 {t.assignees
-                                  .map((a: any) => a.contact?.displayName)
+                                  .map((a) => a.contact.displayName)
                                   .filter(Boolean)
                                   .join(', ')}
                               </span>
@@ -253,7 +252,7 @@ export function MobileBoard({
               <button
                 key={col.id}
                 disabled={col.id === moving?.columnId}
-                onClick={() => commit(moving, col.id)}
+                onClick={() => moving && commit(moving, col.id)}
                 className="kb-tap flex items-center gap-2 rounded-[var(--radius-md)] px-3 text-left text-sm disabled:opacity-40"
               >
                 <span

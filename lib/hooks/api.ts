@@ -1,5 +1,6 @@
 'use client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Board, ContactSummary, Drafts, ProjectSummary } from '@/lib/api-types'
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -34,23 +35,27 @@ export const keys = {
 export function useBoard(projectId: string | null) {
   return useQuery({
     queryKey: keys.board(projectId),
-    queryFn: () => api.get<any>(`/api/tasks${projectId ? `?projectId=${projectId}` : ''}`),
+    queryFn: () => api.get<Board>(`/api/tasks${projectId ? `?projectId=${projectId}` : ''}`),
   })
 }
 
 export function useContacts(q?: string) {
   return useQuery({
     queryKey: keys.contacts(q),
-    queryFn: () => api.get<any[]>(`/api/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    queryFn: () =>
+      api.get<ContactSummary[]>(`/api/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   })
 }
 
 export function useDrafts() {
-  return useQuery({ queryKey: keys.drafts(), queryFn: () => api.get<any>('/api/drafts') })
+  return useQuery({ queryKey: keys.drafts(), queryFn: () => api.get<Drafts>('/api/drafts') })
 }
 
 export function useProjects() {
-  return useQuery({ queryKey: keys.projects(), queryFn: () => api.get<any[]>('/api/projects') })
+  return useQuery({
+    queryKey: keys.projects(),
+    queryFn: () => api.get<ProjectSummary[]>('/api/projects'),
+  })
 }
 
 /**
@@ -81,17 +86,17 @@ export function useMoveTask(projectId: string | null) {
     onMutate: async (vars) => {
       const key = keys.board(projectId)
       await qc.cancelQueries({ queryKey: key })
-      const previous = qc.getQueryData<any>(key)
+      const previous = qc.getQueryData<Board>(key)
       // Only the column and project are patched here. Ordering is deliberately
       // not recomputed: the board holds the dropped order locally until the
       // refetch lands, and duplicating the server's fractional-index maths here
       // was both redundant and wrong under swimlanes, where the visible index is
       // an index within the lane rather than within the whole column.
-      qc.setQueryData<any>(key, (old: any) => {
+      qc.setQueryData<Board>(key, (old) => {
         if (!old) return old
         return {
           ...old,
-          tasks: old.tasks.map((t: any) =>
+          tasks: old.tasks.map((t) =>
             t.id === vars.taskId
               ? {
                   ...t,

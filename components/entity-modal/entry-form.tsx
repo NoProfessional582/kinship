@@ -21,8 +21,9 @@ import { ChipsInput } from '@/components/ui/chips'
 import { DateTimeField } from '@/components/ui/datetime-field'
 import { Field } from './contact-form'
 import { useProjects } from '@/lib/hooks/api'
-import { collectDocRefs } from '@/lib/tiptap/doc'
+import { asDoc, collectDocRefs } from '@/lib/tiptap/doc'
 import { cn } from '@/lib/utils'
+import type { EntryRecord } from '@/lib/api-types'
 
 /**
  * The one list of entry kinds, shared by capture and editing. Two copies would
@@ -82,7 +83,7 @@ export function blankEntry(): EntryFormValue {
   }
 }
 
-export function entryFromRecord(e: any): EntryFormValue {
+export function entryFromRecord(e: EntryRecord): EntryFormValue {
   return {
     kind: e.kind ?? 'NOTE',
     title: e.title ?? '',
@@ -93,7 +94,7 @@ export function entryFromRecord(e: any): EntryFormValue {
     durationMin: e.durationMin == null ? '' : String(e.durationMin),
     location: e.location ?? '',
     projectId: e.projectId ?? e.project?.id ?? '',
-    tags: (e.tags ?? []).map((t: any) => t.tag?.name ?? t),
+    tags: e.tags.map((t) => t.tag.name),
   }
 }
 
@@ -117,7 +118,7 @@ export function entryToPayload(v: EntryFormValue, doc: unknown) {
     followUpAt: v.followUpAt || null,
     projectId: v.projectId || null,
     tags: v.tags,
-    pendingEntities: doc ? collectDocRefs(doc as any).pending : [],
+    pendingEntities: doc ? collectDocRefs(doc).pending : [],
   }
 }
 
@@ -178,7 +179,7 @@ export function EntryForm({
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)]">
         <RichEditor
           className="kb-editor-framed"
-          content={body}
+          content={asDoc(body)}
           mentionShortcuts
           onReady={onEditorReady}
           onSubmit={onSubmit}
@@ -267,7 +268,7 @@ export function EntryForm({
         <Field label="Project">
           <Select value={value.projectId} onChange={(e) => set({ projectId: e.target.value })}>
             <option value="">No project</option>
-            {(projects ?? []).map((p: any) => (
+            {(projects ?? []).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>

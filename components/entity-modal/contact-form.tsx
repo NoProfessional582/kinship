@@ -1,7 +1,18 @@
 'use client'
 import * as React from 'react'
 import { toast } from 'sonner'
-import { Upload, Star, Plus, X, Briefcase, Link2, Flag, MessageSquare, Layers } from 'lucide-react'
+import {
+  Upload,
+  Star,
+  Plus,
+  X,
+  Briefcase,
+  Link2,
+  Flag,
+  MessageSquare,
+  Layers,
+  type LucideIcon,
+} from 'lucide-react'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -10,6 +21,7 @@ import { Avatar } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { CADENCE_LABEL, TIER_LABEL } from '@/lib/cadence'
+import type { ContactRecord } from '@/lib/api-types'
 
 export const CHANNEL_TYPES = [
   { value: 'PHONE', label: 'Phone', placeholder: '+1 555 0100' },
@@ -74,7 +86,14 @@ export interface ContactFormValue {
   links: KeyLink[]
 }
 
-const toDate = (v: any) => (v ? new Date(v).toISOString().slice(0, 10) : '')
+const toDate = (v: string | null | undefined) => (v ? new Date(v).toISOString().slice(0, 10) : '')
+
+/** Row `i` of a repeatable section with `patch` applied. */
+const patchRow = <R,>(rows: R[], i: number, patch: Partial<R>) =>
+  rows.map((r, j) => (j === i ? { ...r, ...patch } : r))
+
+/** A repeatable section without row `i`. */
+const dropRow = <R,>(rows: R[], i: number) => rows.filter((_, j) => j !== i)
 
 export function blankContact(displayName = ''): ContactFormValue {
   const parts = displayName.trim().split(/\s+/)
@@ -104,7 +123,7 @@ export function blankContact(displayName = ''): ContactFormValue {
   }
 }
 
-export function contactFromRecord(c: any): ContactFormValue {
+export function contactFromRecord(c: ContactRecord): ContactFormValue {
   return {
     displayName: c.displayName ?? '',
     firstName: c.firstName ?? '',
@@ -122,19 +141,19 @@ export function contactFromRecord(c: any): ContactFormValue {
     tier: c.tier ?? 'TIER_3',
     cadence: c.cadence ?? 'NONE',
     interests: c.interests ?? [],
-    attributes: (c.attributes ?? []).map((a: any) => ({
+    attributes: c.attributes.map((a) => ({
       category: a.category ?? '',
       key: a.key ?? '',
       value: a.value ?? '',
     })),
-    tags: (c.tags ?? []).map((t: any) => t.tag?.name ?? t),
-    channels: (c.channels ?? []).map((ch: any) => ({
+    tags: c.tags.map((t) => t.tag.name),
+    channels: c.channels.map((ch) => ({
       type: ch.type,
       value: ch.value,
       label: ch.label ?? '',
       isPreferred: ch.isPreferred,
     })),
-    positions: (c.positions ?? []).map((p: any) => ({
+    positions: c.positions.map((p) => ({
       role: p.role,
       organization: p.organization ?? '',
       team: p.team ?? '',
@@ -142,12 +161,12 @@ export function contactFromRecord(c: any): ContactFormValue {
       endDate: toDate(p.endDate),
       isCurrent: p.isCurrent,
     })),
-    milestones: (c.milestones ?? []).map((m: any) => ({
+    milestones: c.milestones.map((m) => ({
       title: m.title,
       date: toDate(m.date),
       note: m.note ?? '',
     })),
-    links: (c.links ?? []).map((l: any) => ({ label: l.label, url: l.url })),
+    links: c.links.map((l) => ({ label: l.label, url: l.url })),
   }
 }
 
@@ -230,15 +249,6 @@ export function ContactForm({
       setUploading(false)
     }
   }
-
-  const patchAt = <T,>(key: keyof ContactFormValue, i: number, patch: Partial<T>) =>
-    set({
-      [key]: (value[key] as unknown as T[]).map((r, j) => (j === i ? { ...r, ...patch } : r)),
-    } as any)
-  const removeAt = (key: keyof ContactFormValue, i: number) =>
-    set({ [key]: (value[key] as unknown as any[]).filter((_, j) => j !== i) } as any)
-  const append = (key: keyof ContactFormValue, row: any) =>
-    set({ [key]: [...(value[key] as unknown as any[]), row] } as any)
 
   return (
     <div className="flex flex-col gap-5">
@@ -356,7 +366,9 @@ export function ContactForm({
               </button>
               <Select
                 value={ch.type}
-                onChange={(e) => patchAt<Channel>('channels', i, { type: e.target.value })}
+                onChange={(e) =>
+                  set({ channels: patchRow(value.channels, i, { type: e.target.value }) })
+                }
                 className="h-8 w-28 shrink-0 text-xs"
               >
                 {CHANNEL_TYPES.map((t) => (
@@ -369,26 +381,35 @@ export function ContactForm({
                 className="h-8 flex-[2] text-xs"
                 placeholder={meta?.placeholder}
                 value={ch.value}
-                onChange={(e) => patchAt<Channel>('channels', i, { value: e.target.value })}
+                onChange={(e) =>
+                  set({ channels: patchRow(value.channels, i, { value: e.target.value }) })
+                }
               />
               <Input
                 className="h-8 flex-1 text-xs"
                 placeholder="label"
                 value={ch.label}
-                onChange={(e) => patchAt<Channel>('channels', i, { label: e.target.value })}
+                onChange={(e) =>
+                  set({ channels: patchRow(value.channels, i, { label: e.target.value }) })
+                }
               />
-              <RemoveButton onClick={() => removeAt('channels', i)} />
+              <RemoveButton onClick={() => set({ channels: dropRow(value.channels, i) })} />
             </div>
           )
         })}
         <AddButton
           label="Add channel"
           onClick={() =>
-            append('channels', {
-              type: 'EMAIL',
-              value: '',
-              label: '',
-              isPreferred: value.channels.length === 0,
+            set({
+              channels: [
+                ...value.channels,
+                {
+                  type: 'EMAIL',
+                  value: '',
+                  label: '',
+                  isPreferred: value.channels.length === 0,
+                },
+              ],
             })
           }
         />
@@ -407,30 +428,36 @@ export function ContactForm({
                 className="h-8 flex-[2] text-xs"
                 placeholder="Role"
                 value={p.role}
-                onChange={(e) => patchAt<Position>('positions', i, { role: e.target.value })}
+                onChange={(e) =>
+                  set({ positions: patchRow(value.positions, i, { role: e.target.value }) })
+                }
               />
               <Input
                 className="h-8 flex-[2] text-xs"
                 placeholder="Organization"
                 value={p.organization}
                 onChange={(e) =>
-                  patchAt<Position>('positions', i, { organization: e.target.value })
+                  set({ positions: patchRow(value.positions, i, { organization: e.target.value }) })
                 }
               />
               <Input
                 className="h-8 flex-1 text-xs"
                 placeholder="Team"
                 value={p.team}
-                onChange={(e) => patchAt<Position>('positions', i, { team: e.target.value })}
+                onChange={(e) =>
+                  set({ positions: patchRow(value.positions, i, { team: e.target.value }) })
+                }
               />
-              <RemoveButton onClick={() => removeAt('positions', i)} />
+              <RemoveButton onClick={() => set({ positions: dropRow(value.positions, i) })} />
             </div>
             <div className="mt-1.5 flex items-center gap-1.5">
               <Input
                 type="date"
                 className="h-8 flex-1 text-xs"
                 value={p.startDate}
-                onChange={(e) => patchAt<Position>('positions', i, { startDate: e.target.value })}
+                onChange={(e) =>
+                  set({ positions: patchRow(value.positions, i, { startDate: e.target.value }) })
+                }
               />
               <span className="text-xs text-[var(--muted-foreground)]">→</span>
               <Input
@@ -438,7 +465,9 @@ export function ContactForm({
                 className="h-8 flex-1 text-xs"
                 value={p.endDate}
                 disabled={p.isCurrent}
-                onChange={(e) => patchAt<Position>('positions', i, { endDate: e.target.value })}
+                onChange={(e) =>
+                  set({ positions: patchRow(value.positions, i, { endDate: e.target.value }) })
+                }
               />
               <label className="flex shrink-0 cursor-pointer items-center gap-1.5 pl-1 text-xs">
                 <input
@@ -466,13 +495,18 @@ export function ContactForm({
         <AddButton
           label="Add position"
           onClick={() =>
-            append('positions', {
-              role: '',
-              organization: '',
-              team: '',
-              startDate: '',
-              endDate: '',
-              isCurrent: value.positions.length === 0,
+            set({
+              positions: [
+                ...value.positions,
+                {
+                  role: '',
+                  organization: '',
+                  team: '',
+                  startDate: '',
+                  endDate: '',
+                  isCurrent: value.positions.length === 0,
+                },
+              ],
             })
           }
         />
@@ -518,26 +552,34 @@ export function ContactForm({
               className="h-8 flex-[2] text-xs"
               placeholder="Milestone"
               value={m.title}
-              onChange={(e) => patchAt<Milestone>('milestones', i, { title: e.target.value })}
+              onChange={(e) =>
+                set({ milestones: patchRow(value.milestones, i, { title: e.target.value }) })
+              }
             />
             <Input
               type="date"
               className="h-8 w-36 shrink-0 text-xs"
               value={m.date}
-              onChange={(e) => patchAt<Milestone>('milestones', i, { date: e.target.value })}
+              onChange={(e) =>
+                set({ milestones: patchRow(value.milestones, i, { date: e.target.value }) })
+              }
             />
             <Input
               className="h-8 flex-[2] text-xs"
               placeholder="note"
               value={m.note}
-              onChange={(e) => patchAt<Milestone>('milestones', i, { note: e.target.value })}
+              onChange={(e) =>
+                set({ milestones: patchRow(value.milestones, i, { note: e.target.value }) })
+              }
             />
-            <RemoveButton onClick={() => removeAt('milestones', i)} />
+            <RemoveButton onClick={() => set({ milestones: dropRow(value.milestones, i) })} />
           </div>
         ))}
         <AddButton
           label="Add milestone"
-          onClick={() => append('milestones', { title: '', date: '', note: '' })}
+          onClick={() =>
+            set({ milestones: [...value.milestones, { title: '', date: '', note: '' }] })
+          }
         />
       </Section>
 
@@ -549,18 +591,21 @@ export function ContactForm({
               className="h-8 flex-1 text-xs"
               placeholder="Label"
               value={l.label}
-              onChange={(e) => patchAt<KeyLink>('links', i, { label: e.target.value })}
+              onChange={(e) => set({ links: patchRow(value.links, i, { label: e.target.value }) })}
             />
             <Input
               className="h-8 flex-[3] text-xs"
               placeholder="https://…"
               value={l.url}
-              onChange={(e) => patchAt<KeyLink>('links', i, { url: e.target.value })}
+              onChange={(e) => set({ links: patchRow(value.links, i, { url: e.target.value }) })}
             />
-            <RemoveButton onClick={() => removeAt('links', i)} />
+            <RemoveButton onClick={() => set({ links: dropRow(value.links, i) })} />
           </div>
         ))}
-        <AddButton label="Add link" onClick={() => append('links', { label: '', url: '' })} />
+        <AddButton
+          label="Add link"
+          onClick={() => set({ links: [...value.links, { label: '', url: '' }] })}
+        />
       </Section>
 
       <Field label="Interests & hobbies">
@@ -582,26 +627,34 @@ export function ContactForm({
               className="h-8 flex-1 text-xs"
               placeholder="Category"
               value={a.category}
-              onChange={(e) => patchAt<Attribute>('attributes', i, { category: e.target.value })}
+              onChange={(e) =>
+                set({ attributes: patchRow(value.attributes, i, { category: e.target.value }) })
+              }
             />
             <Input
               className="h-8 flex-1 text-xs"
               placeholder="Label"
               value={a.key}
-              onChange={(e) => patchAt<Attribute>('attributes', i, { key: e.target.value })}
+              onChange={(e) =>
+                set({ attributes: patchRow(value.attributes, i, { key: e.target.value }) })
+              }
             />
             <Input
               className="h-8 flex-[2] text-xs"
               placeholder="Value"
               value={a.value}
-              onChange={(e) => patchAt<Attribute>('attributes', i, { value: e.target.value })}
+              onChange={(e) =>
+                set({ attributes: patchRow(value.attributes, i, { value: e.target.value }) })
+              }
             />
-            <RemoveButton onClick={() => removeAt('attributes', i)} />
+            <RemoveButton onClick={() => set({ attributes: dropRow(value.attributes, i) })} />
           </div>
         ))}
         <AddButton
           label="Add detail"
-          onClick={() => append('attributes', { category: 'Details', key: '', value: '' })}
+          onClick={() =>
+            set({ attributes: [...value.attributes, { category: 'Details', key: '', value: '' }] })
+          }
         />
       </Section>
 
@@ -649,7 +702,7 @@ function Section({
   hint,
   children,
 }: {
-  icon: any
+  icon: LucideIcon
   title: string
   hint?: string
   children: React.ReactNode

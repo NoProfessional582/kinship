@@ -7,6 +7,7 @@ import { Avatar } from '@/components/ui/misc'
 import { useTimezone, useZonedToday } from '@/lib/hooks/settings'
 import { zonedDayOf } from '@/lib/format'
 import { calendarDate, cn } from '@/lib/utils'
+import type { BoardTask } from '@/lib/api-types'
 
 const PRIORITY: Record<string, { label: string; color: string }> = {
   LOW: { label: 'Low', color: 'var(--muted-foreground)' },
@@ -20,12 +21,12 @@ export function TaskCardFace({
   dragging,
   onOpen,
 }: {
-  task: any
+  task: BoardTask
   dragging?: boolean
-  onOpen?: (task: any) => void
+  onOpen?: (task: BoardTask) => void
 }) {
   const subtasks = task.subtasks ?? []
-  const done = subtasks.filter((s: any) => s.status === 'DONE').length
+  const done = subtasks.filter((s) => s.status === 'DONE').length
   const pct = subtasks.length ? Math.round((done / subtasks.length) * 100) : 0
   // "Overdue" is a question about the calendar, so it has to be asked on the
   // user's calendar. date-fns' isPast/isToday answer it in the browser's zone,
@@ -119,7 +120,7 @@ export function TaskCardFace({
 
         {(task.tags ?? []).length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {task.tags.map((t: any) => (
+            {task.tags.map((t) => (
               <span
                 key={t.tagId}
                 className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[10px] text-[var(--muted-foreground)]"
@@ -186,7 +187,7 @@ export function TaskCardFace({
 
           {(task.assignees ?? []).length > 0 && (
             <div className="flex -space-x-1.5">
-              {task.assignees.slice(0, 3).map((a: any) => (
+              {task.assignees.slice(0, 3).map((a) => (
                 <span
                   key={a.id}
                   title={a.contact.displayName}

@@ -8,6 +8,7 @@ import {
   type TaskFormValue,
 } from '@/components/entity-modal/task-form'
 import { api } from '@/lib/hooks/api'
+import type { EntryListItem, TaskDetail } from '@/lib/api-types'
 
 /**
  * Everything the task detail view does that is not layout: the record, its
@@ -42,13 +43,13 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['task', activeId],
-    queryFn: () => api.get<any>(`/api/tasks/${activeId}`),
+    queryFn: () => api.get<TaskDetail>(`/api/tasks/${activeId}`),
     enabled: Boolean(activeId),
   })
 
   const { data: entries } = useQuery({
     queryKey: ['task-entries', activeId],
-    queryFn: () => api.get<any[]>(`/api/entries?taskId=${activeId}`),
+    queryFn: () => api.get<EntryListItem[]>(`/api/entries?taskId=${activeId}`),
     enabled: Boolean(activeId),
   })
 

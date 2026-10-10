@@ -20,7 +20,7 @@ export function EventChip({
   title: string
 }) {
   return (
-    <div className="kb-ev" style={{ ['--ev' as any]: tint }}>
+    <div className="kb-ev" style={{ '--ev': tint }}>
       {time && <span className="kb-ev-time">{time}</span>}
       <span className="kb-ev-title">{title}</span>
     </div>

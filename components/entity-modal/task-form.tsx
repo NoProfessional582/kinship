@@ -9,6 +9,7 @@ import { AllDayToggle, DateTimeField, toAllDay, toTimed } from '@/components/ui/
 import { useTimezone } from '@/lib/hooks/settings'
 import { Field } from './contact-form'
 import { api, useProjects } from '@/lib/hooks/api'
+import type { BoardColumn, TaskRecord } from '@/lib/api-types'
 
 export interface TaskFormValue {
   title: string
@@ -42,7 +43,7 @@ export function blankTask(title = ''): TaskFormValue {
   }
 }
 
-export function taskFromRecord(t: any): TaskFormValue {
+export function taskFromRecord(t: TaskRecord): TaskFormValue {
   return {
     title: t.title ?? '',
     description: t.description ?? '',
@@ -53,15 +54,12 @@ export function taskFromRecord(t: any): TaskFormValue {
     startDate: t.startDate ? new Date(t.startDate).toISOString() : '',
     dueDate: t.dueDate ? new Date(t.dueDate).toISOString() : '',
     allDay: t.allDay ?? true,
-    assignees: (t.assignees ?? [])
-      .map((a: any) => a.contact ?? a)
-      .filter((c: any) => c?.id)
-      .map((c: any) => ({
-        id: c.id,
-        displayName: c.displayName ?? '',
-        avatarUrl: c.avatarUrl ?? null,
-      })),
-    tags: (t.tags ?? []).map((x: any) => x.tag?.name ?? x),
+    assignees: t.assignees.map(({ contact: c }) => ({
+      id: c.id,
+      displayName: c.displayName,
+      avatarUrl: c.avatarUrl,
+    })),
+    tags: t.tags.map((x) => x.tag.name),
   }
 }
 
@@ -108,14 +106,14 @@ export function TaskForm({
   // project the task belongs to.
   const { data: board } = useQuery({
     queryKey: ['columns'],
-    queryFn: () => api.get<any[]>('/api/columns'),
+    queryFn: () => api.get<BoardColumn[]>('/api/columns'),
   })
 
   // Without a real column selected the status control would sit blank, so fall
   // back to the board's first column.
   React.useEffect(() => {
     if (!board?.length) return
-    if (!value.columnId || !board.some((c: any) => c.id === value.columnId)) {
+    if (!value.columnId || !board.some((c) => c.id === value.columnId)) {
       onChange({ ...value, columnId: board[0].id })
     }
   }, [board, value, onChange])
@@ -134,7 +132,7 @@ export function TaskForm({
         <Field label="Project">
           <Select value={value.projectId} onChange={(e) => set({ projectId: e.target.value })}>
             <option value="">No project</option>
-            {(projects ?? []).map((p: any) => (
+            {(projects ?? []).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
@@ -143,7 +141,7 @@ export function TaskForm({
         </Field>
         <Field label="Status">
           <Select value={value.columnId} onChange={(e) => set({ columnId: e.target.value })}>
-            {(board ?? []).map((c: any) => (
+            {(board ?? []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>

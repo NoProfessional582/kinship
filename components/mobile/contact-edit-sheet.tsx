@@ -18,6 +18,7 @@ import {
   MSheetHeader,
 } from '@/components/mobile/sheet'
 import { api } from '@/lib/hooks/api'
+import type { ContactRecord } from '@/lib/api-types'
 
 /**
  * Editing a person on a phone. The form itself is the shared `ContactForm` —
@@ -30,7 +31,7 @@ export function MobileContactEditSheet({
   open,
   onOpenChange,
 }: {
-  contact: any
+  contact: ContactRecord
   open: boolean
   onOpenChange: (v: boolean) => void
 }) {

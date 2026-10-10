@@ -11,6 +11,7 @@ import {
 import { EntryForm } from '@/components/entity-modal/entry-form'
 import { useEntryEdit } from '@/lib/hooks/entry-edit'
 import { entryTitle } from '@/lib/utils'
+import type { EntryRecord } from '@/lib/api-types'
 
 /**
  * Editing an entry after the fact.
@@ -26,7 +27,7 @@ export function EntryEditDialog({
   open,
   onOpenChange,
 }: {
-  entry: any
+  entry: EntryRecord
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {

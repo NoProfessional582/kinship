@@ -12,6 +12,7 @@ import {
   MSheetHeader,
 } from '@/components/mobile/sheet'
 import { entryTitle } from '@/lib/utils'
+import type { EntryRecord } from '@/lib/api-types'
 
 /**
  * Editing an entry on a phone. Same `useEntryEdit` hook as the desktop dialog,
@@ -26,7 +27,7 @@ export function MobileEntryEditSheet({
   open,
   onOpenChange,
 }: {
-  entry: any
+  entry: EntryRecord
   open: boolean
   onOpenChange: (v: boolean) => void
 }) {

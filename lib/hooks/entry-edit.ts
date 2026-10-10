@@ -10,6 +10,7 @@ import {
 } from '@/components/entity-modal/entry-form'
 import { api } from '@/lib/hooks/api'
 import { useEnrichmentQueue } from '@/lib/store'
+import type { EntryRecord, EntryUpdated } from '@/lib/api-types'
 
 /**
  * Editing an existing entry: the form value, the editor handle and the save
@@ -21,7 +22,7 @@ import { useEnrichmentQueue } from '@/lib/store'
  * That constraint belongs to the container, which is why it is not enforced
  * here.
  */
-export function useEntryEdit(entry: any, onDone: () => void) {
+export function useEntryEdit(entry: EntryRecord, onDone: () => void) {
   const [form, setForm] = React.useState<EntryFormValue>(() => entryFromRecord(entry))
   const [saving, setSaving] = React.useState(false)
   const editorRef = React.useRef<Editor | null>(null)
@@ -43,7 +44,7 @@ export function useEntryEdit(entry: any, onDone: () => void) {
 
     setSaving(true)
     try {
-      const res = await api.patch<{ entry: any; createdEntities: any[] }>(
+      const res = await api.patch<EntryUpdated>(
         `/api/entries/${entry.id}`,
         entryToPayload(form, editor.getJSON()),
       )

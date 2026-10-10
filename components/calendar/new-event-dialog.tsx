@@ -22,6 +22,7 @@ import { isoFromDay, toTimed } from '@/components/ui/datetime-field'
 import { useTimezone } from '@/lib/hooks/settings'
 import { api } from '@/lib/hooks/api'
 import { useEnrichmentQueue } from '@/lib/store'
+import type { EntrySaved } from '@/lib/api-types'
 
 /**
  * Putting something on the calendar that is not tied to a note.
@@ -84,7 +85,7 @@ export function NewEventDialog({
     }
     setSaving(true)
     try {
-      const res = await api.post<{ entry: any; createdEntities: any[] }>(
+      const res = await api.post<EntrySaved>(
         '/api/entries',
         entryToPayload(form, editorRef.current?.getJSON() ?? { type: 'doc', content: [] }),
       )

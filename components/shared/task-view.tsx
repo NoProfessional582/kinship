@@ -12,11 +12,13 @@ import {
   Users,
   CornerUpLeft,
   Check,
+  type LucideIcon,
 } from 'lucide-react'
 import { Card, Avatar, Badge } from '@/components/ui/misc'
 import { useTimezone, useZonedToday } from '@/lib/hooks/settings'
 import { zonedDayOf } from '@/lib/format'
 import { calendarDate, cn, entryTitle } from '@/lib/utils'
+import type { EntryListItem, TaskRecord } from '@/lib/api-types'
 
 const PRIORITY: Record<string, { label: string; color: string }> = {
   LOW: { label: 'Low', color: 'var(--muted-foreground)' },
@@ -40,8 +42,8 @@ export function TaskView({
   entries,
   onOpenTask,
 }: {
-  task: any
-  entries?: any[]
+  task: TaskRecord
+  entries?: EntryListItem[]
   onOpenTask?: (id: string) => void
 }) {
   const { fmt, timezone } = useTimezone()
@@ -83,24 +85,25 @@ export function TaskView({
   }
 
   const subtasks = task.subtasks ?? []
-  const subDone = subtasks.filter((s: any) => s.status === 'DONE').length
+  const subDone = subtasks.filter((s) => s.status === 'DONE').length
   const pct = subtasks.length ? Math.round((subDone / subtasks.length) * 100) : 0
   const assignees = task.assignees ?? []
   const tags = task.tags ?? []
   const mentioned = entries ?? []
+  const parent = task.parent
 
   return (
     <div className="flex flex-col gap-4">
       {/* ------------------------------------------------------------ hero */}
       <div className="flex flex-col gap-2.5">
-        {task.parent && (
+        {parent && (
           <button
             type="button"
-            onClick={() => onOpenTask?.(task.parent.id)}
+            onClick={() => onOpenTask?.(parent.id)}
             className="inline-flex w-fit items-center gap-1.5 text-[11px] text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
           >
             <CornerUpLeft className="h-3 w-3" />
-            <span className="truncate">{task.parent.title}</span>
+            <span className="truncate">{parent.title}</span>
           </button>
         )}
 
@@ -218,7 +221,7 @@ export function TaskView({
             />
           </div>
           <ul className="flex flex-col">
-            {subtasks.map((s: any) => {
+            {subtasks.map((s) => {
               const sDone = s.status === 'DONE'
               const sDue = s.dueDate ? shortDay(s.dueDate) : null
               return (
@@ -263,7 +266,7 @@ export function TaskView({
       {assignees.length > 0 && (
         <Block title="Assigned to" icon={Users} hue="var(--hue-5)">
           <ul className="flex flex-col gap-0.5">
-            {assignees.map((a: any) => (
+            {assignees.map((a) => (
               <li key={a.id}>
                 <Link
                   href={`/contacts/${a.contact.slug}`}
@@ -291,7 +294,7 @@ export function TaskView({
           hue="var(--hue-6)"
         >
           <ul className="flex flex-col gap-0.5">
-            {mentioned.map((e: any) => (
+            {mentioned.map((e) => (
               <li key={e.id}>
                 <Link
                   href={`/notes/${e.id}`}
@@ -312,12 +315,12 @@ export function TaskView({
       {/* ------------------------------------------------------------ tags */}
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          {tags.map((t: any) => (
+          {tags.map((t) => (
             <span
-              key={t.tagId ?? t.tag?.id}
+              key={t.tagId}
               className="rounded-md bg-[var(--muted)] px-1.5 py-0.5 text-[11px] text-[var(--muted-foreground)]"
             >
-              #{t.tag?.name ?? t.name}
+              #{t.tag.name}
             </span>
           ))}
         </div>
@@ -337,7 +340,7 @@ function Fact({
   value: string | null
   note?: string
   tone?: string
-  icon?: any
+  icon?: LucideIcon
 }) {
   if (!value) return null
   return (
@@ -369,7 +372,7 @@ function Block({
   children,
 }: {
   title: string
-  icon: any
+  icon: LucideIcon
   hue: string
   children: React.ReactNode
 }) {

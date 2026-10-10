@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { Board as BoardKit, type BoardGroup } from './kit/board'
 import { TaskCardFace } from './task-card'
 import { keys, useMoveTask } from '@/lib/hooks/api'
+import type { BoardColumn, BoardTask } from '@/lib/api-types'
 
 /**
  * Kinship's board, on the generic board kit in `./kit` (mechanics only; see
@@ -37,11 +38,11 @@ export function Board({
   groupBy,
   onOpenTask,
 }: {
-  columns: any[]
-  tasks: any[]
+  columns: BoardColumn[]
+  tasks: BoardTask[]
   projectId: string | null
   groupBy: GroupBy
-  onOpenTask?: (task: any) => void
+  onOpenTask?: (task: BoardTask) => void
 }) {
   const move = useMoveTask(projectId)
 
@@ -97,10 +98,10 @@ export function Board({
    * card rather than by item.
    */
   const groupIdsOf = React.useCallback(
-    (task: any): string[] => {
+    (task: BoardTask): string[] => {
       if (groupBy === 'project') return [task.project?.id ?? '__none__']
       if (groupBy === 'assignee') {
-        const ids = (task.assignees ?? []).map((a: any) => a.contact.id)
+        const ids = task.assignees.map((a) => a.contact.id)
         return ids.length ? ids : ['__none__']
       }
       return ['__all__']
@@ -129,7 +130,7 @@ export function Board({
   )
 
   return (
-    <BoardKit<any, any>
+    <BoardKit<BoardColumn, BoardTask>
       columns={columns}
       items={tasks}
       groups={groups}
