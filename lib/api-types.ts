@@ -24,14 +24,17 @@ export type Jsonified<T> = T extends Date
 
 type Response<F extends (...args: never[]) => Promise<unknown>> = Jsonified<Awaited<ReturnType<F>>>
 
+/** One record's route: the service answers null for a missing one, the route a 404. */
+type Found<F extends (...args: never[]) => Promise<unknown>> = NonNullable<Response<F>>
+
 /** GET /api/tasks */
 export type Board = Response<typeof getBoard>
 export type BoardTask = Board['tasks'][number]
 export type BoardColumn = Board['columns'][number]
 
 /** GET /api/tasks/[id] */
-export type TaskDetail = Response<typeof getTask>
-export type TaskRecord = NonNullable<TaskDetail>
+export type TaskDetail = Found<typeof getTask>
+export type TaskRecord = TaskDetail
 
 /** GET /api/drafts */
 export type Drafts = Response<typeof listDrafts>
@@ -40,8 +43,8 @@ export type Drafts = Response<typeof listDrafts>
 export type ContactSummary = Response<typeof listContacts>[number]
 
 /** GET /api/contacts/[id] */
-export type ContactDossier = Response<typeof getContactDossier>
-export type ContactRecord = NonNullable<ContactDossier>['contact']
+export type ContactDossier = Found<typeof getContactDossier>
+export type ContactRecord = ContactDossier['contact']
 
 /** GET /api/entries */
 export type EntryListItem = Response<typeof listEntries>[number]
@@ -54,7 +57,7 @@ export type EntryRecord = Omit<EntryListItem, 'mentions' | 'refs' | 'followUp' |
   Partial<Pick<EntryListItem, 'mentions' | 'refs' | 'followUp' | 'followsUp'>>
 
 /** GET /api/entries/[id] */
-export type EntryDetail = Response<typeof getEntry>
+export type EntryDetail = Found<typeof getEntry>
 
 /** POST /api/entries */
 export type EntrySaved = Response<typeof createEntry>
@@ -66,7 +69,7 @@ export type EntryUpdated = Response<typeof updateEntry>
 export type ProjectSummary = Response<typeof listProjects>[number]
 
 /** GET /api/projects/[id] */
-export type ProjectDetail = Response<typeof getProject>
+export type ProjectDetail = Found<typeof getProject>
 
 /** GET /api/calendar */
 export type CalendarEvents = Response<typeof getCalendarEvents>

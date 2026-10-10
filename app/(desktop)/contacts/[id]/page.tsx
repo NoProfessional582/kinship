@@ -56,7 +56,8 @@ import {
   contactToPayload,
   type ContactFormValue,
 } from '@/components/entity-modal/contact-form'
-import { api, useContacts } from '@/lib/hooks/api'
+import { NotFound } from '@/components/shared/not-found'
+import { api, refreshAfterDelete, useContacts } from '@/lib/hooks/api'
 import { CADENCE_LABEL, TIER_LABEL, cadenceHealth } from '@/lib/cadence'
 import { CATEGORY_META, type EventCategory } from '@/lib/calendar-categories'
 import { relationLabel } from '@/lib/relations'
@@ -93,7 +94,7 @@ export default function ContactPage() {
   const [saving, setSaving] = React.useState(false)
   const [openTask, setOpenTask] = React.useState<string | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['contact', id],
     queryFn: () => api.get<ContactDossier>(`/api/contacts/${id}`),
   })
@@ -120,7 +121,7 @@ export default function ContactPage() {
     if (!contact) return
     try {
       await api.del(`/api/contacts/${contact.id}`)
-      qc.invalidateQueries()
+      refreshAfterDelete(qc, ['contact', id])
       toast.success('Contact deleted')
       router.push('/contacts')
     } catch (err) {
@@ -136,9 +137,7 @@ export default function ContactPage() {
     )
   }
   if (!contact) {
-    return (
-      <p className="py-16 text-center text-sm text-[var(--muted-foreground)]">Contact not found.</p>
-    )
+    return <NotFound error={error} what="Contact" href="/contacts" back="Contacts" />
   }
 
   const openEditor = () => {

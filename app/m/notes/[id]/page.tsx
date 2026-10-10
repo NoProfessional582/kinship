@@ -9,7 +9,8 @@ import { EntryBody } from '@/components/shared/entry-body'
 import { Section, MList, MRow } from '@/components/mobile/bits'
 import { MobileEntryEditSheet } from '@/components/mobile/entry-edit-sheet'
 import { KIND_ICON, KIND_COLOR } from '@/components/shared/entry-card'
-import { api } from '@/lib/hooks/api'
+import { NotFound } from '@/components/shared/not-found'
+import { api, refreshAfterDelete } from '@/lib/hooks/api'
 import { relationLabel } from '@/lib/relations'
 import { useTimezone } from '@/lib/hooks/settings'
 import { entryTitle } from '@/lib/utils'
@@ -24,7 +25,11 @@ export default function MobileEntry() {
   const { fmt } = useTimezone()
   const [editing, setEditing] = React.useState(false)
 
-  const { data: entry, isLoading } = useQuery({
+  const {
+    data: entry,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['entry', id],
     queryFn: () => api.get<EntryDetail>(`/api/entries/${id}`),
   })
@@ -34,12 +39,14 @@ export default function MobileEntry() {
   const { data: edges } = useQuery({
     queryKey: ['edges', 'entry', id],
     queryFn: () => api.get<Edge[]>(`/api/edges?type=entry&id=${id}`),
+    // Asked once the entry is known to exist, so an unknown id is refused once, not twice.
+    enabled: Boolean(entry),
   })
 
   const remove = async () => {
     try {
       await api.del(`/api/entries/${id}`)
-      qc.invalidateQueries()
+      refreshAfterDelete(qc, ['entry', id])
       toast.success('Entry deleted')
       router.push(m('/notes'))
     } catch (err) {
@@ -47,12 +54,15 @@ export default function MobileEntry() {
     }
   }
 
-  if (isLoading || !entry) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-sm text-[var(--muted-foreground)]">
         <Loader2 className="h-4 w-4 animate-spin" /> Loading…
       </div>
     )
+  }
+  if (!entry) {
+    return <NotFound error={error} what="Note" href={m('/notes')} back="Notes" />
   }
 
   const Icon = KIND_ICON[entry.kind] ?? KIND_ICON.NOTE

@@ -190,7 +190,7 @@ test('a deleted note leaves the feed and gives back the contact date', async ({
   expect(await lastContactOf(request, contact.id)).toBe(entry.occurredAt)
 
   await json(await request.delete(`/api/entries/${entry.id}`))
-  expect(await json(await request.get(`/api/entries/${entry.id}`))).toBeNull()
+  await refused(await request.get(`/api/entries/${entry.id}`), 404, 'Not found')
   expect(await json(await request.get(`/api/entries?contactId=${contact.id}`))).toEqual([])
   expect(await lastContactOf(request, contact.id)).toBeNull()
 })
@@ -234,11 +234,6 @@ test.describe('refusals', () => {
       'Not found',
     )
     await refused(await request.delete(`/api/entries/${UNKNOWN}`), 404, 'Not found')
-  })
-
-  // ⚠️ Not a 404: reading an unknown note answers null, which its page shows as not found
-  // (master.md, open question 13).
-  test('reading an unknown note answers null', async ({ request }) => {
-    expect(await json(await request.get(`/api/entries/${UNKNOWN}`))).toBeNull()
+    await refused(await request.get(`/api/entries/${UNKNOWN}`), 404, 'Not found')
   })
 })

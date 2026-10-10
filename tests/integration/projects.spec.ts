@@ -74,7 +74,7 @@ test('PATCH saves the whole project the form sends', async ({ request, cleanup }
 test('a deleted project leaves the list', async ({ request, cleanup }) => {
   const project = await newProject(request, cleanup)
   await json(await request.delete(`/api/projects/${project.id}`))
-  expect(await json(await request.get(`/api/projects/${project.id}`))).toBeNull()
+  await refused(await request.get(`/api/projects/${project.id}`), 404, 'Not found')
   const listed = await json<Listed[]>(await request.get('/api/projects'))
   expect(listed.map((p) => p.id)).not.toContain(project.id)
 })
@@ -91,11 +91,6 @@ test.describe('refusals', () => {
     const data = { name: unique('Nothing') }
     await refused(await request.patch(`/api/projects/${UNKNOWN}`, { data }), 404, 'Not found')
     await refused(await request.delete(`/api/projects/${UNKNOWN}`), 404, 'Not found')
-  })
-
-  // ⚠️ Not a 404: reading an unknown project answers null, which its page shows as not
-  // found (master.md, open question 13).
-  test('reading an unknown project answers null', async ({ request }) => {
-    expect(await json(await request.get(`/api/projects/${UNKNOWN}`))).toBeNull()
+    await refused(await request.get(`/api/projects/${UNKNOWN}`), 404, 'Not found')
   })
 })

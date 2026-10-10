@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/misc'
 import { MobileBoard } from '@/components/mobile/board'
 import { MobileTaskSheet } from '@/components/mobile/task-sheet'
 import { NewTaskDialog } from '@/components/board/new-task-dialog'
+import { NotFound } from '@/components/shared/not-found'
 import { api, useBoard } from '@/lib/hooks/api'
 import { m } from '@/lib/mobile/href'
 import type { ProjectDetail } from '@/lib/api-types'
@@ -18,7 +19,11 @@ export default function MobileProject() {
   const [openTask, setOpenTask] = React.useState<string | null>(null)
   const [creating, setCreating] = React.useState(false)
 
-  const { data: project, isLoading } = useQuery({
+  const {
+    data: project,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['project', id],
     queryFn: () => api.get<ProjectDetail>(`/api/projects/${id}`),
   })
@@ -34,9 +39,7 @@ export default function MobileProject() {
     )
   }
   if (!project) {
-    return (
-      <p className="py-16 text-center text-sm text-[var(--muted-foreground)]">Project not found.</p>
-    )
+    return <NotFound error={error} what="Project" href={m('/projects')} back="Projects" />
   }
 
   return (

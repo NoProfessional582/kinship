@@ -146,7 +146,7 @@ test('a move places the card between the neighbours it names', async ({ request,
 test('a deleted task leaves the board', async ({ request, cleanup }) => {
   const task = await newTask(request, cleanup)
   await json(await request.delete(`/api/tasks/${task.id}`))
-  expect(await json(await request.get(`/api/tasks/${task.id}`))).toBeNull()
+  await refused(await request.get(`/api/tasks/${task.id}`), 404, 'Not found')
   expect((await board(request)).tasks.map((t) => t.id)).not.toContain(task.id)
 })
 
@@ -188,11 +188,6 @@ test.describe('refusals', () => {
     )
     await refused(await request.delete(`/api/tasks/${UNKNOWN}`), 404, 'Not found')
     await refused(await request.get('/api/tasks?projectId=no-such-project'), 404, 'Not found')
-  })
-
-  // ⚠️ Not a 404: reading an unknown task answers null, which the task sheet shows as not
-  // found (master.md, open question 13).
-  test('reading an unknown task answers null', async ({ request }) => {
-    expect(await json(await request.get(`/api/tasks/${UNKNOWN}`))).toBeNull()
+    await refused(await request.get(`/api/tasks/${UNKNOWN}`), 404, 'Not found')
   })
 })

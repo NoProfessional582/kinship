@@ -30,3 +30,39 @@ export function isCompletedRouterCancellation(input: {
     requested.searchParams.toString() === destination.searchParams.toString()
   )
 }
+
+/** A refusal a browser test causes on purpose: this status, for this request (path and query). */
+export interface Refusal {
+  status: number
+  method: string
+  path: string
+}
+
+const pathOf = (url: string) => {
+  const { pathname, search } = new URL(url)
+  return pathname + search
+}
+
+/** Which of the expected refusals this error response is, or -1 for none. */
+export function refusalIndex(
+  refusals: Refusal[],
+  response: { status: number; method: string; url: string },
+): number {
+  const path = pathOf(response.url)
+  return refusals.findIndex(
+    (r) => r.status === response.status && r.method === response.method && r.path === path,
+  )
+}
+
+/** Chrome's console line for a refused request, when that refusal is expected. */
+export function isExpectedRefusalLog(
+  refusals: Refusal[],
+  message: { text: string; url: string },
+): boolean {
+  const status = /^Failed to load resource: the server responded with a status of (\d+) /.exec(
+    message.text,
+  )?.[1]
+  if (!status || !message.url) return false
+  const path = pathOf(message.url)
+  return refusals.some((r) => r.status === Number(status) && r.path === path)
+}

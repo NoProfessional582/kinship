@@ -6,11 +6,22 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-09
+
+The first release.
+
 ### Added
 
 - Kinship as a standalone app: one `compose.yaml` runs its own PostgreSQL 18
   database, a one-shot migration job and the web app, and keeps everything in
   `./data`.
+- A published image, `ghcr.io/noprofessional582/kinship:0.1.0` (64-bit
+  Intel/AMD), so `docker compose up -d` downloads Kinship instead of building it;
+  `docker compose up -d --build` still builds it from the checkout. The one image
+  runs both the web app and the command-line jobs (migrations, the seed, archive
+  export and import, LinkedIn import), which it keeps in `/app/cli` with only
+  the packages they use.
+- Screenshots in the README, made from the demo data.
 - Single-user identity: everything acts as the one owner named by
   `KINSHIP_OWNER`, and no request header can change that. The web port is bound
   to `127.0.0.1` only.
@@ -32,6 +43,8 @@ All notable changes to Kinship are recorded here. The format follows
   and uploads a photo, then this version migrates and runs on it; every table
   must keep its rows, the photo its bytes, and every page must load. Each part
   removes everything it made, pass or fail. The README's "Checks" explains them.
+  `quick` also checks that package.json, its lockfile, compose.yaml's image, the
+  Dockerfile's version label and this file's newest release name one version.
 - Playwright tests (`npm run test:e2e`, run inside the test stack): every page
   loads with no errors, the eleven desktop pages in Desktop Chrome and the same
   eleven under `/m` on a Pixel 7. API tests for every route, `/uploads` and
@@ -76,6 +89,20 @@ All notable changes to Kinship are recorded here. The format follows
   the same order (by id), instead of whichever order the database chose.
 - On a phone, the projects list shows each project's done and total task counts
   again, and a contact's "other details" show their labels.
+- Reading a contact, note, project or task that doesn't exist answers 404
+  instead of `200 null`; moving an unknown project on the calendar answers 404,
+  and listing relationships for an unknown type answers 400, instead of a 500.
+  The contact, note and project pages and the task view say "not found", with a
+  way back, on a desktop and on a phone, where the note and contact pages used
+  to keep loading forever. A refused request is no longer retried.
+- Moving an unknown task on the calendar is refused before anything is written.
+- Every page has one main heading for screen readers: the desktop note page and
+  the phone's people, notes, projects, board and calendar pages had none. Nothing
+  changes on screen.
+- On a phone, `@` and `[[` suggestions in the capture sheet can be tapped; before,
+  only the keyboard could pick one.
+- On a phone, search results open the phone's own pages instead of the desktop
+  ones, and a task result opens the task on the phone board (`/m/board?task=`).
 
 ### Security
 
@@ -91,3 +118,6 @@ All notable changes to Kinship are recorded here. The format follows
 - The lint tools no longer include `eslint-config-next`: its Next.js plugin
   brings in braces, which has a high advisory (GHSA-vfj7-8cjw-p6xm) and no fixed
   release yet. It comes back once braces is fixed.
+
+[Unreleased]: https://github.com/NoProfessional582/kinship/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/NoProfessional582/kinship/releases/tag/v0.1.0

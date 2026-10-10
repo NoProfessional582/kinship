@@ -18,11 +18,6 @@ BEGIN {
   query["task.findFirstOrThrow"] = 1
   for (op in query)
     allowed["prisma:error Invalid `prisma." op "()` invocation: " prefix "No record was found for a query."] = 1
-  # calendar.spec.ts: dragging an unknown task.
-  allowed["prisma:error Invalid `prisma.task.update()` invocation: " prefix "No record was found for an update."] = 1
-  # API behavior pinned in calendar/edges specs, tracked in plan open question 13.
-  allowed["[api] Unhandled API error: Error: Project not found"] = 1
-  allowed["[api] Unhandled API error: TypeError: Cannot read properties of undefined (reading 'findFirst')"] = 1
   # entries.integration: integer overflow rollback.
   database["ERROR:  value \"2147483648\" is out of range for type integer"] = 1
   # archive-import.integration: duplicate-slug rollback, twice.

@@ -54,8 +54,12 @@ test('deleted records are listed, and restoring brings each back', async ({ requ
   expect(listed.total).toBeGreaterThanOrEqual(4)
 
   for (const kind of Object.keys(ids) as TrashKind[]) {
+    await refused(await request.get(`${ROUTE[kind]}/${ids[kind]}`), 404, 'Not found')
     await json(await act(request, { action: 'restore', kind, id: ids[kind] }))
-    expect(await json(await request.get(`${ROUTE[kind]}/${ids[kind]}`))).not.toBeNull()
+    const read = await json<{ id?: string; contact?: { id: string } }>(
+      await request.get(`${ROUTE[kind]}/${ids[kind]}`),
+    )
+    expect(read.contact?.id ?? read.id).toBe(ids[kind])
   }
   const after = await trash(request)
   expect(after.total).toBe(listed.total - 4)

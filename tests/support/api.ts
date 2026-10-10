@@ -80,9 +80,10 @@ export interface TrashList {
  * (purged), or already gone (nothing to do).
  */
 export async function removeRecord(api: APIRequestContext, kind: TrashKind, id: string) {
-  // A live contact answers `{ contact, ... }`, the others the record; trashed or gone, null.
-  const live = await json<unknown>(await api.get(`${ROUTE[kind]}/${id}`))
-  if (live !== null) await json(await api.delete(`${ROUTE[kind]}/${id}`))
+  // Live, it reads; trashed or gone, it is not found.
+  const read = await api.get(`${ROUTE[kind]}/${id}`)
+  if (read.status() === 200) await json(await api.delete(`${ROUTE[kind]}/${id}`))
+  else await refused(read, 404, 'Not found')
   const trash = await json<TrashList>(await api.get('/api/trash'))
   if (trash[TRASH_SECTION[kind]].some((row) => row.id === id)) {
     await json(await api.post('/api/trash', { data: { action: 'purge', kind, id } }))
@@ -197,6 +198,7 @@ export interface Entry {
   occurredAt: string
   durationMin: number | null
   mentions: { contact: { id: string; displayName: string } }[]
+  refs: { task: { id: string } | null; project: { id: string } | null }[]
   tags: { tag: { name: string } }[]
 }
 

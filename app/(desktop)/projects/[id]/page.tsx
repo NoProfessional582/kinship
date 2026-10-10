@@ -8,6 +8,7 @@ import { Badge, EmptyState } from '@/components/ui/misc'
 import { Board } from '@/components/board/board'
 import { TaskDialog } from '@/components/shared/task-dialog'
 import { NewTaskDialog } from '@/components/board/new-task-dialog'
+import { NotFound } from '@/components/shared/not-found'
 import { api, useBoard } from '@/lib/hooks/api'
 import type { ProjectDetail } from '@/lib/api-types'
 
@@ -17,7 +18,11 @@ export default function ProjectPage() {
   const [openTask, setOpenTask] = React.useState<string | null>(null)
   const [creating, setCreating] = React.useState(false)
 
-  const { data: project, isLoading } = useQuery({
+  const {
+    data: project,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['project', id],
     queryFn: () => api.get<ProjectDetail>(`/api/projects/${id}`),
   })
@@ -33,9 +38,7 @@ export default function ProjectPage() {
     )
   }
   if (!project) {
-    return (
-      <p className="py-16 text-center text-sm text-[var(--muted-foreground)]">Project not found.</p>
-    )
+    return <NotFound error={error} what="Project" href="/projects" back="Projects" />
   }
 
   return (

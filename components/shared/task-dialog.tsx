@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { TaskView } from '@/components/shared/task-view'
 import { TaskForm } from '@/components/entity-modal/task-form'
+import { notFoundText } from '@/components/shared/not-found'
 import { useTaskDetail } from '@/lib/hooks/task-detail'
 
 /**
@@ -23,6 +24,7 @@ export function TaskDialog({ taskId, onClose }: { taskId: string | null; onClose
     data,
     entries,
     isLoading,
+    error,
     mode,
     setMode,
     form,
@@ -33,6 +35,7 @@ export function TaskDialog({ taskId, onClose }: { taskId: string | null; onClose
     startEdit,
     openTask,
   } = useTaskDetail(taskId, onClose)
+  const missing = notFoundText(error, 'Task')
 
   return (
     <Dialog
@@ -42,9 +45,14 @@ export function TaskDialog({ taskId, onClose }: { taskId: string | null; onClose
       }}
     >
       <DialogContent className="max-w-2xl gap-0 p-0">
-        {isLoading || !data ? (
+        {isLoading ? (
           <div className="flex h-48 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-[var(--muted-foreground)]" />
+          </div>
+        ) : !data ? (
+          <div className="flex h-48 flex-col items-center justify-center gap-2 px-6 text-center">
+            <DialogTitle className="text-base font-semibold">{missing.title}</DialogTitle>
+            <p className="max-w-xs text-sm text-[var(--muted-foreground)]">{missing.hint}</p>
           </div>
         ) : (
           <>

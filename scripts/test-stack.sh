@@ -2,10 +2,12 @@
 # The app in a throwaway stack, test-kinship: its own Postgres, no published port, and an
 # internal network that reaches nothing outside (tests/compose.test.yaml).
 #   1. Builds the image and its builder stage once. The build prints no warnings, and the
-#      app image holds only the standalone server, none of the source.
+#      image holds only the standalone server and the command-line folder (cli), none of
+#      the rest of the source.
 #   2. Starts db, migrate and web: migrate exits 0, db and web are healthy and never
 #      restarted, and no service's logs hold an error.
-#   3. The Vitest database suite (npm run test:integration), in the builder image.
+#   3. The Vitest database suite (npm run test:integration), in the builder stage (the
+#      `suite` service).
 #   4. The command-line jobs: the seed; an export; an import dry run, which changes
 #      nothing; `import -- --replace`, which brings back the same data; and a LinkedIn
 #      import of a made-up Connections.csv (tests/fixtures), twice.
@@ -109,7 +111,7 @@ check_logs() {
   done
 }
 
-# cli COMMAND...: a one-off command in the builder image, the stack's migrate service.
+# cli COMMAND...: a one-off command-line job in the stack's migrate service, from /app/cli.
 cli() { "${compose[@]}" run --rm -T --no-deps migrate "$@"; }
 
 # sql QUERY: one query against the stack's database, unaligned.
@@ -135,16 +137,16 @@ docker buildx build --progress=plain --load --no-cache-filter builder --target b
   -t "$builder_image" . 2>&1 | tee "$STACK_RUNTIME/build.log"
 docker buildx build --progress=plain --load -t "$app_image" . 2>&1 | tee -a "$STACK_RUNTIME/build.log"
 
-step "The build printed no warnings, and the app image holds only the standalone server"
+step "The build printed no warnings, and the image holds only the server and the CLI"
 grep -q 'Compiled successfully' "$STACK_RUNTIME/build.log"
 if grep -nE '⚠|Turbopack build encountered' "$STACK_RUNTIME/build.log" >&2; then
   echo "Next's build printed warnings, above." >&2
   exit 1
 fi
 contents=$(docker run --rm --entrypoint ls "$app_image" -A /app | tr '\n' ' ')
-if [ "$contents" != '.next node_modules package.json public server.js ' ]; then
+if [ "$contents" != '.next cli node_modules package.json public server.js ' ]; then
   echo "/app holds: $contents" >&2
-  echo "Expected only .next node_modules package.json public server.js: did the build trace the whole project?" >&2
+  echo "Expected only .next cli node_modules package.json public server.js: did the build trace the whole project?" >&2
   exit 1
 fi
 echo "no warnings; /app holds $contents"
@@ -155,8 +157,8 @@ healthy
 check_logs "after start-up"
 startup_done=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)
 
-step "Vitest database suite, in the builder image"
-cli npm run --silent test:integration
+step "Vitest database suite, in the builder stage"
+"${compose[@]}" run --rm -T --no-deps suite
 # Two of its rollback tests make Postgres refuse a row on purpose, and Postgres logs each
 # refusal as an ERROR (entries: an integer out of range; archive-import: a duplicate slug,
 # twice). The last log check starts here, so it covers the CLI jobs and the browser tests.
@@ -187,11 +189,13 @@ same_data "$STACK_RUNTIME/archive.json" "$STACK_RUNTIME/after-replace.json"
 echo "the database exports the same data as before"
 
 step "CLI: LinkedIn import of a made-up Connections.csv, then again (nothing doubled)"
-linkedin=(env LINKEDIN_CSV=/app/tests/fixtures/linkedin-connections.csv npm run --silent import:linkedin)
-cli "${linkedin[@]}" | tee "$STACK_RUNTIME/linkedin.log"
+# The image holds no tests, so the fixture comes in read-only.
+linkedin=("${compose[@]}" run --rm -T --no-deps -v "$PWD/tests/fixtures:/fixtures:ro"
+  -e LINKEDIN_CSV=/fixtures/linkedin-connections.csv migrate npm run --silent import:linkedin)
+"${linkedin[@]}" | tee "$STACK_RUNTIME/linkedin.log"
 grep -qF 'Imported 2 contacts · skipped 0 already present · ignored 1 rows with no name · 1 carried credentials' \
   "$STACK_RUNTIME/linkedin.log"
-cli "${linkedin[@]}" | tee "$STACK_RUNTIME/linkedin-again.log"
+"${linkedin[@]}" | tee "$STACK_RUNTIME/linkedin-again.log"
 grep -qF 'Imported 0 contacts · skipped 2 already present' "$STACK_RUNTIME/linkedin-again.log"
 test "$(sql "SELECT string_agg(\"displayName\", ', ' ORDER BY \"displayName\") FROM \"Contact\"
   WHERE owner = 'tester' AND \"displayName\" IN ('Otto Pemberly', 'Wren Ashby')")" = 'Otto Pemberly, Wren Ashby'

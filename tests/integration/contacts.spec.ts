@@ -143,7 +143,7 @@ test('a deleted contact goes to the trash and out of the lists', async ({ reques
   )
   expect(deleted.deletedAt).not.toBeNull()
 
-  expect(await json(await request.get(`/api/contacts/${contact.id}`))).toBeNull()
+  await refused(await request.get(`/api/contacts/${contact.id}`), 404, 'Not found')
   const listed = await json<Listed[]>(
     await request.get(`/api/contacts?q=${encodeURIComponent(contact.displayName)}`),
   )
@@ -219,17 +219,12 @@ test.describe('refusals', () => {
     const data = { displayName: unique('Nobody') }
     await refused(await request.patch(`/api/contacts/${UNKNOWN}`, { data }), 404, 'Not found')
     await refused(await request.delete(`/api/contacts/${UNKNOWN}`), 404, 'Not found')
+    await refused(await request.get(`/api/contacts/${UNKNOWN}`), 404, 'Not found')
     await refused(await request.get(`/api/contacts/${UNKNOWN}/attributes`), 404, 'Not found')
     await refused(
       await request.put(`/api/contacts/${UNKNOWN}/attributes`, { data: { attributes: [] } }),
       404,
       'Not found',
     )
-  })
-
-  // ⚠️ Not a 404: reading an unknown contact answers null, which the pages show as
-  // "Contact not found" (master.md, open question 13).
-  test('reading an unknown contact answers null', async ({ request }) => {
-    expect(await json(await request.get(`/api/contacts/${UNKNOWN}`))).toBeNull()
   })
 })

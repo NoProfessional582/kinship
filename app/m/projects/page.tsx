@@ -16,6 +16,8 @@ export default function MobileProjects() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* The tab bar names the page on screen; the heading is for screen readers. */}
+      <h1 className="sr-only">Projects</h1>
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-[var(--muted-foreground)]">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading…

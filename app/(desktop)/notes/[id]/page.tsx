@@ -8,8 +8,10 @@ import { ArrowLeft, Loader2, Trash2, Link2 } from 'lucide-react'
 import { EntryCard } from '@/components/shared/entry-card'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/misc'
-import { api } from '@/lib/hooks/api'
+import { NotFound } from '@/components/shared/not-found'
+import { api, refreshAfterDelete } from '@/lib/hooks/api'
 import { relationLabel } from '@/lib/relations'
+import { entryTitle } from '@/lib/utils'
 import type { Edge, EntryDetail } from '@/lib/api-types'
 
 export default function EntryPage() {
@@ -17,7 +19,11 @@ export default function EntryPage() {
   const router = useRouter()
   const qc = useQueryClient()
 
-  const { data: entry, isLoading } = useQuery({
+  const {
+    data: entry,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['entry', id],
     queryFn: () => api.get<EntryDetail>(`/api/entries/${id}`),
   })
@@ -28,12 +34,14 @@ export default function EntryPage() {
   const { data: edges } = useQuery({
     queryKey: ['edges', 'entry', id],
     queryFn: () => api.get<Edge[]>(`/api/edges?type=entry&id=${id}`),
+    // Asked once the entry is known to exist, so an unknown id is refused once, not twice.
+    enabled: Boolean(entry),
   })
 
   const remove = async () => {
     try {
       await api.del(`/api/entries/${id}`)
-      qc.invalidateQueries()
+      refreshAfterDelete(qc, ['entry', id])
       toast.success('Entry deleted')
       router.push('/notes')
     } catch (err) {
@@ -60,9 +68,9 @@ export default function EntryPage() {
           <Loader2 className="h-4 w-4 animate-spin" /> Loading…
         </div>
       )}
-      {!isLoading && !entry && (
-        <p className="py-10 text-center text-sm text-[var(--muted-foreground)]">Entry not found.</p>
-      )}
+      {!isLoading && !entry && <NotFound error={error} what="Note" href="/notes" back="Notes" />}
+      {/* The card shows the title; the heading is for screen readers. */}
+      {entry && <h1 className="sr-only">{entryTitle(entry)}</h1>}
       {entry && <EntryCard entry={entry} />}
 
       {entry && (edges ?? []).length > 0 && (

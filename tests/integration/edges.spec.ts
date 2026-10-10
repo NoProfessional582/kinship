@@ -171,13 +171,9 @@ test.describe('refusals', () => {
     await refused(await request.delete(`/api/edges/${UNKNOWN}`), 404, 'Not found')
   })
 
-  // ⚠️ Not a 400: the type is not checked, and one that names no table fails as a server
-  // error (master.md, open question 13).
-  test('listing for an unknown type fails as a server error', async ({ request }) => {
-    await refused(
-      await request.get(`/api/edges?type=bogus&id=${UNKNOWN}`),
-      500,
-      "Cannot read properties of undefined (reading 'findFirst')",
-    )
+  test('listing for an unknown type, or for no id, is refused', async ({ request }) => {
+    await invalid(await request.get(`/api/edges?type=bogus&id=${UNKNOWN}`), 'type')
+    await invalid(await request.get(`/api/edges?type=&id=${UNKNOWN}`), 'type')
+    await invalid(await request.get('/api/edges?type=contact'), 'id')
   })
 })

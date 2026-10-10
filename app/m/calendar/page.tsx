@@ -210,6 +210,8 @@ export default function MobileCalendar() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* The tab bar names the page on screen; the heading is for screen readers. */}
+      <h1 className="sr-only">Calendar</h1>
       <div className="flex items-center gap-2">
         <button
           onClick={() => step(-1)}

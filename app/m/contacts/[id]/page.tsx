@@ -23,6 +23,7 @@ import { Section, MEmpty, MList, MRow } from '@/components/mobile/bits'
 import { MobileTaskSheet } from '@/components/mobile/task-sheet'
 import { MobileContactEditSheet } from '@/components/mobile/contact-edit-sheet'
 import { KIND_ICON, KIND_COLOR } from '@/components/shared/entry-card'
+import { NotFound } from '@/components/shared/not-found'
 import { api } from '@/lib/hooks/api'
 import { CADENCE_LABEL, TIER_LABEL } from '@/lib/cadence'
 import { useTimezone } from '@/lib/hooks/settings'
@@ -68,18 +69,21 @@ export default function MobileDossier() {
   const [editing, setEditing] = React.useState(false)
   const [details, setDetails] = React.useState(false)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['contact', id],
     queryFn: () => api.get<ContactDossier>(`/api/contacts/${id}`),
   })
   const c = data?.contact
 
-  if (isLoading || !c) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-16 text-sm text-[var(--muted-foreground)]">
         <Loader2 className="h-4 w-4 animate-spin" /> Loading…
       </div>
     )
+  }
+  if (!c) {
+    return <NotFound error={error} what="Contact" href={m('/contacts')} back="Contacts" />
   }
 
   const facts: Array<[string, React.ReactNode]> = [

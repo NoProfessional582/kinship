@@ -7,7 +7,7 @@ import {
   taskToPayload,
   type TaskFormValue,
 } from '@/components/entity-modal/task-form'
-import { api } from '@/lib/hooks/api'
+import { api, refreshAfterDelete } from '@/lib/hooks/api'
 import type { EntryListItem, TaskDetail } from '@/lib/api-types'
 
 /**
@@ -41,7 +41,7 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
     setForm(null)
   }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['task', activeId],
     queryFn: () => api.get<TaskDetail>(`/api/tasks/${activeId}`),
     enabled: Boolean(activeId),
@@ -74,7 +74,7 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
     try {
       await api.del(`/api/tasks/${activeId}`)
       toast.success('Task deleted')
-      qc.invalidateQueries()
+      refreshAfterDelete(qc, ['task', activeId])
       if (drill) setDrill(null)
       else onClose()
     } catch (err) {
@@ -96,6 +96,7 @@ export function useTaskDetail(taskId: string | null, onClose: () => void) {
     data,
     entries,
     isLoading,
+    error,
     mode,
     setMode,
     form,
