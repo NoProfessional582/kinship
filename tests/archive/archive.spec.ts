@@ -57,7 +57,11 @@ test('download and restore an archive without changing its records', async ({ pa
   await expect(page.getByText(/Restored \d+ rows/)).toBeVisible()
 })
 
-test('the legacy kb-archive v1 seed imports through settings', async ({ page, request }) => {
+test('the legacy kb-archive v1 seed imports through settings with an explicit schema override', async ({
+  page,
+  request,
+  refusals,
+}) => {
   const path = 'tests/fixtures/archive-v1.json'
   const fixture = JSON.parse(await readFile(path, 'utf8')) as Archive
   expect(fixture.format).toBe('kb-archive')
@@ -67,12 +71,24 @@ test('the legacy kb-archive v1 seed imports through settings', async ({ page, re
   await page.goto('/settings')
   await page.waitForLoadState('networkidle')
   const before = await json<Archive>(await request.get('/api/export'))
+  refusals.push({ status: 400, method: 'POST', path: '/api/import?confirm=replace' })
   await page.locator('input[type=file]').setInputFiles(path)
   await page.getByPlaceholder('replace', { exact: true }).fill('replace')
   const importing = page.waitForResponse((r) => r.url().includes('/api/import?confirm=replace'))
   await page.getByRole('button', { name: 'Replace everything', exact: true }).click()
   const answer = await importing
-  expect(answer.status()).toBe(200)
+  expect(answer.status()).toBe(400)
+  expect((await answer.json()).error).toContain('20261010150000_rebuild_contact_recency')
+  const rejected = await json<Archive>(await request.get('/api/export'))
+  expect(rejected.counts).toEqual(before.counts)
+  expect(rejected.data).toEqual(before.data)
+  expect(rejected.uploads).toEqual(before.uploads)
+  await expect(page.getByRole('button', { name: 'Import anyway', exact: true })).toBeVisible()
+  const forcing = page.waitForResponse((r) =>
+    r.url().includes('/api/import?confirm=replace&force=1'),
+  )
+  await page.getByRole('button', { name: 'Import anyway', exact: true }).click()
+  expect((await forcing).status()).toBe(200)
   const after = await json<Archive>(await request.get('/api/export'))
   expect(after.counts).toEqual(fixture.counts)
   expect(after.data).toEqual(fixture.data)
