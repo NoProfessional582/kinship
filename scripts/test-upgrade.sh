@@ -196,7 +196,7 @@ step "This version: migrate, with the previous web stopped"
 "${old_compose[@]}" stop web
 export KINSHIP_IMAGE="$project:app"
 "${compose[@]}" run --rm -T --no-deps migrate 2>&1 | tee "$STACK_RUNTIME/migrate.log"
-grep -qE 'No pending migrations to apply|migrations? (have|has) been applied' "$STACK_RUNTIME/migrate.log"
+grep -qE 'No pending migrations to apply|All migrations have been successfully applied[.]' "$STACK_RUNTIME/migrate.log"
 
 step "This version: web"
 "${compose[@]}" up -d --wait --wait-timeout 180 --no-deps web
