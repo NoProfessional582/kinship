@@ -10,8 +10,8 @@ COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund
 
 # ---------- builder ----------
-# Also serves as the image for the one-shot `migrate` service and for seeding,
-# because it is the only stage with the full toolchain (Prisma CLI, tsx).
+# Builds the web app. scripts/test-stack.sh also runs the database test suite in
+# it, because it has the whole toolchain; nothing else runs this stage.
 FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -22,9 +22,31 @@ ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate && npm run build
 
+# ---------- cli ----------
+# The command-line jobs (migrations, seed, archive export and import, LinkedIn
+# import): the npm scripts, their sources, and only the packages they use, taken
+# from the builder's install (docker/cli-modules.mjs). It becomes /app/cli in the
+# runner, apart from the web server's own node_modules, so neither can shadow the
+# other's packages.
+FROM ${NODE_IMAGE} AS cli
+WORKDIR /build
+COPY --from=builder /app/node_modules ./node_modules
+COPY package.json prisma.config.ts tsconfig.json ./
+COPY prisma ./prisma
+COPY lib ./lib
+COPY docker/cli-modules.mjs ./docker/
+RUN node docker/cli-modules.mjs /build /app/cli \
+    && cp -r package.json prisma.config.ts tsconfig.json prisma lib /app/cli/
+
 # ---------- runner ----------
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
+
+LABEL org.opencontainers.image.title="Kinship" \
+      org.opencontainers.image.description="One person's contacts, notes and tasks, on their own computer" \
+      org.opencontainers.image.source="https://github.com/NoProfessional582/kinship" \
+      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.licenses="MIT"
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -33,6 +55,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # port refuse every connection. This line is load-bearing.
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+# The CLI runs through npm; keep its "new version available" notice out of the logs.
+ENV npm_config_update_notifier=false
 
 # uid 1001: compose.yaml's migrate job hands data/uploads to this user.
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
@@ -41,10 +65,15 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# The generated Prisma client. Migrations run in the separate `migrate` service,
-# so the Prisma CLI is deliberately absent from this image.
+# The generated Prisma client, for the web server.
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# The command-line jobs, run by compose.yaml's `migrate` service from /app/cli.
+# Their uploads folder is the web server's: lib/uploads.ts finds it from the
+# working directory, so /app/cli/public points at /app/public.
+COPY --from=cli /app/cli ./cli
+RUN ln -s ../public ./cli/public
 
 RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
 

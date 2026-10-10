@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Upgrading a database made by the previous version keeps its data (code.md 25), in a
 # throwaway stack, test-kinship-upgrade, laid out like test-kinship (tests/compose.test.yaml):
-#   1. Builds the previous version (from `git archive`) and this one: the builder stage and
-#      the app image of each.
+#   1. Builds the previous version (from `git archive`) and this one: the image of each, and
+#      the previous version's builder stage, which ran its migrate before 0.1.0.
 #   2. Starts the previous version on a fresh database: migrate, the seed, and one avatar
 #      uploaded as a new contact's photo.
 #   3. Records the rows in every table and the avatar's sha256.
@@ -16,8 +16,10 @@
 #   scripts/test-upgrade.sh REF      from REF instead (a tag, branch or commit)
 #
 # The previous version is the newest vX.Y.Z tag reachable from HEAD, or origin/main while
-# there is none. Assumes both versions run under this version's compose.yaml (db, migrate,
-# web); if a release changes that shape, this check changes with it.
+# there is none. Each version runs under its own compose.yaml and tests/compose.test.yaml
+# (db, migrate, web, browser), in the same project and on the same data. The previous one
+# finds its images in KINSHIP_BUILDER_IMAGE and KINSHIP_APP_IMAGE (before 0.1.0: migrate ran
+# the builder stage) or KINSHIP_IMAGE (0.1.0 on: one image).
 #
 # Leaves no containers, networks, volumes, images or files behind, pass or fail; prints the
 # stack's logs when anything fails. Needs git and Docker with Compose and Buildx; Node runs
@@ -26,7 +28,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 project=test-kinship-upgrade
-images=("$project:old-builder" "$project:old-app" "$project:builder" "$project:app")
+images=("$project:old-builder" "$project:old-app" "$project:app")
 STACK_RUNTIME=$(mktemp -d "${TMPDIR:-/tmp}/kinship-upgrade.XXXXXX")
 chmod 700 "$STACK_RUNTIME"
 HOST_UID=$(id -u)
@@ -34,15 +36,16 @@ HOST_GID=$(id -g)
 export STACK_RUNTIME HOST_UID HOST_GID
 compose=(docker compose -p "$project" --env-file "$STACK_RUNTIME/settings.env"
   -f compose.yaml -f tests/compose.test.yaml --profile tests)
+# The previous version's own files; its build contexts are reset, so they are never used.
+old_compose=(docker compose -p "$project" --env-file "$STACK_RUNTIME/settings.env"
+  -f "$STACK_RUNTIME/previous/compose.yaml" -f "$STACK_RUNTIME/previous/tests/compose.test.yaml"
+  --profile tests)
 
 step() { printf '\n==> %s\n' "$*"; }
 
-# Which images the stack runs: old (the previous version) or new (this checkout).
-use() {
-  local tag=
-  [ "$1" = old ] && tag=old-
-  export KINSHIP_BUILDER_IMAGE="$project:${tag}builder" KINSHIP_APP_IMAGE="$project:${tag}app"
-}
+# The previous version's images, under every name its test overlay may read.
+export KINSHIP_BUILDER_IMAGE="$project:old-builder" KINSHIP_APP_IMAGE="$project:old-app"
+export KINSHIP_IMAGE="$project:old-app"
 
 if [ $# -gt 0 ]; then
   previous=$1
@@ -125,21 +128,17 @@ fi
 
 step "Building the previous version, $previous ($previous_commit), and this checkout"
 git archive "$previous_commit" | tar -x -C "$STACK_RUNTIME/previous"
-for version in old new; do
-  if [ "$version" = old ]; then context=$STACK_RUNTIME/previous; else context=.; fi
-  use "$version"
-  docker buildx build --progress=quiet --load --target builder -t "$KINSHIP_BUILDER_IMAGE" "$context"
-  docker buildx build --progress=quiet --load -t "$KINSHIP_APP_IMAGE" "$context"
-done
+docker buildx build --progress=quiet --load --target builder -t "$project:old-builder" "$STACK_RUNTIME/previous"
+docker buildx build --progress=quiet --load -t "$project:old-app" "$STACK_RUNTIME/previous"
+docker buildx build --progress=quiet --load -t "$project:app" .
 echo "built ${images[*]}"
 
 step "Previous version: db, migrate and web"
-use old
-"${compose[@]}" up -d --wait --wait-timeout 180 db migrate web
+"${old_compose[@]}" up -d --wait --wait-timeout 180 db migrate web
 web_healthy
 
 step "Previous version: the seed, and a contact with an uploaded photo"
-"${compose[@]}" run --rm -T --no-deps migrate npm run --silent db:seed | tail -n 1
+"${old_compose[@]}" run --rm -T --no-deps migrate npm run --silent db:seed | tail -n 1
 # A real 1×1 PNG, as in tests/support/files.ts.
 avatar_contact='Upgrade Photo'
 avatar=$(in_web '
@@ -181,8 +180,8 @@ if ! grep -qv ' 0$' "$STACK_RUNTIME/rows-before"; then
 fi
 
 step "This version: migrate, with the previous web stopped"
-"${compose[@]}" stop web
-use new
+"${old_compose[@]}" stop web
+export KINSHIP_IMAGE="$project:app"
 "${compose[@]}" run --rm -T --no-deps migrate 2>&1 | tee "$STACK_RUNTIME/migrate.log"
 grep -qE 'No pending migrations to apply|migrations? (have|has) been applied' "$STACK_RUNTIME/migrate.log"
 

@@ -1,7 +1,7 @@
 # Kinship: one person's contacts, notes and tasks, on their own computer.
 #
 #   cp .env.example .env     # then fill it in
-#   docker compose up -d     # the first start builds the image and takes a few minutes
+#   docker compose up -d     # downloads the image on the first start
 #
 # Then open http://127.0.0.1:3000. Everything you store lives in ./data (README.md).
 name: kinship
@@ -32,12 +32,17 @@ services:
     restart: unless-stopped
 
   # One-shot job: applies database migrations, then exits; `web` waits for it.
-  # It runs the image's builder stage, the only one with the Prisma CLI, which is
-  # also why the seed and archive commands run here (README.md).
+  # Same image as `web`, from the command-line folder that holds the Prisma CLI,
+  # which is also where the seed and archive commands run (README.md). Running as
+  # root lets it hand data/uploads to the web server's user below.
   migrate:
-    build:
+    image: &image ghcr.io/noprofessional582/kinship:0.1.0
+    # `docker compose up` downloads the image, or builds it from this checkout if
+    # it can't; `docker compose build` and `up --build` always build it here.
+    build: &build
       context: .
-      target: builder
+    user: '0:0'
+    working_dir: /app/cli
     # Docker creates a missing ./data/uploads owned by root, and the web server
     # runs as uid 1001 (Dockerfile), so it could not save avatars there. The guard
     # (prisma/check-migrations.mjs) runs before any migration is applied.
@@ -56,8 +61,8 @@ services:
     restart: "no"
 
   web:
-    build:
-      context: .
+    image: *image
+    build: *build
     environment:
       DATABASE_URL: *database-url
       KINSHIP_OWNER: ${KINSHIP_OWNER:?set KINSHIP_OWNER in .env}
