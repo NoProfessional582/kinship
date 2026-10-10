@@ -10,7 +10,7 @@ import { Section, MList, MRow } from '@/components/mobile/bits'
 import { MobileEntryEditSheet } from '@/components/mobile/entry-edit-sheet'
 import { KIND_ICON, KIND_COLOR } from '@/components/shared/entry-card'
 import { NotFound } from '@/components/shared/not-found'
-import { api } from '@/lib/hooks/api'
+import { api, refreshAfterDelete } from '@/lib/hooks/api'
 import { relationLabel } from '@/lib/relations'
 import { useTimezone } from '@/lib/hooks/settings'
 import { entryTitle } from '@/lib/utils'
@@ -46,7 +46,7 @@ export default function MobileEntry() {
   const remove = async () => {
     try {
       await api.del(`/api/entries/${id}`)
-      qc.invalidateQueries()
+      refreshAfterDelete(qc, ['entry', id])
       toast.success('Entry deleted')
       router.push(m('/notes'))
     } catch (err) {

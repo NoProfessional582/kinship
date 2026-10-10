@@ -9,7 +9,7 @@ import { EntryCard } from '@/components/shared/entry-card'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/misc'
 import { NotFound } from '@/components/shared/not-found'
-import { api } from '@/lib/hooks/api'
+import { api, refreshAfterDelete } from '@/lib/hooks/api'
 import { relationLabel } from '@/lib/relations'
 import type { Edge, EntryDetail } from '@/lib/api-types'
 
@@ -40,7 +40,7 @@ export default function EntryPage() {
   const remove = async () => {
     try {
       await api.del(`/api/entries/${id}`)
-      qc.invalidateQueries()
+      refreshAfterDelete(qc, ['entry', id])
       toast.success('Entry deleted')
       router.push('/notes')
     } catch (err) {

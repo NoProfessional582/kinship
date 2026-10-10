@@ -1,5 +1,5 @@
 'use client'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import type { Board, ContactSummary, Drafts, ProjectSummary } from '@/lib/api-types'
 
 /** A refusal from the API: its `{ error }` message, and the status it came with. */
@@ -19,6 +19,17 @@ export const isNotFound = (err: unknown) => err instanceof ApiError && err.statu
 /** Worth asking again: a network fault or a server error, never a refusal (400-499). */
 export const isRetryable = (err: unknown) =>
   !(err instanceof ApiError && err.status >= 400 && err.status < 500)
+
+/**
+ * After a record is deleted from its own view: refresh everything else, and only mark the
+ * record's own query stale. Refetching it while the view is still open would ask for what
+ * is now a 404.
+ */
+export function refreshAfterDelete(qc: QueryClient, key: readonly unknown[]) {
+  const own = (queryKey: readonly unknown[]) => key.every((part, i) => queryKey[i] === part)
+  void qc.invalidateQueries({ queryKey: key, refetchType: 'none' })
+  return qc.invalidateQueries({ predicate: (query) => !own(query.queryKey) })
+}
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {

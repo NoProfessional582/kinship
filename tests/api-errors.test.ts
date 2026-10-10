@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { found, handle } from '@/lib/api'
 import { NotFoundError } from '@/lib/errors'
-import { ApiError, isNotFound, isRetryable } from '@/lib/hooks/api'
+import { ApiError, isNotFound, isRetryable, refreshAfterDelete } from '@/lib/hooks/api'
 import { edgeListSchema } from '@/lib/validation'
 
 describe('a missing record', () => {
@@ -50,5 +51,34 @@ describe('edgeListSchema', () => {
   it('refuses a type that names no kind of record', () => {
     expect(() => edgeListSchema.parse({ type: 'bogus', id: 'x' })).toThrow()
     expect(() => edgeListSchema.parse({ type: '', id: 'x' })).toThrow()
+  })
+})
+
+describe('refreshAfterDelete', () => {
+  it('refetches every other open query, never the deleted record', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const asked: Record<string, number> = {}
+    const open = (key: string[]) =>
+      new QueryObserver(qc, {
+        queryKey: key,
+        queryFn: async () => {
+          asked[key.join('/')] = (asked[key.join('/')] ?? 0) + 1
+          return key
+        },
+      }).subscribe(() => {})
+    const close = [open(['entry', 'gone']), open(['entry', 'other']), open(['board', 'all'])]
+    await vi.waitFor(() =>
+      expect(
+        qc
+          .getQueryCache()
+          .getAll()
+          .map((q) => q.state.status),
+      ).toEqual(['success', 'success', 'success']),
+    )
+
+    await refreshAfterDelete(qc, ['entry', 'gone'])
+    expect(asked).toEqual({ 'entry/gone': 1, 'entry/other': 2, 'board/all': 2 })
+    expect(qc.getQueryState(['entry', 'gone'])?.isInvalidated).toBe(true)
+    close.forEach((unsubscribe) => unsubscribe())
   })
 })

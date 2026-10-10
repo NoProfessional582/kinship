@@ -57,7 +57,7 @@ import {
   type ContactFormValue,
 } from '@/components/entity-modal/contact-form'
 import { NotFound } from '@/components/shared/not-found'
-import { api, useContacts } from '@/lib/hooks/api'
+import { api, refreshAfterDelete, useContacts } from '@/lib/hooks/api'
 import { CADENCE_LABEL, TIER_LABEL, cadenceHealth } from '@/lib/cadence'
 import { CATEGORY_META, type EventCategory } from '@/lib/calendar-categories'
 import { relationLabel } from '@/lib/relations'
@@ -121,7 +121,7 @@ export default function ContactPage() {
     if (!contact) return
     try {
       await api.del(`/api/contacts/${contact.id}`)
-      qc.invalidateQueries()
+      refreshAfterDelete(qc, ['contact', id])
       toast.success('Contact deleted')
       router.push('/contacts')
     } catch (err) {
