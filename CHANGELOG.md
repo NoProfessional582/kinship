@@ -6,6 +6,17 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-10
+
+### Fixed
+
+- Reject cross-origin writes, hostile Host headers, and inappropriate API content types while preserving same-origin browser and local CLI access.
+- Apply the configured public port to the request guard and protect photo and export reads against hostile hosts.
+
+### Tests
+
+- Cover request provenance and real browser attacks, including attempted empty-archive wipes.
+
 ## [0.1.0] - 2026-10-09
 
 The first release.

@@ -162,7 +162,7 @@ echo "$avatar_contact's photo is $avatar"
 # avatar_sha256: the avatar as /uploads serves it.
 avatar_sha256() {
   in_web '
-    fetch("http://127.0.0.1:3000" + process.argv[1]).then(async (r) => {
+    fetch("http://web:3000" + process.argv[1]).then(async (r) => {
       if (!r.ok) throw new Error(`${r.url}: ${r.status}`)
       const bytes = Buffer.from(await r.arrayBuffer())
       console.log(require("node:crypto").createHash("sha256").update(bytes).digest("hex"))
