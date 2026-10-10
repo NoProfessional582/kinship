@@ -148,10 +148,10 @@ avatar=$(in_web '
   const base = "http://web:3000"
   const ok = async (r) => { if (!r.ok) throw new Error(`${r.url}: ${r.status} ${await r.text()}`); return r.json() }
   ;(async () => {
-    const { url } = await ok(await fetch(`${base}/api/upload`, { method: "POST", body: form }))
+    const { url } = await ok(await fetch(`${base}/api/upload`, { method: "POST", headers: { origin: base }, body: form }))
     await ok(await fetch(`${base}/api/contacts`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", origin: base },
       body: JSON.stringify({ displayName: process.argv[2], avatarUrl: url }),
     }))
     console.log(url)
