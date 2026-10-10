@@ -198,6 +198,7 @@ export interface Entry {
   occurredAt: string
   durationMin: number | null
   mentions: { contact: { id: string; displayName: string } }[]
+  refs: { task: { id: string } | null; project: { id: string } | null }[]
   tags: { tag: { name: string } }[]
 }
 

@@ -1,5 +1,5 @@
 import { test, expect } from '../support/fixtures'
-import { newContact, unique, json, type Entry } from '../support/api'
+import { newContact, newTask, unique, json, type Entry } from '../support/api'
 
 for (const phone of [false, true]) {
   test(
@@ -22,7 +22,8 @@ for (const phone of [false, true]) {
         .filter({ hasText: contact.displayName })
         .first()
       await expect(suggestion).toBeVisible()
-      if (phone) await editor.press('Enter')
+      // On a phone the suggestion opens over the capture sheet and is tapped like any button.
+      if (phone) await suggestion.tap()
       else await suggestion.click()
       await editor.pressSequentially(' about fictional plants.')
       if (phone) await page.getByRole('button', { name: 'Details', exact: true }).click()
@@ -43,6 +44,41 @@ for (const phone of [false, true]) {
         await request.get(`/api/search?q=${encodeURIComponent(title)}`),
       )
       expect(hits.map((h) => h.id)).toContain(entry.id)
+    },
+  )
+}
+
+for (const phone of [false, true]) {
+  test(
+    `link a task by picking it after [[ (${phone ? 'phone' : 'desktop'})`,
+    { tag: phone ? '@phone' : '@desktop' },
+    async ({ page, request, cleanup }) => {
+      const task = await newTask(request, cleanup, { title: unique('Seedtray') })
+      await page.goto(phone ? '/m/notes' : '/notes')
+      await page.getByRole('button', { name: phone ? /Write$/ : /Start writing/ }).click()
+      await page
+        .getByPlaceholder(phone ? 'Title (optional)' : 'Give this entry a title…')
+        .fill(unique('Potting'))
+      const editor = page.locator('[contenteditable=true]')
+      await editor.click()
+      await editor.pressSequentially(`Next: [[${task.title}`, { delay: 20 })
+      const suggestion = page
+        .locator('button[data-index]')
+        .filter({ hasText: task.title })
+        .filter({ hasNotText: 'Create' })
+        .first()
+      await expect(suggestion).toBeVisible()
+      if (phone) await suggestion.tap()
+      else await suggestion.click()
+      await expect(page.locator('button[data-index]')).toHaveCount(0)
+      const saved = page.waitForResponse(
+        (r) => r.url().endsWith('/api/entries') && r.request().method() === 'POST',
+      )
+      await page.getByRole('button', { name: phone ? 'Save' : /^Save entry/ }).click()
+      const { entry } = (await (await saved).json()) as { entry: Entry }
+      cleanup.record('entry', entry.id)
+      const stored = await json<Entry>(await request.get(`/api/entries/${entry.id}`))
+      expect(stored.refs.map((r) => r.task?.id)).toContain(task.id)
     },
   )
 }

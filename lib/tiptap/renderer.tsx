@@ -12,6 +12,12 @@ import {
 /**
  * Mounts the shared dropdown for a TipTap suggestion plugin and keeps it pinned
  * to the caret with floating-ui. Used by both the `@` and `[[` extensions.
+ *
+ * An editor inside a dialog or sheet gets its dropdown inside that dialog. A
+ * modal Radix dialog turns pointer events off everywhere else on the page and
+ * closes on a press outside itself, so a dropdown on `document.body` showed
+ * over the phone's capture sheet but could not be tapped. Inside the dialog,
+ * flip and shift keep it within the dialog's visible area.
  */
 export function createSuggestionRenderer(): SuggestionOptions<SuggestionItem>['render'] {
   return () => {
@@ -56,7 +62,8 @@ export function createSuggestionRenderer(): SuggestionOptions<SuggestionItem>['r
         container.style.zIndex = '60'
         container.style.top = '0'
         container.style.left = '0'
-        document.body.appendChild(container)
+        const host = props.editor.view.dom.closest('[role="dialog"]') ?? document.body
+        host.appendChild(container)
         root = createRoot(container)
         render(props)
         position(props.clientRect)
