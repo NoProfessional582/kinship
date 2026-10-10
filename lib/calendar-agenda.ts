@@ -1,4 +1,4 @@
-import { zonedDayOf } from '@/lib/format'
+import { zonedDayOf, zonedDayBoundsFor } from '@/lib/format'
 import { AGENDA_CATEGORIES, type CalendarEvent } from '@/lib/calendar-categories'
 
 /**
@@ -56,7 +56,10 @@ export const withinDays = (events: CalendarEvent[], fromIso: string, toIso: stri
   events.filter((e) => {
     if (!e.allDay) return true
     const day = e.start.slice(0, 10)
-    return day >= fromIso && day <= toIso
+    const end = e.end?.slice(0, 10)
+    // Calendar emits exclusive all-day ends. Reversed legacy spans remain a
+    // point at their start rather than being silently rewritten.
+    return day <= toIso && (end && end > day ? end > fromIso : day >= fromIso)
   })
 
 /**
@@ -66,6 +69,16 @@ export const withinDays = (events: CalendarEvent[], fromIso: string, toIso: stri
  */
 export const agendaOnly = (events: CalendarEvent[]) => events.filter((e) => AGENDA.has(e.category))
 
-/** The day an event actually lands on, in the app's zone. */
-export const eventDayKey = (e: CalendarEvent, timezone: string) =>
-  e.allDay ? e.start.slice(0, 10) : dayKeyOf(zonedDayOf(e.start, timezone))
+/** Include an interval on every day it overlaps, with exclusive end boundaries. */
+export function eventsOnDay(events: CalendarEvent[], day: string, timezone: string) {
+  const [year, month, date] = day.split('-').map(Number)
+  const bounds = zonedDayBoundsFor(year, month - 1, date, timezone)
+  const from = bounds.start.getTime()
+  const to = bounds.end.getTime() + 1
+  return withinDays(events, day, day).filter((e) => {
+    if (e.allDay) return true
+    const start = Date.parse(e.start)
+    const end = e.end ? Date.parse(e.end) : start
+    return start < to && (end > start ? end > from : start >= from)
+  })
+}

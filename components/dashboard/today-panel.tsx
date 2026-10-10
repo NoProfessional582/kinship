@@ -44,7 +44,7 @@ export function useToday(day?: Date | null) {
       marker.getDate(),
       timezone,
     )
-    return { start: start.toISOString(), end: end.toISOString() }
+    return { start: start.toISOString(), end: new Date(end.getTime() + 1).toISOString() }
   }, [dayKey, timezone, ready])
 
   const query = useQuery({
@@ -90,7 +90,7 @@ export function useUpcoming(days = 45, limit = 4) {
     const now = new Date()
     return {
       start: zonedDayBounds(addDays(now, 1), timezone).start.toISOString(),
-      end: zonedDayBounds(addDays(now, days), timezone).end.toISOString(),
+      end: new Date(zonedDayBounds(addDays(now, days), timezone).end.getTime() + 1).toISOString(),
     }
   }, [days, timezone, ready])
 

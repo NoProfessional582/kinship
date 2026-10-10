@@ -22,7 +22,7 @@ import { NewEventDialog } from '@/components/calendar/new-event-dialog'
 import { api } from '@/lib/hooks/api'
 import { useTimezone, useSettings } from '@/lib/hooks/settings'
 import { zonedDayBoundsFor, zonedToday } from '@/lib/format'
-import { byWhen, eventDayKey, dayKeyOf } from '@/lib/calendar-agenda'
+import { byWhen, eventsOnDay, dayKeyOf } from '@/lib/calendar-agenda'
 import {
   CATEGORY_META,
   EVENT_CATEGORIES,
@@ -128,7 +128,7 @@ export default function MobileCalendar() {
     const last = days[days.length - 1]
     const a = zonedDayBoundsFor(first.getFullYear(), first.getMonth(), first.getDate(), timezone)
     const b = zonedDayBoundsFor(last.getFullYear(), last.getMonth(), last.getDate(), timezone)
-    return { start: a.start.toISOString(), end: b.end.toISOString() }
+    return { start: a.start.toISOString(), end: new Date(b.end.getTime() + 1).toISOString() }
   }, [days, timezone])
 
   const { data, isLoading } = useQuery({
@@ -142,14 +142,13 @@ export default function MobileCalendar() {
 
   const byDay = React.useMemo(() => {
     const out = new Map<string, CalendarEvent[]>()
-    for (const e of (data ?? []).filter((e) => !hidden.has(e.category))) {
-      const k = eventDayKey(e, timezone)
-      if (!out.has(k)) out.set(k, [])
-      out.get(k)!.push(e)
+    const visible = (data ?? []).filter((e) => !hidden.has(e.category))
+    for (const day of days) {
+      const key = dayKeyOf(day)
+      out.set(key, eventsOnDay(visible, key, timezone).sort(byWhen(timezone)))
     }
-    for (const list of out.values()) list.sort(byWhen(timezone))
     return out
-  }, [data, timezone, hidden])
+  }, [data, timezone, hidden, days])
 
   const todayKey = cursor ? dayKeyOf(zonedToday(timezone)) : ''
 
