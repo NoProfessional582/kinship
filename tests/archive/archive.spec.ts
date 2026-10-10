@@ -78,7 +78,9 @@ test('the legacy kb-archive v1 seed imports through settings with an explicit sc
   await page.getByRole('button', { name: 'Replace everything', exact: true }).click()
   const answer = await importing
   expect(answer.status()).toBe(400)
-  expect((await answer.json()).error).toContain('20261010150000_rebuild_contact_recency')
+  await expect(
+    page.getByText(/Applied here but not in the archive: 20261010150000_rebuild_contact_recency/),
+  ).toBeVisible()
   const rejected = await json<Archive>(await request.get('/api/export'))
   expect(rejected.counts).toEqual(before.counts)
   expect(rejected.data).toEqual(before.data)
