@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
@@ -8,10 +9,18 @@ import { MobileTaskSheet } from '@/components/mobile/task-sheet'
 import { NewTaskDialog } from '@/components/board/new-task-dialog'
 import { useBoard, useProjects } from '@/lib/hooks/api'
 
-/** The global board, scoped by project through the same /api/tasks query. */
-export default function MobileBoardPage() {
+/**
+ * The global board, scoped by project through the same /api/tasks query. The
+ * open task is in the URL (`?task=`), as on the desktop board, so a search
+ * result can open it.
+ */
+function MobileBoardInner() {
+  const params = useSearchParams()
+  const router = useRouter()
   const [projectId, setProjectId] = React.useState<string>('')
-  const [openTask, setOpenTask] = React.useState<string | null>(null)
+  const openTask = params.get('task')
+  const setOpenTask = (id: string | null) =>
+    router.replace(id ? `/m/board?task=${id}` : '/m/board', { scroll: false })
   const [creating, setCreating] = React.useState(false)
 
   const { data: board, isLoading } = useBoard(projectId || null)
@@ -64,5 +73,13 @@ export default function MobileBoardPage() {
         />
       )}
     </div>
+  )
+}
+
+export default function MobileBoardPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <MobileBoardInner />
+    </React.Suspense>
   )
 }

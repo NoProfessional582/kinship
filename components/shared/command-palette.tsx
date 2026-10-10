@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { api } from '@/lib/hooks/api'
+import { m } from '@/lib/mobile/href'
 import { useUi } from '@/lib/store'
 import type { SearchHit } from '@/lib/services/search'
 
@@ -32,8 +33,13 @@ const ACTIONS = [
   { label: 'Go to calendar', href: '/calendar', icon: CalendarDays },
 ]
 
-/** Cmd+K search across every entity, backed by Postgres FTS and trigram. */
-export function CommandPalette() {
+/**
+ * Cmd+K search across every entity, backed by Postgres FTS and trigram.
+ *
+ * Results and actions carry desktop paths; `phone` (the mobile shell) opens the
+ * matching page under /m instead, so a search never leaves the phone GUI.
+ */
+export function CommandPalette({ phone = false }: { phone?: boolean }) {
   const { paletteOpen, setPaletteOpen } = useUi()
   const [query, setQuery] = React.useState('')
   const [debounced, setDebounced] = React.useState('')
@@ -53,7 +59,7 @@ export function CommandPalette() {
   const go = (href: string) => {
     setPaletteOpen(false)
     setQuery('')
-    router.push(href)
+    router.push(phone ? m(href) : href)
   }
 
   return (

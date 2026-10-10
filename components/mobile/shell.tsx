@@ -156,7 +156,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
         </MSheetContent>
       </MSheet>
 
-      <CommandPalette />
+      <CommandPalette phone />
       <EnrichmentQueue />
     </div>
   )

@@ -42,19 +42,23 @@ for (const { tag, prefix } of GUI) {
   }
 }
 
-test(
-  '/board?task=<unknown> says the task is not found',
-  { tag: '@desktop' },
-  async ({ page, refusals }) => {
-    refusals.push({ status: 404, method: 'GET', path: `/api/tasks/${UNKNOWN}` })
-    await page.goto(`/board?task=${UNKNOWN}`)
+for (const { tag, prefix } of GUI) {
+  test(
+    `${prefix}/board?task=<unknown> says the task is not found`,
+    { tag },
+    async ({ page, refusals }) => {
+      refusals.push({ status: 404, method: 'GET', path: `/api/tasks/${UNKNOWN}` })
+      await page.goto(`${prefix}/board?task=${UNKNOWN}`)
 
-    const dialog = page.getByRole('dialog', { name: 'Task not found' })
-    await expect(dialog).toBeVisible()
-    await expect(dialog.getByText('It may have been deleted, or the link is wrong.')).toBeVisible()
+      const dialog = page.getByRole('dialog', { name: 'Task not found' })
+      await expect(dialog).toBeVisible()
+      await expect(
+        dialog.getByText('It may have been deleted, or the link is wrong.'),
+      ).toBeVisible()
 
-    await page.keyboard.press('Escape')
-    await expect(dialog).toBeHidden()
-    await expect(page).toHaveURL('/board')
-  },
-)
+      await page.keyboard.press('Escape')
+      await expect(dialog).toBeHidden()
+      await expect(page).toHaveURL(`${prefix}/board`)
+    },
+  )
+}
