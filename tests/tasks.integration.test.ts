@@ -183,7 +183,7 @@ describe('taskDetail — soft-deleted subtasks (K06)', () => {
     await softDelete(OWNER, 'task', gone.id)
 
     detail = await getTask(OWNER, parent.id)
-    expect(detail!.subtasks.map((s: any) => s.id)).toEqual([keep.id])
+    expect(detail!.subtasks.map((s) => s.id)).toEqual([keep.id])
     // The count is the half that showed "2 subtasks" over a list of one.
     expect(detail!._count.subtasks).toBe(1)
 
@@ -203,7 +203,7 @@ describe('taskDetail — soft-deleted subtasks (K06)', () => {
     await softDelete(OWNER, 'task', child.id)
 
     const board = await getBoard(OWNER, await project('visible'))
-    const card = board.tasks.find((t: any) => t.id === parent.id)
+    const card = board.tasks.find((t) => t.id === parent.id)
     expect(card).toBeTruthy()
     expect(card!.subtasks).toHaveLength(0)
     expect(card!._count.subtasks).toBe(0)

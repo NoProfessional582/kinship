@@ -12,7 +12,8 @@ import { STEP } from '@/lib/fractional-index'
  */
 const MARK = `__coltest_${Date.now()}__`
 const OWNER = `${MARK}owner`
-const updateOwnedColumn = (id: string, patch: any) => updateColumn(OWNER, id, patch)
+const updateOwnedColumn = (id: string, patch: Parameters<typeof updateColumn>[2]) =>
+  updateColumn(OWNER, id, patch)
 const deleteOwnedColumn = (id: string) => deleteColumn(OWNER, id)
 
 const makeColumn = (name: string, status: 'TODO' | 'DONE' = 'TODO') =>

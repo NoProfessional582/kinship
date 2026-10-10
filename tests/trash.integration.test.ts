@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConflictError } from '@/lib/errors'
 import { STEP } from '@/lib/fractional-index'
+import type { TrashKind } from '@/lib/services/trash'
+
+/** Read by the mocked client below; vi.hoisted makes it reachable from the hoisted mock. */
+const edgeDeletes = vi.hoisted(() => ({ fail: false }))
 
 /**
  * Trash, purge and empty-trash against a real database (K01-K04).
@@ -30,8 +34,8 @@ vi.mock('@/lib/db', async () => {
   const prisma = base.$extends({
     query: {
       entityEdge: {
-        async deleteMany({ args, query }: any) {
-          if ((globalThis as any).__failEdgeDeletes) {
+        async deleteMany({ args, query }) {
+          if (edgeDeletes.fail) {
             throw new Error('injected edge-delete failure')
           }
           return query(args)
@@ -47,14 +51,14 @@ const trash = await import('@/lib/services/trash')
 
 const MARK = `__trashtest_${Date.now()}__`
 const OWNER = `${MARK}owner`
-const deleteEdgesFor = (kind: any, ids: string[]) => trash.deleteEdgesFor(OWNER, kind, ids)
+const deleteEdgesFor = (kind: TrashKind, ids: string[]) => trash.deleteEdgesFor(OWNER, kind, ids)
 const emptyTrash = () => trash.emptyTrash(OWNER)
-const purge = (kind: any, id: string, expected?: Date | string | null) =>
+const purge = (kind: TrashKind, id: string, expected?: Date | string | null) =>
   trash.purge(OWNER, kind, id, expected)
-const softDelete = (kind: any, id: string) => trash.softDelete(OWNER, kind, id)
-const restore = (kind: any, id: string) => trash.restore(OWNER, kind, id)
+const softDelete = (kind: TrashKind, id: string) => trash.softDelete(OWNER, kind, id)
+const restore = (kind: TrashKind, id: string) => trash.restore(OWNER, kind, id)
 const failEdges = (on: boolean) => {
-  ;(globalThis as any).__failEdgeDeletes = on
+  edgeDeletes.fail = on
 }
 
 let columnId: string

@@ -6,8 +6,8 @@ import {
   getEntry as getEntryOwned,
 } from '@/lib/services/entries'
 import { FOLLOWS_UP } from '@/lib/relations'
-import { deleteEdgesFor as deleteOwnedEdges } from '@/lib/services/trash'
-import { createEntrySchema } from '@/lib/validation'
+import { deleteEdgesFor as deleteOwnedEdges, type TrashKind } from '@/lib/services/trash'
+import { createEntrySchema, type CreateEntryInput } from '@/lib/validation'
 import { CONTACT_MENTION, ENTITY_REF } from '@/lib/tiptap/nodes'
 
 /**
@@ -17,10 +17,11 @@ import { CONTACT_MENTION, ENTITY_REF } from '@/lib/tiptap/nodes'
  */
 const MARK = `__itest_${Date.now()}__`
 const OWNER = `${MARK}owner`
-const createEntry = (input: any) => createEntryOwned(OWNER, input)
-const updateEntry = (id: string, input: any) => updateEntryOwned(OWNER, id, input)
+const createEntry = (input: CreateEntryInput) => createEntryOwned(OWNER, input)
+const updateEntry = (id: string, input: Partial<CreateEntryInput>) =>
+  updateEntryOwned(OWNER, id, input)
 const getEntry = (id: string) => getEntryOwned(OWNER, id)
-const deleteEdgesFor = (kind: any, ids: string[]) => deleteOwnedEdges(OWNER, kind, ids)
+const deleteEdgesFor = (kind: TrashKind, ids: string[]) => deleteOwnedEdges(OWNER, kind, ids)
 
 const bodyWith = (label: string, project: string, task: string) => ({
   type: 'doc',

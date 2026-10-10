@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { readFileSync } from 'node:fs'
 import { prisma } from '../lib/db'
 import { createContact } from '../lib/services/contacts'
+import type { UpsertContactInput } from '../lib/validation'
 import { requireConfiguredOwner } from '../lib/identity'
 
 /**
@@ -193,7 +194,7 @@ async function main() {
     const handle = handleOf(url)
     const connectedOn = parseConnectedOn(r['Connected On'])
 
-    const input = {
+    const input: UpsertContactInput = {
       displayName: cap(displayName, 160),
       firstName: first || null,
       lastName: last || null,
@@ -260,7 +261,7 @@ async function main() {
           `${role ? ` — ${role}` : ''}${company ? ` @ ${company}` : ''}`,
       )
     } else {
-      await createContact(owner, input as any)
+      await createContact(owner, input)
       if (url) seen.add(key)
     }
     created++

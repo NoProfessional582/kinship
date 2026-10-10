@@ -5,6 +5,7 @@ import {
   currentCounts,
   exportArchive,
   importArchive,
+  type Archive,
 } from '../lib/services/archive'
 import { requireConfiguredOwner } from '../lib/identity'
 
@@ -83,7 +84,9 @@ async function runImport({ replace, force }: { replace: boolean; force: boolean 
     return
   }
 
-  let archive: any
+  // Unchecked until importArchive validates it; the dry run only reads it for
+  // display, and every field it reads has a fallback.
+  let archive: Partial<Archive>
   try {
     archive = JSON.parse(raw)
   } catch (err) {

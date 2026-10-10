@@ -4,6 +4,7 @@ import { ensureColumns } from '../lib/services/board'
 import { createEntry } from '../lib/services/entries'
 import { CONTACT_MENTION, ENTITY_REF } from '../lib/tiptap/nodes'
 import { requireConfiguredOwner } from '../lib/identity'
+import type { ProseNode } from '../lib/tiptap/doc'
 
 /**
  * Seeds the default board and a small demo network that exercises every
@@ -17,8 +18,8 @@ const ref = (id: string, kind: string, label: string) => ({
   type: ENTITY_REF,
   attrs: { id, kind, label },
 })
-const para = (...content: any[]) => ({ type: 'paragraph', content })
-const doc = (...content: any[]) => ({ type: 'doc', content })
+const para = (...content: ProseNode[]): ProseNode => ({ type: 'paragraph', content })
+const doc = (...content: ProseNode[]): ProseNode => ({ type: 'doc', content })
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000)
 const daysAhead = (n: number) => new Date(Date.now() + n * 86_400_000)
@@ -32,7 +33,7 @@ async function main() {
   }
 
   console.log('Creating default board columns…')
-  await ensureColumns(prisma as any, owner)
+  await ensureColumns(prisma, owner)
 
   console.log('Writing demo entries (this also creates the people and tasks)…')
 
@@ -62,7 +63,7 @@ async function main() {
       { tempId: 'new:redesign', type: 'project', label: 'Website redesign' },
       { tempId: 'new:sitemap', type: 'task', label: 'Draft the sitemap' },
     ],
-  } as any)
+  })
 
   const maya = await prisma.contact.findFirstOrThrow({
     where: { owner, displayName: 'Maya Okafor' },
@@ -94,7 +95,7 @@ async function main() {
       { tempId: 'new:priya', type: 'contact', label: 'Priya Raman' },
       { tempId: 'new:copy', type: 'task', label: 'Rewrite the homepage copy' },
     ],
-  } as any)
+  })
 
   const tobias = await prisma.contact.findFirstOrThrow({
     where: { owner, displayName: 'Tobias Lindqvist' },
@@ -124,7 +125,7 @@ async function main() {
       ),
     ),
     pendingEntities: [],
-  } as any)
+  })
 
   console.log('Filling in dossiers…')
   await prisma.contact.update({
@@ -372,7 +373,7 @@ async function main() {
     await prisma.task.create({
       data: {
         owner,
-        slug: await uniqueSlug('task', owner, title, prisma as any),
+        slug: await uniqueSlug('task', owner, title, prisma),
         title,
         parentTaskId: sitemap.id,
         projectId: project.id,
@@ -388,7 +389,7 @@ async function main() {
   await prisma.task.create({
     data: {
       owner,
-      slug: await uniqueSlug('task', owner, 'Send revised SOW', prisma as any),
+      slug: await uniqueSlug('task', owner, 'Send revised SOW', prisma),
       title: 'Send revised SOW',
       columnId: columns[1].id,
       position: 2000,

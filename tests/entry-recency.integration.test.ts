@@ -6,7 +6,7 @@ import {
   restoreEntry as restoreEntryOwned,
   updateEntry as updateEntryOwned,
 } from '@/lib/services/entries'
-import { createEntrySchema } from '@/lib/validation'
+import { createEntrySchema, type CreateEntryInput } from '@/lib/validation'
 import { CONTACT_MENTION } from '@/lib/tiptap/nodes'
 
 /**
@@ -18,8 +18,9 @@ import { CONTACT_MENTION } from '@/lib/tiptap/nodes'
  */
 const MARK = `__recency_${Date.now()}__`
 const OWNER = `${MARK}owner`
-const createEntry = (input: any) => createEntryOwned(OWNER, input)
-const updateEntry = (id: string, input: any) => updateEntryOwned(OWNER, id, input)
+const createEntry = (input: CreateEntryInput) => createEntryOwned(OWNER, input)
+const updateEntry = (id: string, input: Partial<CreateEntryInput>) =>
+  updateEntryOwned(OWNER, id, input)
 const deleteEntry = (id: string) => deleteEntryOwned(OWNER, id)
 const restoreEntry = (id: string) => restoreEntryOwned(OWNER, id)
 const days = (n: number) => new Date(Date.now() + n * 86_400_000)
@@ -49,8 +50,7 @@ const body = (ids: string[]) => ({
 })
 
 /** Through the schema, so defaults (pendingEntities, kind, …) are supplied. */
-const make = (fields: Record<string, unknown>) =>
-  createEntry(createEntrySchema.parse(fields) as any)
+const make = (fields: Record<string, unknown>) => createEntry(createEntrySchema.parse(fields))
 
 const lastContact = async (id: string) =>
   (await prisma.contact.findUniqueOrThrow({ where: { id }, select: { lastContactAt: true } }))
@@ -81,7 +81,7 @@ describe('updateEntry — recency follows the edit (K14)', () => {
     })
     expect(at((await lastContact(a.id)) as Date)).toBe(at(days(-10)))
 
-    await updateEntry(entry.id, { occurredAt: days(-2), bodyJson: body([a.id]) } as any)
+    await updateEntry(entry.id, { occurredAt: days(-2), bodyJson: body([a.id]) })
 
     expect(at((await lastContact(a.id)) as Date)).toBe(at(days(-2)))
   })
@@ -97,7 +97,7 @@ describe('updateEntry — recency follows the edit (K14)', () => {
     })
     expect(await lastContact(b.id)).toBeNull()
 
-    await updateEntry(entry.id, { bodyJson: body([a.id, b.id]) } as any)
+    await updateEntry(entry.id, { bodyJson: body([a.id, b.id]) })
 
     // Before K14 this stayed null and b kept reporting overdue for ever.
     expect(at((await lastContact(b.id)) as Date)).toBe(at(days(-3)))
@@ -114,7 +114,7 @@ describe('updateEntry — recency follows the edit (K14)', () => {
     })
     const before = await lastContact(a.id)
 
-    await updateEntry(entry.id, { occurredAt: days(-30), bodyJson: body([a.id]) } as any)
+    await updateEntry(entry.id, { occurredAt: days(-30), bodyJson: body([a.id]) })
 
     expect(at((await lastContact(a.id)) as Date)).toBe(at(before as Date))
   })
@@ -129,7 +129,7 @@ describe('updateEntry — recency follows the edit (K14)', () => {
     })
     const before = await lastContact(a.id)
 
-    await updateEntry(entry.id, { occurredAt: days(+5), bodyJson: body([a.id]) } as any)
+    await updateEntry(entry.id, { occurredAt: days(+5), bodyJson: body([a.id]) })
 
     expect(at((await lastContact(a.id)) as Date)).toBe(at(before as Date))
   })
@@ -146,7 +146,7 @@ describe('updateEntry — recency follows the edit (K14)', () => {
     expect(at((await lastContact(a.id)) as Date)).toBe(at(days(-1)))
 
     // Retract the recent mention: the older entry is now the truth.
-    await updateEntry(entry.id, { bodyJson: body([]) } as any)
+    await updateEntry(entry.id, { bodyJson: body([]) })
 
     expect(at((await lastContact(a.id)) as Date)).toBe(at(days(-20)))
   })
@@ -161,7 +161,7 @@ describe('updateEntry — recency follows the edit (K14)', () => {
     })
     expect(await lastContact(a.id)).not.toBeNull()
 
-    await updateEntry(entry.id, { bodyJson: body([]) } as any)
+    await updateEntry(entry.id, { bodyJson: body([]) })
 
     expect(await lastContact(a.id)).toBeNull()
   })

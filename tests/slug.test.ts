@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { slugify, uniqueSlug } from '@/lib/slug'
+import { slugify, uniqueSlug, type SlugClient } from '@/lib/slug'
 
 describe('slugify', () => {
   it('lowercases and hyphenates', () => expect(slugify('Sarah Chen')).toBe('sarah-chen'))
@@ -16,9 +16,11 @@ describe('uniqueSlug', () => {
   const dbWith = (existing: string[]) => {
     const set = new Set(existing)
     const delegate = {
-      findFirst: async ({ where }: any) => (set.has(where.slug) ? { id: 'x' } : null),
+      findFirst: async ({ where }: { where: { slug: string } }) =>
+        set.has(where.slug) ? { id: 'x' } : null,
     }
-    return { contact: delegate, task: delegate, project: delegate } as any
+    const client: SlugClient = { contact: delegate, task: delegate, project: delegate }
+    return client
   }
 
   it('returns the bare slug when free', async () => {

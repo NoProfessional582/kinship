@@ -8,6 +8,7 @@ import {
   orderBy,
   parentsFirst,
   reviveRow,
+  type ModelName,
 } from '@/lib/archive-rows'
 import { ARCHIVE_FORMAT } from '@/lib/archive-format'
 import { ValidationError } from '@/lib/errors'
@@ -29,7 +30,7 @@ describe('model coverage', () => {
   it('lists a model only after the models it points at', () => {
     // Not derivable from the DMMF any more — Prisma 7 dropped
     // `relationFromFields` — so the dependencies are spelled out and checked.
-    const dependsOn: Partial<Record<string, string[]>> = {
+    const dependsOn: Partial<Record<ModelName, ModelName[]>> = {
       ContactAttribute: ['Contact'],
       ContactChannel: ['Contact'],
       ContactPosition: ['Contact'],
@@ -45,9 +46,9 @@ describe('model coverage', () => {
       EntryTag: ['Entry', 'Tag'],
       TaskTag: ['Task', 'Tag'],
     }
-    for (const [model, deps] of Object.entries(dependsOn)) {
-      for (const dep of deps!) {
-        expect(MODEL_ORDER.indexOf(dep as any)).toBeLessThan(MODEL_ORDER.indexOf(model as any))
+    for (const model of MODEL_ORDER) {
+      for (const dep of dependsOn[model] ?? []) {
+        expect(MODEL_ORDER.indexOf(dep)).toBeLessThan(MODEL_ORDER.indexOf(model))
       }
     }
   })
