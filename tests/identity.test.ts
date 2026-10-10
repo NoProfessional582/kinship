@@ -9,7 +9,7 @@ import {
 } from '@/lib/identity'
 import { proxy } from '@/proxy'
 
-const URL_ = 'http://localhost/api/contacts'
+const URL_ = 'http://localhost:3000/api/contacts'
 let saved: string | undefined
 
 beforeEach(() => {
@@ -45,9 +45,11 @@ describe('identity with KINSHIP_OWNER set', () => {
     expect(requireIdentity(claimed).subject).toBe('me')
   })
 
-  it('lets the proxy pass, whatever headers arrive', () => {
+  it('lets the proxy pass, independently of identity headers', () => {
     process.env.KINSHIP_OWNER = 'me'
-    const res = proxy(new NextRequest(URL_, { headers: { 'Remote-User': 'intruder' } }))
+    const res = proxy(
+      new NextRequest(URL_, { headers: { Host: 'localhost:3000', 'Remote-User': 'intruder' } }),
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('x-middleware-next')).toBe('1')
   })

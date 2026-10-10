@@ -103,6 +103,21 @@ All settings live in `.env`, next to `compose.yaml`.
 | `KINSHIP_OWNER` | yes | The single owner's name, for example `me`. Every record is stored under it, so changing it later hides your existing data rather than moving it. Kinship refuses to start without it. |
 | `KINSHIP_PORT` | no | The port Kinship answers on, on this computer only. Default `3000`. It is always bound to `127.0.0.1`. |
 
+Kinship validates the request's Host and public port before serving owner data.
+Browser writes must come from the same origin (including the port); foreign or
+null origins are refused with 403. JSON routes require `Content-Type:
+application/json` (415 otherwise), and photo uploads require multipart form
+data. Originless command-line requests still work on an allowed local host;
+the archive `curl` examples below already send the required JSON type.
+
+The default allowed origins are `http://127.0.0.1:3000` and
+`http://localhost:3000`, using `KINSHIP_PORT` when it is set. Compose passes
+that public port into the app even though its internal port stays 3000.
+Advanced development/test runners can set `KINSHIP_ALLOWED_ORIGINS` to a
+comma-separated list of exact HTTP origins, replacing those defaults. It does
+not support wildcards or make network exposure safe. The container health
+probe alone may use `http://127.0.0.1:3000/api/health` at the internal port.
+
 Time zones need no setting: times show in your browser's zone, or in the zone you
 pick under **Settings → Timezone**. The containers run on UTC on purpose.
 

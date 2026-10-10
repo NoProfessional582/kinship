@@ -66,6 +66,7 @@ services:
     environment:
       DATABASE_URL: *database-url
       KINSHIP_OWNER: ${KINSHIP_OWNER:?set KINSHIP_OWNER in .env}
+      KINSHIP_PORT: ${KINSHIP_PORT:-3000}
     ports:
       # ⚠️ 127.0.0.1 only. Kinship has no sign-in: anyone who can reach this port
       # can read and change everything in it.

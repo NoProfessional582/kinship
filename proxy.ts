@@ -5,7 +5,8 @@
  * ⚠️ WITH NO SIGN-IN, ANYONE WHO CAN REACH THE APP HAS FULL ACCESS. Publish its
  * port on 127.0.0.1 only; never expose it to a network.
  *
- * All this does is refuse every page and API call, with a message saying what
+ * The request policy rejects foreign origins, unexpected hosts and unsafe
+ * media types. It also refuses every page and API call, saying what
  * to fix, when `KINSHIP_OWNER` is missing. That covers `/uploads/*` too, which
  * is served by a route handler and returns real user data.
  *
@@ -13,11 +14,13 @@
  */
 import { NextResponse, type NextRequest } from 'next/server'
 import { ownerSubject } from './lib/identity'
+import { requestRefusal } from './lib/request-security'
 
-export function proxy(_req: NextRequest) {
-  void _req
+export function proxy(req: NextRequest) {
   try {
     ownerSubject()
+    const refusal = requestRefusal(req)
+    if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status })
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
@@ -25,5 +28,5 @@ export function proxy(_req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest).*)'],
+  matcher: ['/((?!_next/static|favicon.ico|icon.svg|manifest.webmanifest).*)'],
 }

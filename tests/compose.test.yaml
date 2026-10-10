@@ -26,6 +26,8 @@ services:
       - ${STACK_RUNTIME:?}/data/uploads:/app/public/uploads
 
   web:
+    environment:
+      KINSHIP_ALLOWED_ORIGINS: http://web:3000,http://127.0.0.1:43123,http://localhost:43123
     image: ${KINSHIP_IMAGE:-test-kinship:app}
     build: !reset null
     restart: 'no'

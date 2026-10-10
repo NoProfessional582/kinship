@@ -46,7 +46,7 @@ test('the stored type comes from the bytes, not from what the browser said', asy
 })
 
 test.describe('refusals', () => {
-  test('an upload must be a file', async ({ request }) => {
+  test('an upload must be multipart and include a file', async ({ request }) => {
     await refused(
       await request.post('/api/upload', { multipart: { note: 'no file here' } }),
       400,
@@ -54,8 +54,8 @@ test.describe('refusals', () => {
     )
     await refused(
       await request.post('/api/upload', { data: { file: 'me.png' } }),
-      400,
-      'Could not read the upload',
+      415,
+      'Content-Type must be multipart/form-data.',
     )
   })
 
