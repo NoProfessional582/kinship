@@ -91,6 +91,9 @@ test('the legacy kb-archive v1 seed imports through settings with an explicit sc
   expect(rejected.data).toEqual(before.data)
   expect(rejected.uploads).toEqual(before.uploads)
   await expect(page.getByRole('button', { name: 'Import anyway', exact: true })).toBeVisible()
+  const reloaded = page.waitForEvent('framenavigated', {
+    predicate: (frame) => frame === page.mainFrame(),
+  })
   const forcing = page.waitForResponse((r) =>
     r.url().includes('/api/import?confirm=replace&force=1'),
   )
