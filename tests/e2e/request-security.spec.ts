@@ -47,6 +47,9 @@ test('a different local browser origin cannot create a contact or replace data @
       expect((await response).status()).toBe(403)
     }
     expect(await archive()).toEqual(before)
+    // Opaque fetch resolves at response headers; let its network work finish
+    // before the foreign page and browser context are torn down.
+    await page.waitForLoadState('networkidle')
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((err) => (err ? reject(err) : resolve())),
