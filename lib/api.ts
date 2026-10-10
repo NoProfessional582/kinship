@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { ZodError } from 'zod'
-import { ConfigurationError, ConflictError, PayloadTooLargeError, ValidationError } from './errors'
+import {
+  ConfigurationError,
+  ConflictError,
+  NotFoundError,
+  PayloadTooLargeError,
+  ValidationError,
+} from './errors'
 
 /** Every route handler funnels through this so error shapes stay uniform. */
 export async function handle<T>(fn: () => Promise<T>): Promise<NextResponse> {
@@ -16,6 +22,9 @@ export async function handle<T>(fn: () => Promise<T>): Promise<NextResponse> {
     if (err instanceof ValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 })
     }
+    if (err instanceof NotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: 404 })
+    }
     if (err instanceof ConflictError) {
       return NextResponse.json({ error: err.message }, { status: 409 })
     }
@@ -30,6 +39,12 @@ export async function handle<T>(fn: () => Promise<T>): Promise<NextResponse> {
     console.error('[api] Unhandled API error:', err)
     return NextResponse.json({ error: message }, { status: 500 })
   }
+}
+
+/** A looked-up record, or a 404 when the lookup found nothing. */
+export function found<T>(row: T | null | undefined): T {
+  if (row === null || row === undefined) throw new NotFoundError()
+  return row
 }
 
 /** Next 15+ delivers dynamic route params as a promise. */

@@ -111,6 +111,12 @@ export const cadenceSchema = z.enum([
 ])
 export const entityTypeSchema = z.enum(['contact', 'project', 'task', 'entry'])
 
+/** GET /api/edges: whose edges to list. An unchecked type named no table and failed as a 500. */
+export const edgeListSchema = z.object({
+  type: entityTypeSchema.default('contact'),
+  id: z.string().min(1),
+})
+
 export const edgeSchema = z.object({
   sourceType: entityTypeSchema,
   sourceId: z.string().min(1),

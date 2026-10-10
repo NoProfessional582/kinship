@@ -1,4 +1,5 @@
 import { prisma } from '../db'
+import { NotFoundError } from '../errors'
 import { FOLLOWS_UP } from '../relations'
 
 export { FOLLOWS_UP }
@@ -30,7 +31,7 @@ interface OwnedLookup {
 async function requireOwnedEntity(owner: string, type: EntityType, id: string) {
   const delegate: OwnedLookup = prisma[type]
   const row = await delegate.findFirst({ where: { id, owner }, select: { id: true } })
-  if (!row) throw Object.assign(new Error('Not found'), { code: 'P2025' })
+  if (!row) throw new NotFoundError()
 }
 
 export async function upsertEdge(owner: string, input: EdgeInput) {

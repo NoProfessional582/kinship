@@ -20,6 +20,20 @@ export class ConflictError extends Error {
 }
 
 /**
+ * The record the caller named does not exist, or belongs to someone else.
+ * `handle` renders it as a 404, the same answer Prisma's own "record not
+ * found" (P2025) gets, so a missing record reads the same however it was looked up.
+ */
+export class NotFoundError extends Error {
+  readonly status = 404
+
+  constructor(message = 'Not found') {
+    super(message)
+    this.name = 'NotFoundError'
+  }
+}
+
+/**
  * A request the caller got wrong in a way Zod cannot express — "an entity
  * cannot relate to itself", a field that is only required for one action.
  * `handle` renders it as a 400. Thrown as a bare Error these came back as 500s:

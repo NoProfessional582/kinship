@@ -1,4 +1,4 @@
-import { handle, type RouteCtx } from '@/lib/api'
+import { found, handle, type RouteCtx } from '@/lib/api'
 import { deleteTask, getTask, updateTask } from '@/lib/services/tasks'
 import { upsertTaskSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request, { params }: RouteCtx) {
   const { id } = await params
-  return handle(() => getTask(requireIdentity(req).subject, id))
+  return handle(async () => found(await getTask(requireIdentity(req).subject, id)))
 }
 
 export async function PATCH(req: Request, { params }: RouteCtx) {

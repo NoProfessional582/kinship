@@ -1,4 +1,5 @@
 import { prisma } from '../db'
+import { NotFoundError } from '../errors'
 
 import { monthDayInUTC } from '../format'
 import { type CalendarEvent } from '../calendar-categories'
@@ -290,7 +291,7 @@ export async function rescheduleEvent(
       where: { owner, slug: entityId },
       select: { id: true, startDate: true, targetDate: true, allDay: true },
     })
-    if (!project) throw new Error('Project not found')
+    if (!project) throw new NotFoundError()
     // A project with a span keeps its shape; one date just moves.
     if (project.startDate && project.targetDate) {
       return prisma.project.update({
@@ -318,8 +319,10 @@ export async function rescheduleEvent(
       where: { id: entityId, owner },
       select: { startDate: true, dueDate: true, allDay: true },
     })
+    // Checked here, not left to the update: that one is keyed by id alone.
+    if (!task) throw new NotFoundError()
     // A task with a span keeps its shape.
-    if (task?.startDate && task?.dueDate) {
+    if (task.startDate && task.dueDate) {
       return prisma.task.update({
         where: { id: entityId },
         data: {
@@ -335,7 +338,7 @@ export async function rescheduleEvent(
     // Otherwise whichever single date the card is actually drawn from is the
     // one that moves. Always writing `dueDate` grew a span on a task that only
     // had a start date, leaving the card anchored where it was dropped from.
-    if (task?.startDate && !task.dueDate) {
+    if (task.startDate && !task.dueDate) {
       return prisma.task.update({ where: { id: entityId }, data: { startDate: start } })
     }
     return prisma.task.update({ where: { id: entityId }, data: { dueDate: start } })
