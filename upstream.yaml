@@ -17,13 +17,14 @@ groups:
         pins:
           - { file: compose.yaml, pattern: 'image: postgres:(\S+)' }
   next:
-    policy: upgrade # eslint-config-next is released with Next.js under the same version
+    # Linting goes without eslint-config-next until braces fixes GHSA-vfj7-8cjw-p6xm
+    # (eslint.config.mjs); when it comes back, its pin joins this group, same version as next.
+    policy: upgrade
     items:
       - name: next
         source: { type: github-release, repo: vercel/next.js }
         pins:
           - { file: package.json, pattern: '"next": "(\S+)"' }
-          - { file: package.json, pattern: '"eslint-config-next": "(\S+)"' }
   playwright:
     policy: upgrade # the test stack's browser image runs the same version as @playwright/test
     items:
