@@ -6,6 +6,17 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-11
+
+### Added
+
+- `GET /api/graph`: the owner's contacts, projects, entries, tasks and tags with the links between them, or one record's neighbourhood with `focusId` and `depth`, for the coming 3D map. Read-only, uncached, and typed from `docs/api/graph.openapi.json`.
+- A 3D layout for the map (`lib/graph/layout3d.ts`): repeatable, browser-safe positions with spacing between orbs; 1,000 records and 3,000 links in about 1.5 s on the dev VM (`docs/graph-layout.md`).
+
+### Dependencies
+
+- Add d3-force-3d 3.0.6, and openapi-typescript 7.13.0 for development.
+
 ## [0.1.4] - 2026-10-10
 
 ### Changed
