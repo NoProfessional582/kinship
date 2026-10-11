@@ -18,6 +18,7 @@
     "db:migrate:check": "node prisma/check-migrations.mjs",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "photos:check": "tsx prisma/check-photos.ts",
     "tasks:check": "tsx prisma/check-task-hierarchy.ts",
     "import:linkedin": "tsx prisma/import-linkedin.ts",
     "export": "tsx prisma/archive.ts export",

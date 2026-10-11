@@ -4,7 +4,7 @@
  * Uploaded files have no route that deletes them; the few a run adds stay in the test
  * stack's uploads folder until the stack is removed.
  */
-import { test, expect, json, refused } from '../support/api'
+import { test, expect, json, refused, newContact, type Contact } from '../support/api'
 import { PNG_1PX } from '../support/files'
 
 const STORED =
@@ -104,4 +104,60 @@ test.describe('refusals', () => {
       await refused(await request.get(`/uploads/${name}`), 404, 'Not found')
     }
   })
+})
+
+test('pending photos survive avatar replacement, clear and shared-contact purge during grace', async ({
+  request,
+  cleanup,
+}) => {
+  const first = await json<{ url: string }>(
+    await request.post('/api/upload', file('first.png', 'image/png', PNG_1PX)),
+  )
+  const second = await json<{ url: string }>(
+    await request.post('/api/upload', file('second.png', 'image/png', PNG_1PX)),
+  )
+  const a = await newContact(request, cleanup, { avatarUrl: first.url })
+  const b = await newContact(request, cleanup, { avatarUrl: first.url })
+  const replaced = await json<Contact>(
+    await request.patch(`/api/contacts/${a.id}`, {
+      data: { displayName: a.displayName, avatarUrl: second.url },
+    }),
+  )
+  expect(replaced.avatarUrl).toBe(second.url)
+  await json(await request.delete(`/api/contacts/${b.id}`))
+  await json(
+    await request.post('/api/trash', { data: { action: 'restore', kind: 'contact', id: b.id } }),
+  )
+  expect((await request.get(first.url)).status()).toBe(200)
+  await json(await request.delete(`/api/contacts/${b.id}`))
+  await json(
+    await request.post('/api/trash', { data: { action: 'purge', kind: 'contact', id: b.id } }),
+  )
+  const cleared = await json<Contact>(
+    await request.patch(`/api/contacts/${a.id}`, {
+      data: { displayName: a.displayName, avatarUrl: null },
+    }),
+  )
+  expect(cleared.avatarUrl).toBe(null)
+  for (const url of [first.url, second.url])
+    expect(await (await request.get(url)).body()).toEqual(PNG_1PX)
+})
+
+test('a nonexistent local photo cannot be committed by a contact save', async ({
+  request,
+  cleanup,
+}) => {
+  const contact = await newContact(request, cleanup)
+  await refused(
+    await request.patch(`/api/contacts/${contact.id}`, {
+      data: {
+        displayName: contact.displayName,
+        avatarUrl: '/uploads/00000000-0000-0000-0000-000000000000.png',
+      },
+    }),
+    400,
+    /Could not read referenced photo/,
+  )
+  const dossier = await json<{ contact: Contact }>(await request.get(`/api/contacts/${contact.id}`))
+  expect(dossier.contact.avatarUrl).toBe(null)
 })

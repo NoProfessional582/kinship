@@ -203,6 +203,18 @@ test "$(sql "SELECT a.value FROM \"ContactAttribute\" a JOIN \"Contact\" c ON c.
   WHERE c.\"displayName\" = 'Otto Pemberly' AND a.key = 'Credentials'")" = PMP
 echo "both contacts are in, once each, with Otto's credentials split off"
 
+step "Packaged CLI: read-only photo inventory (disposable seed data only)"
+cli npm run --silent export >"$STACK_RUNTIME/photo-inventory-before.json"
+cli npm run --silent photos:check >"$STACK_RUNTIME/photo-inventory.json"
+scripts/node.sh node -e '
+  const report = JSON.parse(process.argv[1])
+  if (!report.scannedAt || !Array.isArray(report.files) || !Array.isArray(report.unsafe) ||
+      !Number.isInteger(report.totals.files)) throw new Error("Invalid photo inventory")
+  console.log(`Photo inventory: ${report.totals.files} files, ${report.totals.orphans} orphans`)
+' "$(cat "$STACK_RUNTIME/photo-inventory.json")"
+cli npm run --silent export >"$STACK_RUNTIME/photo-inventory-after.json"
+same_data "$STACK_RUNTIME/photo-inventory-before.json" "$STACK_RUNTIME/photo-inventory-after.json"
+
 step "Read-only task hierarchy inventory"
 "${compose[@]}" run --rm -T --no-deps migrate npm run --silent tasks:check >"$STACK_RUNTIME/task-hierarchy.json"
 scripts/node.sh node -e '

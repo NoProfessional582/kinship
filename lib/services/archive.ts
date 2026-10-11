@@ -1,6 +1,10 @@
-import { rm } from 'node:fs/promises'
+import {
+  recordRemovedPhotos,
+  collectPhotosAfterCommit,
+  protectReferencedPhotos,
+  removeAttemptPhotos,
+} from '../photo-lifecycle'
 import { randomUUID, createHash } from 'node:crypto'
-import path from 'node:path'
 import {
   ARCHIVE_FORMAT,
   ARCHIVE_VERSION,
@@ -20,17 +24,9 @@ import {
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { ValidationError } from '../errors'
-import { lockOwnerGraph, ownerSnapshot, ownerTransaction } from '../owner-lock'
+import { lockOwnerGraph, ownerSnapshot } from '../owner-lock'
 import { recomputeLastContact } from './recency'
-import {
-  ownerUploadDir,
-  uploadUrl,
-  localPhotoName,
-  readPhoto,
-  writePhoto,
-  listPhotos,
-  recordPhotoCandidate,
-} from '../uploads'
+import { uploadUrl, localPhotoName, readPhoto, writePhoto, listPhotos } from '../uploads'
 import { allowedImageLabel, extensionFor, sniffImageType } from '../image-types'
 
 /**
@@ -382,6 +378,7 @@ export async function importArchive(
           (prepared.Contact ?? []).map((r) => r.id as string),
         )
 
+        await protectReferencedPhotos(tx, owner)
         const retained = new Set(staged.values())
         const candidates = new Set<string>()
         for (const row of previous) {
@@ -392,6 +389,7 @@ export async function importArchive(
             /* Invalid legacy references are never cleanup candidates. */
           }
         }
+        await recordRemovedPhotos(owner, candidates, Date.now(), 'restore')
         return { counts: written, uploads: staged.size, candidates }
       },
       { timeout: 120_000, maxWait: 20_000, isolationLevel: 'ReadCommitted' },
@@ -400,28 +398,14 @@ export async function importArchive(
     // Rollback releases the transaction lock. Reacquire before removing attempt
     // files: another import could have reused one while this attempt rolled back.
     if (created.size) {
-      await ownerTransaction(owner, async (tx) => {
-        const rows = await tx.contact.findMany({ where: { owner }, select: { avatarUrl: true } })
-        const referenced = new Set(rows.map((r) => r.avatarUrl))
-        const unreferenced = new Set(
-          [...created].filter((name) => !referenced.has(uploadUrl(name))),
-        )
-        await cleanupStaged(owner, unreferenced)
-      }).catch((cleanupError) =>
+      await removeAttemptPhotos(owner, created).catch((cleanupError) =>
         console.warn('Could not coordinate restore rollback cleanup', cleanupError),
       )
     }
     throw err
   }
 
-  // A private, candidate-only journal for step 03. Recording failure after commit
-  // is diagnostic and cannot turn a successful database replacement into failure.
-  for (const name of result.candidates) {
-    await recordPhotoCandidate(owner, name).catch((err: NodeJS.ErrnoException) => {
-      if (err.code !== 'EEXIST')
-        console.warn('Could not record superseded restore photo candidate', err.code)
-    })
-  }
+  await collectPhotosAfterCommit(owner)
   // Count referenced archive names resolved, including reuse, not physical writes.
   return { counts: result.counts, uploads: result.uploads, schemaDrift }
 }
@@ -637,19 +621,5 @@ function rewriteAvatarUrls(
     const name = current.startsWith('/uploads/') ? current.slice('/uploads/'.length) : null
     const replacement = name ? staged.get(name) : undefined
     if (replacement) row.avatarUrl = uploadUrl(replacement)
-  }
-}
-
-/**
- * Remove what this import staged. Only ever its own files: every name in the
- * set was exclusively created by `stageUploads` moments earlier, so nothing here can belong
- * to anything that was already on disk.
- */
-async function cleanupStaged(owner: string, created: Set<string>) {
-  const directory = ownerUploadDir(owner)
-  for (const name of created) {
-    await rm(path.join(directory, name), { force: true }).catch((err: NodeJS.ErrnoException) => {
-      console.warn('Could not remove attempt-owned restore photo', name, err.code)
-    })
   }
 }

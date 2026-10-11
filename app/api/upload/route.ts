@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
-import { writePhoto, uploadUrl } from '@/lib/uploads'
+import { uploadUrl } from '@/lib/uploads'
+import { writePendingPhoto, collectPhotosAfterCommit } from '@/lib/photo-lifecycle'
 import { ownerTransaction } from '@/lib/owner-lock'
 import { requireIdentity } from '@/lib/identity'
 import {
@@ -78,11 +79,12 @@ export async function POST(req: Request) {
   const name = `${randomUUID()}.${extensionFor(sniffed)}`
 
   try {
-    await ownerTransaction(owner, async () => writePhoto(owner, name, bytes))
+    await ownerTransaction(owner, async () => writePendingPhoto(owner, name, bytes))
   } catch (err) {
     console.error('[upload]', err)
     return NextResponse.json({ error: 'Could not save the file' }, { status: 500 })
   }
 
+  await collectPhotosAfterCommit(owner)
   return NextResponse.json({ url: uploadUrl(name) })
 }

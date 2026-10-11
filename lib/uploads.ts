@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
-import { mkdir, open, realpath, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, open, realpath, readdir, rm } from 'node:fs/promises'
 import { ALLOWED_IMAGE_TYPES, extensionFor, sniffImageType } from './image-types'
 import { ValidationError } from './errors'
 
@@ -55,7 +55,7 @@ export function photoPath(owner: string, name: string): string {
 }
 
 /** Reject symlinks in the directory chain as well as at the final filename. */
-async function checkedDirectory(owner: string, create = false): Promise<void> {
+export async function checkedDirectory(owner: string, create = false): Promise<void> {
   const directory = path.resolve(ownerUploadDir(owner))
   if (create) {
     // Check the root before mkdir can traverse an owner-directory symlink.
@@ -101,6 +101,7 @@ export async function writePhoto(owner: string, name: string, bytes: Buffer): Pr
   const file = await open(target, 'wx')
   try {
     await file.writeFile(bytes)
+    await file.sync()
     await file.close()
   } catch (err) {
     await file.close().catch(() => {})
@@ -118,15 +119,4 @@ export async function listPhotos(owner: string): Promise<string[]> {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
     throw err
   }
-}
-
-/** Record a specific superseded reference; consumers must recheck its lifetime. */
-export async function recordPhotoCandidate(owner: string, name: string): Promise<void> {
-  photoPath(owner, name)
-  await checkedDirectory(owner)
-  await writeFile(
-    path.join(ownerUploadDir(owner), `.candidate-${name}.json`),
-    JSON.stringify({ name, reason: 'restore', recordedAt: Date.now() }),
-    { flag: 'wx' },
-  )
 }

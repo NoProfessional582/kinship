@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { ConflictError } from '../errors'
 import { ownerTransaction } from '../owner-lock'
+import { photoTransaction } from '../photo-lifecycle'
 import { contactsMentionedBy, recomputeLastContact } from './recency'
 
 export type TrashKind = 'contact' | 'entry' | 'task' | 'project'
@@ -174,7 +175,7 @@ export async function purge(
   id: string,
   expectedDeletedAt?: Date | string | null,
 ) {
-  return ownerTransaction(owner, async (tx) => {
+  return photoTransaction(owner, async (tx) => {
     // Read the row INSIDE the transaction. The old code deleted by id alone, so
     // a purge could destroy a row that had been restored elsewhere, and a
     // request made directly against the API could skip the soft-delete stage
@@ -213,7 +214,7 @@ export async function purge(
 }
 
 export async function emptyTrash(owner: string) {
-  return ownerTransaction(owner, async (tx) => {
+  return photoTransaction(owner, async (tx) => {
     const deleted = { owner, deletedAt: { not: null } } as const
 
     // Capture the ids inside the transaction and delete by exactly those ids
