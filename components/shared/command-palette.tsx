@@ -11,6 +11,7 @@ import {
   KanbanSquare,
   CalendarDays,
   Users,
+  Orbit,
   Plus,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -31,6 +32,7 @@ const ACTIONS = [
   { label: 'Go to contacts', href: '/contacts', icon: Users },
   { label: 'Go to board', href: '/board', icon: KanbanSquare },
   { label: 'Go to calendar', href: '/calendar', icon: CalendarDays },
+  { label: 'Go to map', href: '/map', icon: Orbit },
 ]
 
 /**

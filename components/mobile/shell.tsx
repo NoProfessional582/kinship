@@ -14,6 +14,7 @@ import {
   Moon,
   Sun,
   FolderKanban,
+  Orbit,
   Settings,
   Trash2,
   MoreHorizontal,
@@ -43,6 +44,7 @@ const TABS = [
 
 const MORE = [
   { href: '/projects', label: 'Projects', icon: FolderKanban },
+  { href: '/map', label: 'Map', icon: Orbit },
   { href: '/trash', label: 'Trash', icon: Trash2 },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
@@ -58,6 +60,10 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   // exactly or it would light up on every screen.
   const isActive = (href: string) =>
     href === '/' ? pathname === '/m' : pathname.startsWith(m(href))
+
+  // The map fills the whole space between the bars, edge to edge, and a finger turns it
+  // rather than scrolling the page.
+  const fullBleed = pathname === m('/map')
 
   const [route, setRoute] = React.useState(pathname)
   if (route !== pathname) {
@@ -93,8 +99,13 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
       {/* The scroll container is this element, not the document, so the top bar
           and the tab bar stay fixed without `position: fixed` and its habit of
           jumping around when a mobile keyboard opens. */}
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
-        <div className="kb-m-page px-4 pb-6 pt-4">{children}</div>
+      <main
+        className={cn(
+          'min-h-0 flex-1',
+          fullBleed ? 'overflow-hidden' : 'overflow-y-auto overscroll-y-contain',
+        )}
+      >
+        {fullBleed ? children : <div className="kb-m-page px-4 pb-6 pt-4">{children}</div>}
       </main>
 
       <nav
