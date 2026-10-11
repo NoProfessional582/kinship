@@ -175,7 +175,15 @@ export interface GraphScene {
    * by swapping materials and rewriting the touched links' vertex colours; the geometry is
    * never changed. True when anything changed, so an on-demand renderer knows to draw.
    */
-  applyHighlight(state: HighlightState, settings?: SceneSettings): boolean
+  applyHighlight(state: HighlightState): boolean
+  /**
+   * Changes the overlay's settings on the built scene, never re-running the layout: node
+   * size scales each record's group; glow retunes the materials, auras and starlight; link
+   * width rebuilds only the conduits' geometry, lit as before; star density rebuilds only
+   * the starfield's geometry, or hides it. What it replaces is freed. True when anything
+   * changed.
+   */
+  applySettings(settings: SceneSettings): boolean
   /**
    * Puts the beacon ring round a record, facing the camera, at its size for `time` (in
    * seconds), or hides it for null. True while it pulses, so the caller keeps drawing; with
@@ -202,7 +210,7 @@ export function buildGraphScene(
   root.name = 'graph'
   root.add(...lights())
 
-  const stars = starfield(settings, textures, own)
+  let stars = starfield(settings, textures, own)
   if (stars) root.add(stars)
 
   // Shared by every record of a size or a type.
@@ -301,7 +309,9 @@ export function buildGraphScene(
   }
   root.add(records)
 
-  const { mesh: conduits, linkVertices, drawn } = conduitMesh(layout, links, settings, own)
+  const built = conduitMesh(layout, links, settings, own)
+  const conduits = built.mesh
+  const { linkVertices, drawn } = built
   if (conduits) root.add(conduits)
 
   const beaconStyle = SCENE_STYLE.beacon
@@ -356,10 +366,27 @@ export function buildGraphScene(
   const linkLooks: LinkLook[] = drawn.map(() => 'resting')
   const linkColor = new Color()
 
+  let lastState: HighlightState | null = null
+
+  const free = (thing: { dispose(): void } | null | undefined) => {
+    if (thing && owned.delete(thing)) thing.dispose()
+  }
+  /**
+   * Gives `target` the geometry of `fresh`, a stand-in that was never drawn, and frees
+   * target's old geometry and fresh's material and texture.
+   */
+  const swapGeometry = (target: Mesh | Points, fresh: Mesh | Points) => {
+    free(target.geometry)
+    target.geometry = fresh.geometry
+    const material = fresh.material as MeshBasicMaterial | PointsMaterial
+    free(material.map)
+    free(material)
+  }
+
   let disposed = false
   const position = new Vector3()
 
-  return {
+  const scene: GraphScene = {
     root,
     background: new Color(SCENE_STYLE.background),
     nodes,
@@ -395,17 +422,10 @@ export function buildGraphScene(
       }
       return changed
     },
-    applyHighlight(state, settings = current) {
+    applyHighlight(state) {
       if (disposed) return false
       let changed = false
-      current = settings
-      if (settings.glowIntensity !== tunedGlow) {
-        tunedGlow = settings.glowIntensity
-        for (const byLook of orbLooks.values()) for (const [l, m] of byLook) tune(l, m)
-        for (const byLook of auraLooks.values()) for (const [l, m] of byLook) tune(l, undefined, m)
-        changed = true
-      }
-
+      lastState = state
       for (const { node, orb, aura, label } of nodes.values()) {
         const look = nodeLook(state, node.id)
         if ((nodeLooks.get(node.id) ?? 'resting') === look) continue
@@ -443,6 +463,68 @@ export function buildGraphScene(
       }
       return changed
     },
+    applySettings(next) {
+      if (disposed) return false
+      const previous = current
+      current = next
+      let changed = false
+
+      if (next.nodeScale !== previous.nodeScale) {
+        // The beacon reads it from `current` on its next placing.
+        for (const { group } of nodes.values()) group.scale.setScalar(next.nodeScale)
+        changed = true
+      }
+
+      if (next.glowIntensity !== previous.glowIntensity) {
+        tunedGlow = next.glowIntensity
+        for (const byLook of orbLooks.values()) for (const [l, m] of byLook) tune(l, m)
+        for (const byLook of auraLooks.values()) for (const [l, m] of byLook) tune(l, undefined, m)
+        for (const { node, aura } of nodes.values()) {
+          const side = node.radius * auraStyle.scale * next.glowIntensity
+          aura.scale.set(side, side, 1)
+        }
+        changed = true
+      }
+
+      // The stars and conduits keep their objects, materials and textures and change only
+      // their geometry.
+      if (next.starDensity !== previous.starDensity) {
+        if (!stars) {
+          stars = starfield(next, textures, own)
+          // Where the build put it, straight after the lights.
+          if (stars) insertAt(root, stars, 2)
+        } else if (next.starDensity !== 'off') {
+          // A new star texture would draw on a new 2D canvas, which takes about a second
+          // in a browser drawing in software; only the positions change.
+          free(stars.geometry)
+          stars.geometry = own(starGeometry(next.starDensity))
+          stars.visible = true
+        } else stars.visible = false
+        changed = true
+      }
+      if (
+        stars &&
+        next.starDensity !== 'off' &&
+        (next.starDensity !== previous.starDensity || next.glowIntensity !== previous.glowIntensity)
+      ) {
+        const look = SCENE_STYLE.stars[next.starDensity]
+        const material = stars.material as PointsMaterial
+        material.size = look.size * next.glowIntensity
+        material.opacity = Math.min(1, look.opacity * next.glowIntensity)
+      }
+
+      if (next.linkWidth !== previous.linkWidth && conduits) {
+        const rebuilt = conduitMesh(layout, links, next, own)
+        swapGeometry(conduits, rebuilt.mesh!)
+        linkVertices.clear()
+        for (const [id, range] of rebuilt.linkVertices) linkVertices.set(id, range)
+        // The new mesh is built at rest; light it as the old one was.
+        linkLooks.fill('resting')
+        if (lastState) scene.applyHighlight(lastState)
+        changed = true
+      }
+      return changed
+    },
     placeBeacon(nodeId, camera, time, reducedMotion) {
       const objects = nodeId === null || disposed ? undefined : nodes.get(nodeId)
       if (!objects) {
@@ -469,6 +551,14 @@ export function buildGraphScene(
       linkVertices.clear()
     },
   }
+  return scene
+}
+
+/** Adds a child at a place in the parent's list, so the drawing order stays as built. */
+function insertAt(parent: Group, child: Object3D, index: number) {
+  parent.add(child)
+  parent.children.pop()
+  parent.children.splice(index, 0, child)
 }
 
 /**
@@ -568,14 +658,8 @@ function starfield(
   own: <T extends { dispose(): void }>(thing: T) => T,
 ): Points | null {
   if (settings.starDensity === 'off') return null
-  const { spread, seed } = SCENE_STYLE.stars
   const look = SCENE_STYLE.stars[settings.starDensity]
-  // Seeded, so the sky is the same on every visit.
-  const random = mulberry32(seed)
-  const positions = new Float32Array(look.count * 3)
-  for (let i = 0; i < positions.length; i++) positions[i] = (random() - 0.5) * spread
-  const geometry = own(new BufferGeometry())
-  geometry.setAttribute('position', new BufferAttribute(positions, 3))
+  const geometry = own(starGeometry(settings.starDensity))
   const material = own(
     new PointsMaterial({
       color: 0xffffff,
@@ -590,6 +674,18 @@ function starfield(
   const points = new Points(geometry, material)
   points.name = 'stars'
   return points
+}
+
+/** The stars' positions for a density. */
+function starGeometry(density: Exclude<StarDensity, 'off'>): BufferGeometry {
+  const { spread, seed } = SCENE_STYLE.stars
+  // Seeded, so the sky is the same on every visit.
+  const random = mulberry32(seed)
+  const positions = new Float32Array(SCENE_STYLE.stars[density].count * 3)
+  for (let i = 0; i < positions.length; i++) positions[i] = (random() - 0.5) * spread
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(positions, 3))
+  return geometry
 }
 
 /**

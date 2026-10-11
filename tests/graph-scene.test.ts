@@ -483,11 +483,13 @@ describe('applyHighlight', () => {
 
   it('scales the lit looks with glow', () => {
     const { scene, state, c, e } = lit()
-    scene.applyHighlight(state(e.node.id), { ...SCENE_DEFAULTS, glowIntensity: 2 })
+    scene.applyHighlight(state(e.node.id))
+    scene.applySettings({ ...SCENE_DEFAULTS, glowIntensity: 2 })
     expect(e.orb.material.emissiveIntensity).toBe(1.4)
     expect(e.aura.material.opacity).toBe(1)
     expect(c.orb.material.emissiveIntensity).toBe(0.9)
-    scene.applyHighlight(state(null), { ...SCENE_DEFAULTS, glowIntensity: 0.5 })
+    scene.applyHighlight(state(null))
+    scene.applySettings({ ...SCENE_DEFAULTS, glowIntensity: 0.5 })
     expect(c.orb.material.emissiveIntensity).toBe(0.225)
     expect(c.aura.material.opacity).toBe(0.35)
   })
@@ -501,6 +503,179 @@ describe('applyHighlight', () => {
     scene.dispose()
     for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1)
     expect(scene.applyHighlight(state(e.node.id))).toBe(false)
+  })
+})
+
+describe('applySettings', () => {
+  function built() {
+    const { nodes, links, layout } = sample()
+    const scene = buildGraphScene(layout, links, fakeTextures().textures)
+    new Scene().add(scene.root)
+    const stars = () =>
+      scene.root.getObjectByName('stars') as Points<BufferGeometry, PointsMaterial> | undefined
+    return { nodes, links, layout, scene, stars }
+  }
+  /** How far a link's first vertex is from its line: the conduit's radius. */
+  function conduitRadius(scene: ReturnType<typeof built>['scene'], links: GraphLink[]) {
+    const [first] = links
+    const a = scene.nodes.get(first.source)!.node
+    const at = scene.linkVertices.get(first.id)!.start
+    const vertex = new Vector3().fromBufferAttribute(
+      scene.conduits!.geometry.getAttribute('position'),
+      at,
+    )
+    return vertex.distanceTo(new Vector3(a.x, a.y, a.z))
+  }
+
+  it('changes nothing for the settings it already has', () => {
+    const { scene } = built()
+    const conduits = scene.conduits
+    expect(scene.applySettings({ ...SCENE_DEFAULTS })).toBe(false)
+    expect(scene.conduits).toBe(conduits)
+  })
+
+  it('scales every record and the beacon by node size, without moving them', () => {
+    const { scene } = built()
+    const before = [...scene.nodes.values()].map(({ group }) => group.position.toArray())
+    expect(scene.applySettings({ ...SCENE_DEFAULTS, nodeScale: 1.5 })).toBe(true)
+    const after = [...scene.nodes.values()]
+    for (const { group } of after) expect(group.scale.toArray()).toEqual([1.5, 1.5, 1.5])
+    expect(after.map(({ group }) => group.position.toArray())).toEqual(before)
+
+    const camera = new PerspectiveCamera()
+    scene.placeBeacon(after[0].node.id, camera, 0, true)
+    expect(scene.root.getObjectByName('beacon')!.scale.x).toBe(1.5)
+  })
+
+  it('retunes radiance, auras and starlight with glow, in place', () => {
+    const { scene, stars } = built()
+    const points = stars()!
+    expect(scene.applySettings({ ...SCENE_DEFAULTS, glowIntensity: 2 })).toBe(true)
+    for (const { node, orb, aura } of scene.nodes.values()) {
+      expect(orb.material.emissiveIntensity).toBe(0.9)
+      expect(aura.material.opacity).toBe(1)
+      expect(aura.scale.x).toBeCloseTo(node.radius * 4.33 * 2)
+    }
+    expect(stars()).toBe(points)
+    expect(points.material.size).toBe(4.3)
+    expect(points.material.opacity).toBe(1)
+
+    // Back to the approved look exactly.
+    scene.applySettings({ ...SCENE_DEFAULTS })
+    for (const { node, orb, aura } of scene.nodes.values()) {
+      expect(orb.material.emissiveIntensity).toBe(0.45)
+      expect(aura.material.opacity).toBe(0.7)
+      expect(aura.scale.x).toBeCloseTo(node.radius * 4.33)
+    }
+    expect(points.material.size).toBe(2.15)
+    expect(points.material.opacity).toBe(0.8)
+  })
+
+  it('rebuilds only the starfield geometry for a new density, freeing the old one', () => {
+    const { scene, stars } = built()
+    const records = scene.root.getObjectByName('records')
+    const points = stars()!
+    const { geometry, material } = points
+    const texture = material.map!
+    const spies = [geometry, material, texture].map((thing) => vi.spyOn(thing, 'dispose'))
+    scene.applySettings({ ...SCENE_DEFAULTS, starDensity: 'sparse' })
+    // The same points, material and texture, so the renderer compiles nothing new.
+    expect(spies.map((spy) => spy.mock.calls.length)).toEqual([1, 0, 0])
+    expect(stars()).toBe(points)
+    expect(points.material).toBe(material)
+    expect(material.map).toBe(texture)
+    expect(points.geometry.getAttribute('position').count).toBe(350)
+    expect(material.size).toBe(1.65)
+    expect(material.opacity).toBe(0.6)
+    expect(scene.root.getObjectByName('records')).toBe(records)
+
+    scene.applySettings({ ...SCENE_DEFAULTS, starDensity: 'off' })
+    expect(points.visible).toBe(false)
+    scene.applySettings({ ...SCENE_DEFAULTS, starDensity: 'dense', glowIntensity: 2 })
+    expect(points.visible).toBe(true)
+    expect(points.geometry.getAttribute('position').count).toBe(900)
+    expect(material.size).toBe(4.3)
+  })
+
+  it('adds a starfield to a scene built without one', () => {
+    const { links, layout } = sample()
+    const scene = buildGraphScene(layout, links, fakeTextures().textures, {
+      ...SCENE_DEFAULTS,
+      starDensity: 'off',
+    })
+    scene.applySettings({ ...SCENE_DEFAULTS, starDensity: 'sparse' })
+    const stars = scene.root.getObjectByName('stars') as Points<BufferGeometry, PointsMaterial>
+    expect(stars.geometry.getAttribute('position').count).toBe(350)
+    // Straight after the two lights, where a build puts it.
+    expect(scene.root.children.indexOf(stars)).toBe(2)
+  })
+
+  it('rebuilds only the conduits geometry for a new link width, lit as before', () => {
+    const { nodes, links, scene } = built()
+    const neighbours = neighbourSets(links)
+    scene.applyHighlight(highlightState({ hoveredId: null, selectedId: nodes[2].id, neighbours }))
+    const old = scene.conduits!
+    const colors = Array.from(old.geometry.getAttribute('color').array)
+    const ranges = scene.linkVertices
+    const { geometry, material } = old
+    const spies = [geometry, material].map((thing) => vi.spyOn(thing, 'dispose'))
+    const orbs = [...scene.nodes.values()].map(({ orb }) => orb.material)
+
+    expect(scene.applySettings({ ...SCENE_DEFAULTS, linkWidth: 0.3 })).toBe(true)
+    // A new geometry in the same mesh, with the same material.
+    expect(spies.map((spy) => spy.mock.calls.length)).toEqual([1, 0])
+    expect(scene.conduits).toBe(old)
+    expect(old.geometry).not.toBe(geometry)
+    expect(old.material).toBe(material)
+    expect(conduitRadius(scene, links)).toBeCloseTo(0.3, 4)
+    // The same map, the same ranges, and the selection's colours carried over.
+    expect(scene.linkVertices).toBe(ranges)
+    expect([...ranges.keys()].sort()).toEqual(links.map((l) => l.id).sort())
+    expect(Array.from(scene.conduits!.geometry.getAttribute('color').array)).toEqual(colors)
+    expect([...scene.nodes.values()].map(({ orb }) => orb.material)).toEqual(orbs)
+
+    // Back at rest, the new mesh's links go back to the resting colour.
+    scene.applyHighlight(highlightState({ hoveredId: null, selectedId: null, neighbours }))
+    const slate = new Color(SCENE_STYLE.conduit.color)
+    const rest = scene.conduits!.geometry.getAttribute('color')
+    for (let i = 0; i < rest.count; i++) {
+      expect(rest.getX(i)).toBeCloseTo(slate.r)
+      expect(rest.getW(i)).toBeCloseTo(0.55)
+    }
+  })
+
+  it('frees everything it replaces, so repeated changes leak nothing', () => {
+    const { scene } = built()
+    const seen = new Map<{ dispose(): void }, ReturnType<typeof vi.spyOn>>()
+    const watch = () => {
+      const { geometries, materials, textures } = resources(scene.root)
+      for (const thing of [...geometries, ...materials, ...textures]) {
+        if (!seen.has(thing)) seen.set(thing, vi.spyOn(thing, 'dispose'))
+      }
+      return geometries.size + materials.size + textures.size
+    }
+    const start = watch()
+    const densities = ['sparse', 'off', 'dense'] as const
+    for (let i = 0; i < 12; i++) {
+      scene.applySettings({
+        nodeScale: 0.8 + i * 0.1,
+        linkWidth: 0.05 + (i % 4) * 0.02,
+        glowIntensity: 0.6 + (i % 5) * 0.3,
+        starDensity: densities[i % 3],
+      })
+      expect(watch()).toBe(start)
+    }
+    scene.dispose()
+    // Every geometry, material and texture the scene ever showed, freed exactly once.
+    for (const spy of seen.values()) expect(spy).toHaveBeenCalledTimes(1)
+    expect(scene.applySettings({ ...SCENE_DEFAULTS })).toBe(false)
+  })
+
+  it('leaves a graph with no links without conduits', () => {
+    const one = [node('solo', 'contact')]
+    const scene = buildGraphScene(compute3DLayout(one, []), [], fakeTextures().textures)
+    expect(scene.applySettings({ ...SCENE_DEFAULTS, linkWidth: 0.3 })).toBe(false)
+    expect(scene.conduits).toBeNull()
   })
 })
 
