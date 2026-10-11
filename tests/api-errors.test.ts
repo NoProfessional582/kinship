@@ -81,4 +81,32 @@ describe('refreshAfterDelete', () => {
     expect(qc.getQueryState(['entry', 'gone'])?.isInvalidated).toBe(true)
     close.forEach((unsubscribe) => unsubscribe())
   })
+
+  it('leaves every query about the record alone, such as its mini-map', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const asked: Record<string, number> = {}
+    const open = (key: string[]) =>
+      new QueryObserver(qc, {
+        queryKey: key,
+        queryFn: async () => {
+          asked[key.join(' ')] = (asked[key.join(' ')] ?? 0) + 1
+          return key
+        },
+      }).subscribe(() => {})
+    const mini = ['graph', '/api/graph?focusId=contact%3Agone&depth=2']
+    const close = [open(['contact', 'gone']), open(mini), open(['graph', '/api/graph'])]
+    await vi.waitFor(() =>
+      expect(
+        qc
+          .getQueryCache()
+          .getAll()
+          .map((q) => q.state.status),
+      ).toEqual(['success', 'success', 'success']),
+    )
+
+    await refreshAfterDelete(qc, ['contact', 'gone'], mini)
+    expect(asked).toEqual({ 'contact gone': 1, [mini.join(' ')]: 1, 'graph /api/graph': 2 })
+    expect(qc.getQueryState(mini)?.isInvalidated).toBe(true)
+    close.forEach((unsubscribe) => unsubscribe())
+  })
 })

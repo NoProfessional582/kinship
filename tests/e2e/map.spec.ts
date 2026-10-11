@@ -5,12 +5,19 @@
  * and moves along its connections, reaches any record from the Records list by keyboard
  * alone, and shows its other states: no records, a failed request (and its retry), and a
  * browser without WebGL, which lists the records instead. Leaving the page frees the canvas.
+ * The sidebar, the command palette and the phone's More sheet reach it (the phone's own
+ * page is /m/map), and `?focus=<type>:<id>` opens it on one record, or on the whole map
+ * with a notice when that record is not on it.
+ *
+ * The Attraction slider lays the map out again, keeping the selection, and the map follows
+ * the app's theme: paper by day (Kinship's default), deep space after dark.
  *
  * Headless Chromium draws WebGL in software, so these check that something was drawn and
- * what it looks like broadly (coloured orbs on a dark sky), not exact pixels.
+ * what it looks like broadly (coloured orbs on paper or a dark sky), not exact pixels.
  */
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from '../support/fixtures'
+import { withoutWebgl } from '../support/map'
 import { SEEDED } from '../support/stack'
 
 const canvasOf = (page: Page) => page.getByTestId('graph-canvas').locator('canvas')
@@ -84,7 +91,8 @@ async function drawn(page: Page) {
 
 /**
  * The share of the element's pixels in a strong colour, as the orbs and their auras are;
- * the sky is near black and the stars white, so neither counts.
+ * the sky (near black, or paper by day) and the stars (white, or ink) are grey, so neither
+ * counts.
  */
 async function colouredShare(page: Page, target: Locator): Promise<number> {
   const png = await shot(target)
@@ -108,27 +116,12 @@ async function colouredShare(page: Page, target: Locator): Promise<number> {
   }, png.toString('base64'))
 }
 
-/** The page as a browser without WebGL sees it: no WebGL context can be made. */
-async function withoutWebgl(page: Page) {
-  await page.addInitScript(() => {
-    const getContext = HTMLCanvasElement.prototype.getContext
-    HTMLCanvasElement.prototype.getContext = function (
-      this: HTMLCanvasElement,
-      kind: string,
-      ...rest: unknown[]
-    ) {
-      if (/webgl/.test(kind)) return null
-      return (getContext as (...args: unknown[]) => unknown).call(this, kind, ...rest)
-    } as typeof getContext
-  })
-}
-
 test('the map draws the seeded records', { tag: '@desktop' }, async ({ page }) => {
   await page.goto('/map')
   await expect(page.getByRole('heading', { level: 1, name: 'Map' })).toHaveCount(1)
   await drawn(page)
   const share = await colouredShare(page, canvasOf(page))
-  expect(share, 'coloured orbs and auras on the dark sky').toBeGreaterThan(0.001)
+  expect(share, 'coloured orbs and auras on the paper sky').toBeGreaterThan(0.001)
 })
 
 test('a record under the pointer is picked', { tag: '@desktop' }, async ({ page }) => {
@@ -450,19 +443,17 @@ test('every overlay control works by keyboard', { tag: '@desktop' }, async ({ pa
   const size = overlay.getByRole('slider', { name: 'Node size' })
   const width = overlay.getByRole('slider', { name: 'Link width' })
   const glow = overlay.getByRole('slider', { name: 'Glow' })
+  const attraction = overlay.getByRole('slider', { name: 'Attraction' })
 
   // Tab reaches each control in order, and each shows that it has focus.
   await orbit.focus()
-  for (const control of [reset, stars, size, width, glow]) {
+  const order = [reset, stars, size, width, glow, attraction]
+  for (const control of order) {
     await page.keyboard.press('Tab')
     await expect(control).toBeFocused()
     expect(await control.evaluate((el) => el.matches(':focus-visible'))).toBe(true)
   }
-  await page.keyboard.press('Shift+Tab')
-  await page.keyboard.press('Shift+Tab')
-  await page.keyboard.press('Shift+Tab')
-  await page.keyboard.press('Shift+Tab')
-  await page.keyboard.press('Shift+Tab')
+  for (let i = 0; i < order.length; i++) await page.keyboard.press('Shift+Tab')
   await expect(orbit).toBeFocused()
   const ring = await orbit.evaluate((el) => getComputedStyle(el).boxShadow)
   expect(ring, 'a visible focus ring').not.toBe('none')
@@ -486,6 +477,10 @@ test('every overlay control works by keyboard', { tag: '@desktop' }, async ({ pa
   await glow.focus()
   await page.keyboard.press('End')
   await expect(glow).toHaveAttribute('aria-valuetext', '2.5x')
+  await attraction.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(attraction).toHaveAttribute('aria-valuetext', '1.10x')
+  await expect(mapOf(page)).toHaveAttribute('data-attraction', '1.1', { timeout: 30_000 })
 
   const point = await findRecord(page)
   await page.mouse.click(point.x, point.y)
@@ -819,3 +814,261 @@ test(
     await expect(host).toHaveAttribute('data-view-shift', '0,0')
   },
 )
+
+const NOT_ON_MAP = 'That record is not on the map. It may have been deleted.'
+const noticeOf = (page: Page) => page.getByTestId('map-notice')
+const focusLink = (id: string, base = '/map') => `${base}?${new URLSearchParams({ focus: id })}`
+
+test('the sidebar and the command palette go to the map', { tag: '@desktop' }, async ({ page }) => {
+  await page.goto('/')
+  const link = page.getByRole('complementary').getByRole('link', { name: 'Map', exact: true })
+  await link.click()
+  await expect(page).toHaveURL(/\/map$/)
+  await drawn(page)
+  await expect(link).toHaveAttribute('aria-current', 'page')
+
+  await page.goto('/contacts')
+  await page.getByRole('heading', { level: 1, name: 'Contacts' }).waitFor()
+  await page.keyboard.press('Control+k')
+  await page.getByRole('option', { name: 'Go to map' }).click()
+  await expect(page).toHaveURL(/\/map$/)
+  await drawn(page)
+})
+
+test(
+  'a focus link opens the map on that record, and picking others keeps the link',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    const { byName } = await graphOf(page)
+    const maya = byName(SEEDED.contact)
+    const link = focusLink(maya.id)
+    await page.goto(link)
+    await drawn(page)
+    const inspector = inspectorOf(page)
+    await expect(inspector.getByRole('heading', { level: 2, name: SEEDED.contact })).toBeVisible()
+    await expect(mapOf(page)).toHaveAttribute('data-active-id', maya.id)
+    await expect(noticeOf(page)).toHaveCount(0)
+    // Centred as a pick from the Records list is: the view makes room for the drawer.
+    const host = page.getByTestId('graph-canvas')
+    await expect
+      .poll(async () => Number((await host.getAttribute('data-view-shift'))?.split(',')[0]))
+      .toBeGreaterThan(0)
+
+    await inspector.getByRole('button', { name: new RegExp(`^${SEEDED.note}`) }).click()
+    await expect(inspector.getByRole('heading', { level: 2 })).toHaveText(SEEDED.note)
+    expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(link)
+  },
+)
+
+test(
+  'a focus that is not on the map shows the whole map with a notice',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    // Missing (and so also trashed: the map answers the same), an unknown type, blank.
+    for (const focus of ['contact:no-such-record', 'person:1', 'nonsense', '']) {
+      await page.goto(focusLink(focus))
+      await drawn(page)
+      await expect(noticeOf(page), `focus=${focus}`).toHaveText(NOT_ON_MAP)
+      await expect(inspectorOf(page)).toBeHidden()
+      await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+    }
+    await noticeOf(page).getByRole('button', { name: 'Dismiss' }).click()
+    await expect(noticeOf(page)).toBeHidden()
+    // The map is all there and works as ever.
+    await pick(page, SEEDED.contact)
+    await expect(inspectorOf(page)).toBeVisible()
+  },
+)
+
+test(
+  'on a phone, More and search reach the map, which fills the space between the bars',
+  { tag: '@phone' },
+  async ({ page }) => {
+    await page.goto('/m')
+    await page.getByRole('button', { name: 'More', exact: true }).tap()
+    await page.getByRole('link', { name: 'Map', exact: true }).tap()
+    await expect(page).toHaveURL(/\/m\/map$/)
+    await drawn(page)
+
+    const header = (await page.getByRole('banner').boundingBox())!
+    const tabs = (await page.getByRole('navigation').boundingBox())!
+    const map = (await mapOf(page).boundingBox())!
+    expect(map.y).toBeCloseTo(header.y + header.height, 0)
+    expect(map.y + map.height).toBeCloseTo(tabs.y, 0)
+    expect(map.width).toBeCloseTo(page.viewportSize()!.width, 0)
+    const fits = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    )
+    expect(fits, 'no sideways scroll').toBe(true)
+
+    await page.goto('/m/contacts')
+    await page.getByRole('button', { name: 'Search', exact: true }).tap()
+    await page.getByRole('option', { name: 'Go to map' }).tap()
+    await expect(page).toHaveURL(/\/m\/map$/)
+    await drawn(page)
+  },
+)
+
+test(
+  'a focus link on the phone opens the sheet above the tab bar, linking within /m',
+  { tag: '@phone' },
+  async ({ page }) => {
+    const { byName } = await graphOf(page)
+    const maya = byName(SEEDED.contact)
+    await page.goto(focusLink(maya.id, '/m/map'))
+    await drawn(page)
+    const inspector = inspectorOf(page)
+    await expect(inspector.getByRole('heading', { level: 2, name: SEEDED.contact })).toBeVisible()
+    const sheet = (await inspector.boundingBox())!
+    const tabs = (await page.getByRole('navigation').boundingBox())!
+    expect(sheet.y + sheet.height, 'the sheet ends above the tab bar').toBeLessThanOrEqual(
+      tabs.y + 0.5,
+    )
+    await expect(statusOf(page)).toBeInViewport()
+
+    const open = inspector.getByRole('link', { name: 'Open record' })
+    await expect(open).toHaveAttribute('href', `/m${maya.url!}`)
+    await open.tap()
+    await expect(page).toHaveURL(
+      new RegExp(`/m${maya.url!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+    )
+    await expect(page.getByRole('heading', { level: 1, name: SEEDED.contact })).toBeVisible()
+
+    await page.goto('/m/map?focus=contact:no-such-record')
+    await drawn(page)
+    await expect(noticeOf(page)).toHaveText(NOT_ON_MAP)
+    await expect(inspectorOf(page)).toBeHidden()
+  },
+)
+
+/**
+ * The lightness of an element's text colour, 0 to 100, however the browser writes it:
+ * Tailwind's palette comes back as lab(), the app's own palette as rgb().
+ */
+async function textLightness(target: Locator): Promise<number> {
+  return target.evaluate((el) => {
+    const color = getComputedStyle(el).color
+    const lab = /^lab\(([\d.]+)/.exec(color)
+    if (lab) return Number(lab[1])
+    const [r, g, b] = color.match(/[\d.]+/g)!.map(Number)
+    return (r + g + b) / 3 / 2.55
+  })
+}
+
+/** The mean brightness of the element's pixels, 0 to 255: paper is bright, space dark. */
+async function brightness(page: Page, target: Locator): Promise<number> {
+  const png = await shot(target)
+  return page.evaluate(async (base64) => {
+    const image = new Image()
+    image.src = `data:image/png;base64,${base64}`
+    await image.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = image.width
+    canvas.height = image.height
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(image, 0, 0)
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+    let sum = 0
+    for (let i = 0; i < data.length; i += 4) sum += (data[i] + data[i + 1] + data[i + 2]) / 3
+    return sum / (data.length / 4)
+  }, png.toString('base64'))
+}
+
+test(
+  'Attraction lays the map out again, keeping the selection and the view',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    // A still beacon, so the view settles between screenshots.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/map')
+    await drawn(page)
+    const overlay = overlayOf(page)
+    const attraction = overlay.getByRole('slider', { name: 'Attraction' })
+    await expect(attraction).toHaveValue('1')
+    await expect(attraction).toHaveAttribute('aria-valuetext', '1.00x')
+    await expect(mapOf(page)).toHaveAttribute('data-attraction', '1')
+
+    await pick(page, SEEDED.contact)
+    const inspector = inspectorOf(page)
+    await expect(inspector.getByRole('heading', { level: 2, name: SEEDED.contact })).toBeVisible()
+    const active = await mapOf(page).getAttribute('data-active-id')
+    const before = await settled(canvasOf(page))
+    const firstDraws = await page.evaluate(
+      () => performance.getEntriesByName('graph:first-draw').length,
+    )
+
+    // Pulled tight: laid out again (a new scene drawn), still selected, the panel still open.
+    await attraction.fill('2.5')
+    await expect(overlay.getByText('2.50x', { exact: true })).toBeVisible()
+    await expect(mapOf(page)).toHaveAttribute('data-attraction', '2.5', { timeout: 30_000 })
+    await expect(mapOf(page)).not.toHaveAttribute('aria-busy', 'true')
+    await expect
+      .poll(() => page.evaluate(() => performance.getEntriesByName('graph:first-draw').length))
+      .toBeGreaterThan(firstDraws)
+    await expect(mapOf(page)).toHaveAttribute('data-active-id', active!)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+    await expect(inspector.getByRole('heading', { level: 2, name: SEEDED.contact })).toBeVisible()
+    await expect(statusOf(page)).toContainText(SEEDED.contact)
+    const after = await settled(canvasOf(page))
+    expect(after.equals(before), 'the records moved').toBe(false)
+
+    // Reset view still frames the whole graph, now in its new arrangement.
+    await overlay.getByRole('button', { name: 'Reset view' }).click()
+    await expect(mapOf(page)).not.toHaveAttribute('data-highlight', 'selected')
+    await expect(mapOf(page)).toHaveAttribute('data-attraction', '2.5')
+  },
+)
+
+test('the map follows the app theme, keeping its view', { tag: '@desktop' }, async ({ page }) => {
+  await page.goto('/map')
+  await drawn(page)
+  const canvas = canvasOf(page)
+  // Kinship's default is light: the palette's paper, behind the canvas and in it.
+  await expect(mapOf(page)).toHaveCSS('background-color', 'rgb(245, 242, 235)')
+  expect(await brightness(page, canvas), 'a paper sky').toBeGreaterThan(200)
+  expect(await colouredShare(page, canvas), 'coloured orbs on paper').toBeGreaterThan(0.001)
+  const overlay = overlayOf(page)
+  expect(await textLightness(overlay), 'ink on the paper glass').toBeLessThan(30)
+
+  await page.getByRole('button', { name: 'Theme' }).click()
+  await expect(page.locator('html')).toHaveClass(/dark/)
+  await expect(mapOf(page)).toHaveCSS('background-color', 'rgb(8, 10, 14)')
+  await expect.poll(() => brightness(page, canvas), { message: 'deep space' }).toBeLessThan(60)
+  expect(await colouredShare(page, canvas), 'coloured orbs on the dark sky').toBeGreaterThan(0.001)
+  await expect
+    .poll(() => textLightness(overlay), { message: 'light text on the dark glass' })
+    .toBeGreaterThan(80)
+
+  // A selection and its panel stay through a change of theme.
+  await pick(page, SEEDED.contact)
+  await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+  await page.getByRole('button', { name: 'Theme' }).click()
+  await expect(page.locator('html')).not.toHaveClass(/dark/)
+  await expect.poll(() => brightness(page, canvas), { message: 'paper again' }).toBeGreaterThan(200)
+  await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+  await expect(inspectorOf(page)).toBeVisible()
+  expect(await textLightness(overlay), 'ink again').toBeLessThan(30)
+})
+
+test('the wheel zooms towards the pointer', { tag: '@desktop' }, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/map')
+  await drawn(page)
+  const canvas = canvasOf(page)
+  const box = (await canvas.boundingBox())!
+  const point = await findRecord(page)
+  const record = await mapOf(page).getAttribute('data-active-id')
+  expect(record).toBeTruthy()
+  // Far enough from the middle that a zoom to the middle would carry it away.
+  const off = Math.hypot(point.x - (box.x + box.width / 2), point.y - (box.y + box.height / 2))
+  expect(off, 'a record away from the middle').toBeGreaterThan(box.height * 0.15)
+
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -200)
+  await settled(canvas)
+  // Off and back again, so the map looks under the pointer afresh.
+  const empty = await emptySpace(page)
+  await page.mouse.move(empty.x, empty.y)
+  await expect(mapOf(page)).toHaveAttribute('data-active-id', '')
+  await page.mouse.move(point.x, point.y)
+  await expect(mapOf(page)).toHaveAttribute('data-active-id', record!)
+})

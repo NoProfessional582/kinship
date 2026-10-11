@@ -29,6 +29,18 @@ function single(params: URLSearchParams, name: string): string | null {
   return values[0] ?? null
 }
 
+/** A well-formed graph id, `<type>:<id>`, taken apart; null for anything else. */
+export function parseGraphId(id: string): NonNullable<GraphQuery['focus']> | null {
+  const colon = id.indexOf(':')
+  if (colon < 0) return null
+  const type = id.slice(0, colon)
+  const entityId = id.slice(colon + 1)
+  if (!(GRAPH_NODE_TYPES as readonly string[]).includes(type) || !ENTITY_ID.test(entityId)) {
+    return null
+  }
+  return { id, type: type as GraphNodeType, entityId }
+}
+
 export function parseGraphQuery(params: URLSearchParams): GraphQuery {
   const focusId = single(params, 'focusId')
   const depthParam = single(params, 'depth')
@@ -38,14 +50,8 @@ export function parseGraphQuery(params: URLSearchParams): GraphQuery {
     return { focus: null, depth: null }
   }
 
-  const colon = focusId.indexOf(':')
-  const type = focusId.slice(0, colon)
-  const entityId = focusId.slice(colon + 1)
-  if (
-    colon < 0 ||
-    !(GRAPH_NODE_TYPES as readonly string[]).includes(type) ||
-    !ENTITY_ID.test(entityId)
-  ) {
+  const focus = parseGraphId(focusId)
+  if (focus === null) {
     throw new ValidationError(
       `focusId must be <type>:<id>, with type one of ${GRAPH_NODE_TYPES.join(', ')}`,
     )
@@ -57,7 +63,7 @@ export function parseGraphQuery(params: URLSearchParams): GraphQuery {
     if (match === undefined) throw new ValidationError(`depth must be ${FOCUS_DEPTHS.join(' or ')}`)
     depth = match
   }
-  return { focus: { id: focusId, type: type as GraphNodeType, entityId }, depth }
+  return { focus, depth }
 }
 
 /**

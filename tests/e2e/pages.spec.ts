@@ -1,9 +1,8 @@
 /**
  * Every page loads clean on its own project: the twelve desktop pages in Desktop Chrome,
- * and eleven of them under /m on a Pixel 7 (the map has no phone page yet). Each has
- * exactly one main heading and shows what makes it that page (its heading, and its own
- * content where the heading is read only by screen readers), and nothing on it errs
- * (support/fixtures.ts).
+ * and the same twelve under /m on a Pixel 7. Each has exactly one main heading and shows
+ * what makes it that page (its heading, and its own content where the heading is read only
+ * by screen readers), and nothing on it errs (support/fixtures.ts).
  *
  * Nothing picks a GUI by device (app/layout.tsx): /m is where the installed phone app
  * starts (app/manifest.ts), and a phone that opens / stays there, on the desktop page in
@@ -103,6 +102,8 @@ const PHONE: PageCase[] = [
   },
   { path: '/m/settings', shows: heading('Settings') },
   { path: '/m/trash', shows: heading('Trash') },
+  // Reached from the More sheet, so no tab is current; its canvas is checked in map.spec.ts.
+  { path: '/m/map', shows: heading('Map') },
 ]
 
 const withIds = (path: string, ids: SeededIds) =>

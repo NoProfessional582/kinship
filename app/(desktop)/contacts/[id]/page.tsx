@@ -56,6 +56,7 @@ import {
   contactToPayload,
   type ContactFormValue,
 } from '@/components/entity-modal/contact-form'
+import { MiniGraph, miniGraphKey } from '@/components/graph/mini-graph'
 import { NotFound } from '@/components/shared/not-found'
 import { api, refreshAfterDelete, useContacts } from '@/lib/hooks/api'
 import { CADENCE_LABEL, TIER_LABEL, cadenceHealth } from '@/lib/cadence'
@@ -121,7 +122,7 @@ export default function ContactPage() {
     if (!contact) return
     try {
       await api.del(`/api/contacts/${contact.id}`)
-      refreshAfterDelete(qc, ['contact', id])
+      refreshAfterDelete(qc, ['contact', id], miniGraphKey(`contact:${contact.id}`))
       toast.success('Contact deleted')
       router.push('/contacts')
     } catch (err) {
@@ -546,6 +547,12 @@ export default function ContactPage() {
                 ))}
               </div>
             </Block>
+          )}
+
+          {/* In this column, not the sticky one beside it, which a map would make taller
+              than the window: it would stay out of reach until the end of the page. */}
+          {!contact.isDraft && (
+            <MiniGraph focusId={`contact:${contact.id}`} name={contact.displayName} />
           )}
 
           <section>

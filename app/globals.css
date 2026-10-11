@@ -45,6 +45,9 @@
   --tag-task: var(--moss);
   --tag-project: var(--terracotta-dark);
 
+  /* The 3D map's backdrop (lib/graph/constants.ts MAP_BACKGROUNDS): paper by day. */
+  --map-background: var(--paper);
+
   /* Section accents, drawn from the same warm family so nothing shouts. */
   --hue-1: var(--terracotta);
   --hue-2: #4a6572;
@@ -130,6 +133,9 @@
   --tag-contact: #8fb0c2;
   --tag-task: var(--moss);
   --tag-project: var(--terracotta-dark);
+
+  /* Deep space, as approved, rather than the warm dark paper. */
+  --map-background: #080a0e;
 
   --hue-1: var(--terracotta);
   --hue-2: #8fb0c2;

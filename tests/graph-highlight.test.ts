@@ -91,6 +91,19 @@ describe('highlightState', () => {
     expect(nodeLook(state, 'lone')).toBe('target')
     expect(nodeLook(state, 'a')).toBe('otherSelected')
   })
+
+  it('with hoverFirst, lights a hovered record over the selection, which keeps its growth', () => {
+    const at = (hoveredId: string | null) =>
+      highlightState({ hoveredId, selectedId: 'a', neighbours, hoverFirst: true })
+    const hovering = at('c')
+    expect(hovering).toMatchObject({ activeId: 'c', mode: 'hover', selectedId: 'a' })
+    expect(nodeLook(hovering, 'c')).toBe('target')
+    expect(nodeLook(hovering, 'b')).toBe('neighbour')
+    expect(nodeLook(hovering, 'a')).toBe('otherHover')
+    expect(growthOf(hovering, 'a')).toBe(GROWTH.selected)
+    expect(at(null)).toMatchObject({ activeId: 'a', mode: 'selected' })
+    expect(at('a')).toMatchObject({ activeId: 'a', mode: 'selected' })
+  })
 })
 
 describe('growthOf', () => {

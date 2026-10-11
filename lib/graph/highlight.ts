@@ -69,11 +69,22 @@ export const NODE_LOOKS: Readonly<Record<NodeLook, Readonly<NodeLookValues>>> = 
   },
 }
 
-export const LINK_LOOKS: Readonly<Record<LinkLook, { color: string; opacity: number }>> = {
+export type LinkLooks = Readonly<Record<LinkLook, { color: string; opacity: number }>>
+
+/** On the dark map, as approved. */
+export const LINK_LOOKS: LinkLooks = {
   resting: { color: '#5a6372', opacity: 0.55 },
   lit: { color: '#a5b4fc', opacity: 1 },
   fadedHover: { color: '#404854', opacity: 0.2 },
   fadedSelected: { color: '#404854', opacity: 0.04 },
+}
+
+/** On the light map: warm greys from the palette, lit in its terracotta. */
+export const LIGHT_LINK_LOOKS: LinkLooks = {
+  resting: { color: '#8a857a', opacity: 0.55 },
+  lit: { color: '#bd5b3f', opacity: 1 },
+  fadedHover: { color: '#b5afa3', opacity: 0.25 },
+  fadedSelected: { color: '#b5afa3', opacity: 0.06 },
 }
 
 /** A look's values at a glow setting: radiance and aura scale with it, the aura up to 1. */
@@ -106,21 +117,27 @@ export function neighbourSets(links: readonly GraphLink[]): Map<string, Set<stri
   return sets
 }
 
+/**
+ * On the full map, while something is selected, hovering another record changes nothing.
+ * With `hoverFirst` (the small map on a record's page, whose record is always selected) a
+ * hover lights that record's connections instead; the selection keeps its growth and beacon.
+ */
 export function highlightState({
   hoveredId,
   selectedId,
   neighbours,
+  hoverFirst = false,
 }: {
   hoveredId: string | null
   selectedId: string | null
   neighbours: NeighbourSets
+  hoverFirst?: boolean
 }): HighlightState {
-  // While something is selected, hovering another record changes nothing.
-  const activeId = selectedId ?? hoveredId
+  const activeId = hoverFirst ? (hoveredId ?? selectedId) : (selectedId ?? hoveredId)
   if (activeId === null) return { activeId, mode: 'none', neighbours: NONE, hoveredId, selectedId }
   return {
     activeId,
-    mode: selectedId !== null ? 'selected' : 'hover',
+    mode: activeId === selectedId ? 'selected' : 'hover',
     neighbours: neighbours.get(activeId) ?? NONE,
     hoveredId,
     selectedId,

@@ -23,6 +23,7 @@ import { Section, MEmpty, MList, MRow } from '@/components/mobile/bits'
 import { MobileTaskSheet } from '@/components/mobile/task-sheet'
 import { MobileContactEditSheet } from '@/components/mobile/contact-edit-sheet'
 import { KIND_ICON, KIND_COLOR } from '@/components/shared/entry-card'
+import { MiniGraph } from '@/components/graph/mini-graph'
 import { NotFound } from '@/components/shared/not-found'
 import { api } from '@/lib/hooks/api'
 import { CADENCE_LABEL, TIER_LABEL } from '@/lib/cadence'
@@ -250,6 +251,8 @@ export default function MobileDossier() {
           </MList>
         </Section>
       )}
+
+      {!c.isDraft && <MiniGraph focusId={`contact:${c.id}`} name={c.displayName} phone level={2} />}
 
       <Section title="Timeline">
         {(data.entries?.length ?? 0) === 0 ? (

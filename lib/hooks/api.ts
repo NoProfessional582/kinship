@@ -22,12 +22,13 @@ export const isRetryable = (err: unknown) =>
 
 /**
  * After a record is deleted from its own view: refresh everything else, and only mark the
- * record's own query stale. Refetching it while the view is still open would ask for what
- * is now a 404.
+ * record's own queries stale (its own, and any other about it, such as its mini-map).
+ * Refetching them while the view is still open would ask for what is now a 404.
  */
-export function refreshAfterDelete(qc: QueryClient, key: readonly unknown[]) {
-  const own = (queryKey: readonly unknown[]) => key.every((part, i) => queryKey[i] === part)
-  void qc.invalidateQueries({ queryKey: key, refetchType: 'none' })
+export function refreshAfterDelete(qc: QueryClient, ...keys: (readonly unknown[])[]) {
+  const own = (queryKey: readonly unknown[]) =>
+    keys.some((key) => key.every((part, i) => queryKey[i] === part))
+  for (const key of keys) void qc.invalidateQueries({ queryKey: key, refetchType: 'none' })
   return qc.invalidateQueries({ predicate: (query) => !own(query.queryKey) })
 }
 

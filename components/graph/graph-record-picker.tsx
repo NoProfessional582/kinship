@@ -88,22 +88,26 @@ export function GraphRecordPicker({ nodes, onSelect, className }: GraphRecordPic
           // A click on the backdrop lands on the dialog itself.
           if (event.target === event.currentTarget) close()
         }}
-        className="m-auto max-h-[min(36rem,85vh)] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-900 p-0 text-slate-200 shadow-2xl backdrop:bg-black/60 open:flex"
+        className="m-auto max-h-[min(36rem,85vh)] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-(--line) dark:border-white/10 bg-(--panel) dark:bg-slate-900 p-0 text-(--ink-raw) dark:text-slate-200 shadow-2xl backdrop:bg-(--ink-raw)/30 dark:backdrop:bg-black/60 open:flex"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 p-3">
-          <h2 id={titleId} style={BODY_FONT} className="text-sm font-semibold text-white">
+        <div className="flex items-center justify-between gap-3 border-b border-(--line) dark:border-white/10 p-3">
+          <h2
+            id={titleId}
+            style={BODY_FONT}
+            className="text-sm font-semibold text-(--ink-raw) dark:text-white"
+          >
             Records
           </h2>
           <button
             type="button"
             onClick={close}
             aria-label="Close records"
-            className="rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+            className="rounded-md p-1.5 text-(--muted-raw) dark:text-slate-400 hover:bg-(--ink-raw)/[0.07] dark:hover:bg-white/10 hover:text-(--ink-raw) dark:hover:text-white focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none"
           >
             <X aria-hidden className="h-4 w-4" />
           </button>
         </div>
-        <div className="border-b border-white/10 p-3">
+        <div className="border-b border-(--line) dark:border-white/10 p-3">
           <input
             ref={input}
             type="search"
@@ -125,9 +129,13 @@ export function GraphRecordPicker({ nodes, onSelect, className }: GraphRecordPic
             aria-label="Filter records by name"
             aria-describedby={`${titleId}-count`}
             placeholder="Filter by name"
-            className="w-full rounded-md border border-white/15 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+            className="w-full rounded-md border border-(--line) dark:border-white/15 bg-(--paper) dark:bg-slate-950 px-2.5 py-1.5 text-sm text-(--ink-raw) dark:text-slate-100 placeholder:text-(--muted-raw) dark:placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none"
           />
-          <p id={`${titleId}-count`} aria-live="polite" className="mt-1.5 text-xs text-slate-400">
+          <p
+            id={`${titleId}-count`}
+            aria-live="polite"
+            className="mt-1.5 text-xs text-(--muted-raw) dark:text-slate-400"
+          >
             {matches === 1 ? '1 record' : `${matches} records`}
           </p>
         </div>
@@ -137,14 +145,15 @@ export function GraphRecordPicker({ nodes, onSelect, className }: GraphRecordPic
               <h3
                 id={`${titleId}-${type}`}
                 style={BODY_FONT}
-                className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300"
+                className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-(--ink-raw)/85 dark:text-slate-300"
               >
                 <span
                   aria-hidden
                   className="inline-block h-2 w-2 rounded-full"
                   style={{ background: GRAPH_COLORS[type] }}
                 />
-                {TYPE_HEADINGS[type]} <span className="text-slate-500">({group.length})</span>
+                {TYPE_HEADINGS[type]}{' '}
+                <span className="text-(--muted-raw) dark:text-slate-500">({group.length})</span>
               </h3>
               <ul className="space-y-0.5">
                 {group.map((node) => (
@@ -152,11 +161,13 @@ export function GraphRecordPicker({ nodes, onSelect, className }: GraphRecordPic
                     <button
                       type="button"
                       onClick={() => choose(node.id)}
-                      className="w-full truncate rounded-md px-2 py-1 text-left text-sm hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+                      className="w-full truncate rounded-md px-2 py-1 text-left text-sm hover:bg-(--ink-raw)/[0.07] dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none"
                     >
                       {node.name}
                       {node.subtitle && (
-                        <span className="ml-2 text-xs text-slate-500">{node.subtitle}</span>
+                        <span className="ml-2 text-xs text-(--muted-raw) dark:text-slate-500">
+                          {node.subtitle}
+                        </span>
                       )}
                     </button>
                   </li>

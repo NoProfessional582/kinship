@@ -44,6 +44,18 @@ the refusal stops a caller's mistake turning into a silently wrong map.
 | `spacing`      | 3       | 0 or above                  |
 | `gravity`      | 0.05    | 0 to 1                      |
 | `maxRadius`    | 120     | above 3.2 (two large orbs)  |
+| `attraction`   | 1       | 0.2 to 2.5                  |
+
+`attraction` is the map's "Attraction" slider. It scales the others together: the springs'
+strength times `attraction` (capped at 1, where a spring would overshoot), `linkDistance` and
+`charge` divided by it, and, below 1, `chargeRange` and `maxRadius` divided by it too: the
+push then reaches across the dense core, which otherwise stays packed while only the edges
+spread, and a spread-out map is not shrunk back. Moving `linkDistance` alone barely changes
+a large graph, where the push dominates. On a made-up 1,016-record, 3,000-link graph
+(2026-10-11) the mean link came out 46 units at 1, 35 at 2 and 28 at 3. Below 1, the mean
+gap to the nearest record was 7.9 at 1, 14.2 at 0.5, 22.8 at 0.3 and 34.7 at 0.2, with half
+the records within 54-64% of the radius (38% at 0.5 before `chargeRange` scaled: a packed
+core). The layout took about a second at each.
 
 Fixed in the code: Barnes-Hut accuracy (theta) 1.5, and collision only in the last 30% of
 the steps. Orb radii follow the approved mockup: 1.6 for contacts and projects, 1.25 for

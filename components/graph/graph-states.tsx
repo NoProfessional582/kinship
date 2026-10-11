@@ -3,8 +3,8 @@
  * when the request or the layout failed, and when the browser has no WebGL. The last is a
  * plain list of the records, grouped by type, so the page is still of use.
  *
- * The map's surface is always dark (#080a0e), whatever the app's theme, so these use
- * fixed light text rather than the theme's colours.
+ * The map's surface follows the app's theme (paper by day, deep space after dark), so these
+ * use the palette's ink by day and the approved light-on-dark text after dark.
  */
 import Link from 'next/link'
 import { AlertTriangle, Loader2, Orbit } from 'lucide-react'
@@ -35,7 +35,10 @@ function Centered({ children }: { children: React.ReactNode }) {
 export function GraphLoading() {
   return (
     <Centered>
-      <div role="status" className="flex flex-col items-center gap-3 text-slate-300">
+      <div
+        role="status"
+        className="flex flex-col items-center gap-3 text-(--ink-raw)/85 dark:text-slate-300"
+      >
         <Loader2 className="h-7 w-7 animate-spin opacity-70 motion-reduce:animate-none" />
         <p className="text-sm">Mapping your records…</p>
       </div>
@@ -46,9 +49,9 @@ export function GraphLoading() {
 export function GraphEmpty() {
   return (
     <Centered>
-      <Orbit className="h-8 w-8 text-slate-400 opacity-70" />
-      <p className="text-sm font-medium text-slate-200">No records yet</p>
-      <p className="max-w-xs text-xs text-slate-400">
+      <Orbit className="h-8 w-8 text-(--muted-raw) dark:text-slate-400 opacity-70" />
+      <p className="text-sm font-medium text-(--ink-raw) dark:text-slate-200">No records yet</p>
+      <p className="max-w-xs text-xs text-(--muted-raw) dark:text-slate-400">
         People, projects, notes, tasks and tags appear here once you add them.
       </p>
     </Centered>
@@ -59,14 +62,14 @@ export function GraphError({ message, onRetry }: { message: string; onRetry?: ()
   return (
     <Centered>
       <div role="alert" className="flex flex-col items-center gap-3">
-        <AlertTriangle className="h-7 w-7 text-amber-400" />
-        <p className="text-sm font-medium text-slate-200">{message}</p>
+        <AlertTriangle className="h-7 w-7 text-(--ochre) dark:text-amber-400" />
+        <p className="text-sm font-medium text-(--ink-raw) dark:text-slate-200">{message}</p>
       </div>
       {onRetry && (
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-md border border-slate-600 px-3 py-1.5 text-sm text-slate-100 hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+          className="rounded-md border border-(--line) dark:border-slate-600 px-3 py-1.5 text-sm text-(--ink-raw) dark:text-slate-100 hover:bg-(--soft) dark:hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none"
         >
           Try again
         </button>
@@ -91,13 +94,18 @@ export function GraphRecordList({ graph }: { graph: GraphData }) {
   const groups = groupRecords(graph.nodes)
 
   return (
-    <div className="absolute inset-0 overflow-y-auto p-6 text-slate-200">
+    <div className="absolute inset-0 overflow-y-auto p-6 text-(--ink-raw) dark:text-slate-200">
       <div className="mx-auto max-w-2xl">
-        <div role="note" className="mb-6 rounded-md border border-slate-700 bg-slate-900/60 p-3">
+        <div
+          role="note"
+          className="mb-6 rounded-md border border-(--line) dark:border-slate-700 bg-(--panel)/85 dark:bg-slate-900/60 p-3"
+        >
           <p className="text-sm font-medium">
             The 3D map needs WebGL, which this browser has turned off.
           </p>
-          <p className="mt-1 text-xs text-slate-400">Here are your records as a list instead.</p>
+          <p className="mt-1 text-xs text-(--muted-raw) dark:text-slate-400">
+            Here are your records as a list instead.
+          </p>
         </div>
         {groups.map(({ type, nodes }) => (
           <section key={type} aria-labelledby={`map-list-${type}`} className="mb-6">
@@ -110,20 +118,26 @@ export function GraphRecordList({ graph }: { graph: GraphData }) {
                 className="inline-block h-2.5 w-2.5 rounded-full"
                 style={{ background: GRAPH_COLORS[type] }}
               />
-              {TYPE_HEADINGS[type]} <span className="text-slate-500">({nodes.length})</span>
+              {TYPE_HEADINGS[type]}{' '}
+              <span className="text-(--muted-raw) dark:text-slate-500">({nodes.length})</span>
             </h2>
             <ul className="space-y-1 pl-4.5">
               {nodes.map((node) => (
                 <li key={node.id} className="text-sm">
                   {node.url ? (
-                    <Link href={node.url} className="text-sky-300 hover:underline">
+                    <Link
+                      href={node.url}
+                      className="text-(--terracotta-dark) dark:text-sky-300 hover:underline"
+                    >
                       {node.name}
                     </Link>
                   ) : (
                     <span>{node.name}</span>
                   )}
                   {node.subtitle && (
-                    <span className="ml-2 text-xs text-slate-500">{node.subtitle}</span>
+                    <span className="ml-2 text-xs text-(--muted-raw) dark:text-slate-500">
+                      {node.subtitle}
+                    </span>
                   )}
                 </li>
               ))}

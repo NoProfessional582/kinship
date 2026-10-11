@@ -13,6 +13,7 @@ import {
   Moon,
   Sun,
   FolderKanban,
+  Orbit,
   Settings,
   Trash2,
   PanelLeftClose,
@@ -32,6 +33,7 @@ const NAV = [
   { href: '/board', label: 'Board', icon: KanbanSquare, hue: 'var(--hue-3)' },
   { href: '/projects', label: 'Projects', icon: FolderKanban, hue: 'var(--hue-5)' },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays, hue: 'var(--hue-4)' },
+  { href: '/map', label: 'Map', icon: Orbit, hue: 'var(--hue-6)' },
   { href: '/trash', label: 'Trash', icon: Trash2, hue: 'var(--muted-foreground)' },
 ]
 
@@ -201,6 +203,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={item.href}
                   href={item.href}
                   title={item.label}
+                  aria-current={active ? 'page' : undefined}
                   style={
                     active
                       ? {

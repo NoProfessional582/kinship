@@ -50,6 +50,15 @@ export interface LayoutOptions {
   gravity?: number
   /** The sphere, centred on the origin, that every orb fits inside. */
   maxRadius?: number
+  /**
+   * How hard linked records pull together, as a multiple of the settings above: from
+   * MIN_ATTRACTION to MAX_ATTRACTION, 1 leaves them as they are. Above 1, links are
+   * stronger and shorter and the push weaker, so connected records sit closer; below 1,
+   * the reverse, with the push reaching further (chargeRange) so the core spreads out
+   * too, not only the edges, and maxRadius grown to match so the spread is not shrunk back.
+   * Changing linkDistance alone barely moves a large graph, where the push dominates.
+   */
+  attraction?: number
 }
 
 export const LAYOUT_DEFAULTS: Required<LayoutOptions> = {
@@ -61,7 +70,12 @@ export const LAYOUT_DEFAULTS: Required<LayoutOptions> = {
   spacing: 3,
   gravity: 0.05,
   maxRadius: 120,
+  attraction: 1,
 }
+
+/** The attraction slider's range (LayoutOptions.attraction). */
+export const MIN_ATTRACTION = 0.2
+export const MAX_ATTRACTION = 2.5
 
 const MAX_ITERATIONS = 1000
 
@@ -128,6 +142,11 @@ export function compute3DLayout(
   options: LayoutOptions = {},
 ): GraphLayout {
   const settings = readOptions(options)
+  const pull = settings.attraction
+  const linkDistance = settings.linkDistance / pull
+  const charge = settings.charge / pull
+  const maxRadius = settings.maxRadius / Math.min(pull, 1)
+  const chargeRange = settings.chargeRange / Math.min(pull, 1)
 
   // Sorted by id, so the order the graph arrives in can't change the result. Plain
   // comparison, not localeCompare: the same everywhere, whatever the locale.
@@ -158,7 +177,7 @@ export function compute3DLayout(
 
   // Seeded starting places, spread through a ball that grows with the graph.
   const random = mulberry32(settings.seed)
-  const start = settings.linkDistance * Math.cbrt(Math.max(sorted.length, 1))
+  const start = linkDistance * Math.cbrt(Math.max(sorted.length, 1))
   const simNodes: SimNode[] = sorted.map((node) => ({
     id: node.id,
     radius: NODE_RADIUS[node.type] ?? NODE_RADIUS.entry,
@@ -174,16 +193,10 @@ export function compute3DLayout(
     .randomSource(random)
     .alphaMin(alphaMin)
     .alphaDecay(1 - Math.pow(alphaMin, 1 / settings.iterations))
-    .force(
-      'link',
-      forceLink<SimNode, SimLink>(springs).distance(settings.linkDistance).iterations(1),
-    )
+    .force('link', linkForce(springs, pull).distance(linkDistance).iterations(1))
     .force(
       'charge',
-      forceManyBody<SimNode>()
-        .strength(settings.charge)
-        .theta(CHARGE_THETA)
-        .distanceMax(settings.chargeRange),
+      forceManyBody<SimNode>().strength(charge).theta(CHARGE_THETA).distanceMax(chargeRange),
     )
     .force('x', forceX<SimNode>(0).strength(settings.gravity))
     .force('y', forceY<SimNode>(0).strength(settings.gravity))
@@ -219,8 +232,7 @@ export function compute3DLayout(
     farthest = Math.max(farthest, Math.hypot(node.x, node.y, node.z))
     largestOrb = Math.max(largestOrb, node.radius)
   }
-  const scale =
-    farthest + largestOrb > settings.maxRadius ? (settings.maxRadius - largestOrb) / farthest : 1
+  const scale = farthest + largestOrb > maxRadius ? (maxRadius - largestOrb) / farthest : 1
   let reach = 0
   for (const node of simNodes) {
     node.x *= scale
@@ -266,8 +278,24 @@ function readOptions(options: LayoutOptions): Required<LayoutOptions> {
   take('spacing', (n) => n >= 0, '0 or above')
   take('gravity', (n) => n >= 0 && n <= 1, 'from 0 to 1')
   const largest = Math.max(...Object.values(NODE_RADIUS))
+  take(
+    'attraction',
+    (n) => n >= MIN_ATTRACTION && n <= MAX_ATTRACTION,
+    `from ${MIN_ATTRACTION} to ${MAX_ATTRACTION}`,
+  )
   take('maxRadius', (n) => n > largest * 2, `above ${largest * 2}, room for two orbs`)
   return settings
+}
+
+/**
+ * d3's link force, its springs' strength (1 over the busier end's link count) times
+ * `pull`, capped at 1: a stronger spring overshoots and the layout comes apart.
+ */
+function linkForce(springs: SimLink[], pull: number) {
+  const force = forceLink<SimNode, SimLink>(springs)
+  if (pull === 1) return force
+  const strength = force.strength()
+  return force.strength((link, i, all) => Math.min(1, pull * strength(link, i, all)))
 }
 
 function compare(a: string, b: string): number {
