@@ -292,8 +292,9 @@ scripts/check.sh quick privacy   # only those parts
 ```
 
 - `quick`: Prettier, ESLint (no warnings allowed), the type check, the unit tests,
-  `npm audit` (no high or critical advisories), and that compose publishes ports on
-  `127.0.0.1` only.
+  `npm audit` (no high or critical advisories), that compose publishes ports on
+  `127.0.0.1` only, and that `lib/graph/api.generated.ts` is current with
+  `docs/api/graph.openapi.json` (regenerate it with `scripts/node.sh npm run graph:types`).
 - `privacy`: gitleaks on the branch's commits and on the working tree, and a sweep of
   the files and the branch's commits (authors and messages too) for personal data.
 - `stack` (`scripts/test-stack.sh`): builds the image and runs it in a throwaway stack
