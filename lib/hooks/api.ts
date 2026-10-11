@@ -44,7 +44,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  get: <T>(url: string) => req<T>(url),
+  get: <T>(url: string, init?: Pick<RequestInit, 'signal'>) => req<T>(url, init),
   post: <T>(url: string, body: unknown) =>
     req<T>(url, { method: 'POST', body: JSON.stringify(body) }),
   put: <T>(url: string, body: unknown) =>
