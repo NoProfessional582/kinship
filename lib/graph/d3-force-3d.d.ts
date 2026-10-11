@@ -70,6 +70,8 @@ declare module 'd3-force-3d' {
     links(links: L[]): this
     id(id: (node: N, index: number, nodes: N[]) => number | string): this
     iterations(iterations: number): this
+    /** The current strength, as a function: by default 1 over the busier end's link count. */
+    strength(): (link: L, index: number, links: L[]) => number
     strength(strength: number | ((link: L, index: number, links: L[]) => number)): this
     distance(distance: number | ((link: L, index: number, links: L[]) => number)): this
   }

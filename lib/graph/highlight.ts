@@ -69,11 +69,22 @@ export const NODE_LOOKS: Readonly<Record<NodeLook, Readonly<NodeLookValues>>> = 
   },
 }
 
-export const LINK_LOOKS: Readonly<Record<LinkLook, { color: string; opacity: number }>> = {
+export type LinkLooks = Readonly<Record<LinkLook, { color: string; opacity: number }>>
+
+/** On the dark map, as approved. */
+export const LINK_LOOKS: LinkLooks = {
   resting: { color: '#5a6372', opacity: 0.55 },
   lit: { color: '#a5b4fc', opacity: 1 },
   fadedHover: { color: '#404854', opacity: 0.2 },
   fadedSelected: { color: '#404854', opacity: 0.04 },
+}
+
+/** On the light map: warm greys from the palette, lit in its terracotta. */
+export const LIGHT_LINK_LOOKS: LinkLooks = {
+  resting: { color: '#8a857a', opacity: 0.55 },
+  lit: { color: '#bd5b3f', opacity: 1 },
+  fadedHover: { color: '#b5afa3', opacity: 0.25 },
+  fadedSelected: { color: '#b5afa3', opacity: 0.06 },
 }
 
 /** A look's values at a glow setting: radiance and aura scale with it, the aura up to 1. */

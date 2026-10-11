@@ -21,10 +21,11 @@ import { Orbit } from 'lucide-react'
 import { GraphCanvas } from '@/components/graph/graph-canvas-loader'
 import { GraphError, GraphLoading } from '@/components/graph/graph-states'
 import { Card } from '@/components/ui/misc'
-import { GRAPH_COLORS, MAP_BACKGROUND, type GraphData } from '@/lib/graph/constants'
+import { GRAPH_COLORS, type GraphData } from '@/lib/graph/constants'
 import { mapHref, withRecordHref } from '@/lib/graph/deep-link'
 import { connectionRows, linkText } from '@/lib/graph/inspector'
 import { graphQueryKey, useGraphLayout, type GraphQuery } from '@/lib/graph/use-graph-layout'
+import { useMapTheme } from '@/lib/graph/use-map-theme'
 import { m } from '@/lib/mobile/href'
 
 /** How far the small map reaches from its record. */
@@ -138,12 +139,12 @@ function MiniGraphCard({ focusId, name, phone = false, level = 3 }: MiniGraphPro
   )
 }
 
-/** The map's dark surface, at the card's height. */
+/** The map's surface, in the app's theme, at the card's height. */
 function Frame({ height, children }: { height: number; children?: React.ReactNode }) {
   return (
     <div
       className="relative overflow-hidden"
-      style={{ height, background: MAP_BACKGROUND, colorScheme: 'dark' }}
+      style={{ height, background: 'var(--map-background)' }}
     >
       {children}
     </div>
@@ -171,6 +172,7 @@ function MiniGraphBody({
   const [webgl, setWebgl] = React.useState(true)
   const unavailable = React.useCallback(() => setWebgl(false), [])
   const [hoveredId, setHoveredId] = React.useState<string | null>(null)
+  const theme = useMapTheme()
   const router = useRouter()
   const pick = React.useCallback(
     (id: string | null) => {
@@ -212,13 +214,14 @@ function MiniGraphBody({
         links={graph.links}
         hoveredId={hoveredId}
         selectedId={focusId}
+        theme={theme}
         compact
         onHover={setHoveredId}
         onSelect={pick}
         onUnavailable={unavailable}
       />
       <p
-        className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md bg-black/55 px-2 py-1 text-[11px] text-slate-200"
+        className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md bg-(--panel)/85 dark:bg-black/55 px-2 py-1 text-[11px] text-(--ink-raw) dark:text-slate-200"
         data-testid="mini-map-caption"
       >
         {hovered ? hovered.name : `${others} record${others === 1 ? '' : 's'} within two links`}

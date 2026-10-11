@@ -1,7 +1,9 @@
 'use client'
 /**
  * The map's glass overlay: the colour legend, auto-orbit, a camera reset, and live controls
- * for node size, link width, glow and stars. Settings last for the visit; nothing is saved.
+ * for node size, link width, glow and stars, and the attraction between linked records
+ * (which lays the map out again, so the page applies it once the slider settles). Settings
+ * last for the visit; nothing is saved.
  *
  * On a wide screen the controls sit top left and the legend bottom right, clear of the
  * status line (bottom left), stepping left of the inspector while it is open (on a wide
@@ -10,11 +12,13 @@
  * finger. The "Records" picker (graph-record-picker.tsx) sits beside that button at every
  * width.
  *
- * Like the rest of the map, it is always dark (#080a0e behind it), whatever the app's theme.
+ * Like the rest of the map, it follows the app's theme: Kinship's paper, ink and terracotta by
+ * day, the approved dark glass after dark (each class's `dark:` partner).
  */
 import * as React from 'react'
 import { Crosshair, RotateCw, Settings2, Sparkles } from 'lucide-react'
 import { GRAPH_COLORS, GRAPH_NODE_TYPES, type GraphNodeType } from '@/lib/graph/constants'
+import { MAX_ATTRACTION, MIN_ATTRACTION } from '@/lib/graph/layout3d'
 import type { SceneSettings, StarDensity } from '@/lib/graph/scene'
 
 /** The prototype's legend names. */
@@ -64,6 +68,15 @@ export const SLIDERS = [
   show: (v: number) => string
 }[]
 
+/** How close linked records sit (layout3d.ts `attraction`); applied by laying out again. */
+export const ATTRACTION_SLIDER = {
+  label: 'Attraction',
+  min: MIN_ATTRACTION,
+  max: MAX_ATTRACTION,
+  step: 0.25,
+  show: (v: number) => `${v.toFixed(2)}x`,
+} as const
+
 const NEXT_STARS: Record<StarDensity, StarDensity> = {
   dense: 'sparse',
   sparse: 'off',
@@ -72,15 +85,17 @@ const NEXT_STARS: Record<StarDensity, StarDensity> = {
 const STAR_NAMES: Record<StarDensity, string> = { dense: 'Dense', sparse: 'Sparse', off: 'Off' }
 
 const GLASS =
-  'rounded-lg border border-white/10 bg-slate-900/60 text-slate-200 shadow-lg backdrop-blur-md'
+  'rounded-lg border border-(--line) dark:border-white/10 bg-(--panel)/85 dark:bg-slate-900/60 text-(--ink-raw) dark:text-slate-200 shadow-lg backdrop-blur-md'
 const BUTTON =
-  'inline-flex items-center gap-1.5 rounded-md border border-white/15 px-2.5 py-1.5 text-xs font-medium hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none'
+  'inline-flex items-center gap-1.5 rounded-md border border-(--line) dark:border-white/15 px-2.5 py-1.5 text-xs font-medium hover:bg-(--ink-raw)/[0.07] dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none'
 const BUTTON_ON =
-  'border-indigo-400 bg-indigo-500 text-white shadow-[0_0_14px_rgba(99,102,241,0.5)] hover:bg-indigo-500'
+  'border-(--terracotta) bg-(--terracotta) text-(--primary-foreground) shadow-[0_0_14px_rgba(189,91,63,0.35)] hover:bg-(--terracotta) dark:border-indigo-400 dark:bg-indigo-500 dark:text-white dark:shadow-[0_0_14px_rgba(99,102,241,0.5)] dark:hover:bg-indigo-500'
 
 export interface GraphOverlayProps {
   settings: SceneSettings
   onSettingsChange: (settings: SceneSettings) => void
+  attraction: number
+  onAttractionChange: (attraction: number) => void
   autoOrbit: boolean
   onAutoOrbitChange: (on: boolean) => void
   /** Back to the whole graph, with nothing selected. */
@@ -94,6 +109,8 @@ export interface GraphOverlayProps {
 export function GraphOverlay({
   settings,
   onSettingsChange,
+  attraction,
+  onAttractionChange,
   autoOrbit,
   onAutoOrbitChange,
   onReset,
@@ -155,33 +172,21 @@ export function GraphOverlay({
             </button>
           </div>
 
-          {SLIDERS.map(({ key, label, min, max, step, show }) => {
-            const id = `${panel}-${key}`
-            const value = settings[key]
-            return (
-              <div key={key} className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-1">
-                <label htmlFor={id} className="text-xs text-slate-300">
-                  {label}
-                </label>
-                <output htmlFor={id} className="text-xs text-slate-100 tabular-nums">
-                  {show(value)}
-                </output>
-                <input
-                  id={id}
-                  type="range"
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={value}
-                  aria-valuetext={show(value)}
-                  onChange={(event) =>
-                    onSettingsChange({ ...settings, [key]: Number(event.target.value) })
-                  }
-                  className="col-span-2 w-full accent-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
-                />
-              </div>
-            )
-          })}
+          {SLIDERS.map(({ key, ...slider }) => (
+            <Slider
+              key={key}
+              id={`${panel}-${key}`}
+              {...slider}
+              value={settings[key]}
+              onChange={(value) => onSettingsChange({ ...settings, [key]: value })}
+            />
+          ))}
+          <Slider
+            id={`${panel}-attraction`}
+            {...ATTRACTION_SLIDER}
+            value={attraction}
+            onChange={onAttractionChange}
+          />
 
           <Legend className="sm:hidden" />
         </section>
@@ -197,10 +202,52 @@ export function GraphOverlay({
   )
 }
 
+function Slider({
+  id,
+  label,
+  min,
+  max,
+  step,
+  show,
+  value,
+  onChange,
+}: {
+  id: string
+  label: string
+  min: number
+  max: number
+  step: number
+  show: (v: number) => string
+  value: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-1">
+      <label htmlFor={id} className="text-xs text-(--ink-raw)/85 dark:text-slate-300">
+        {label}
+      </label>
+      <output htmlFor={id} className="text-xs text-(--ink-raw) tabular-nums dark:text-slate-100">
+        {show(value)}
+      </output>
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-valuetext={show(value)}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="col-span-2 w-full accent-(--terracotta) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--terracotta) dark:accent-indigo-400 dark:focus-visible:outline-sky-400"
+      />
+    </div>
+  )
+}
+
 function Legend({ className }: { className: string }) {
   return (
     <div className={className} role="group" aria-label="Legend" data-map-chrome>
-      <p className="mb-1.5 text-xs font-semibold text-white">Legend</p>
+      <p className="mb-1.5 text-xs font-semibold text-(--ink-raw) dark:text-white">Legend</p>
       <ul className="space-y-1">
         {GRAPH_NODE_TYPES.map((type) => (
           <li key={type} className="flex items-center gap-2 text-xs">

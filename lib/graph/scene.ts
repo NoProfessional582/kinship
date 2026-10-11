@@ -6,7 +6,8 @@
  * renderer, camera and controls; this module only makes and frees the objects.
  *
  * The values are the approved prototype's (plan decisions 2026-10-10). Sizes are in scene
- * units, the same as the layout's: an orb's base radius is the layout's `radius`.
+ * units, the same as the layout's: an orb's base radius is the layout's `radius`. The dark
+ * theme is that look; the light one (SCENE_THEMES) changes only colours and blending.
  *
  * Costs, for 1,000 records and 3,000 links: orbs and auras are one object each per record
  * but share a geometry per radius and a material per type; hit proxies are hidden, so they
@@ -29,6 +30,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  NormalBlending,
   PerspectiveCamera,
   Points,
   PointsMaterial,
@@ -42,8 +44,15 @@ import {
   type Object3D,
   type Texture,
 } from 'three'
-import { GRAPH_COLORS, MAP_BACKGROUND, type GraphLink, type GraphNodeType } from './constants'
 import {
+  GRAPH_COLORS,
+  MAP_BACKGROUNDS,
+  type GraphLink,
+  type GraphNodeType,
+  type MapTheme,
+} from './constants'
+import {
+  LIGHT_LINK_LOOKS,
   LINK_LOOKS,
   growthOf,
   linkLook,
@@ -51,6 +60,7 @@ import {
   nodeLookValues,
   type HighlightState,
   type LinkLook,
+  type LinkLooks,
   type NodeLook,
 } from './highlight'
 import type { GraphLayout, PositionedNode } from './layout3d'
@@ -77,7 +87,6 @@ export const SCENE_DEFAULTS: Readonly<SceneSettings> = Object.freeze({
 
 /** The approved look. The highlighted and dimmed values are in highlight.ts. */
 export const SCENE_STYLE = {
-  background: MAP_BACKGROUND,
   camera: { fov: 46, near: 0.1, far: 1000 },
   /** Where the camera looks from at first, as in the prototype: a little above, in front. */
   cameraDirection: { x: 0, y: 32, z: 120 },
@@ -131,6 +140,45 @@ export const SCENE_STYLE = {
   },
 } as const
 
+/**
+ * What changes between the themes. Light is dark inverted: added light cannot darken a
+ * pale page, so there the stars and glows are laid on normally, in dark ink, and the
+ * auras are fainter so the colours stay clear of mud.
+ */
+export interface SceneTheme {
+  background: string
+  /** The stars' tint (the star texture is white) and how they are laid on. */
+  stars: string
+  glowBlending: typeof AdditiveBlending | typeof NormalBlending
+  /** The auras' opacity, as a share of the approved values. */
+  auraStrength: number
+  /** The names' tint; the label texture is white. */
+  label: string
+  beacon: string
+  links: LinkLooks
+}
+
+export const SCENE_THEMES: Readonly<Record<MapTheme, SceneTheme>> = {
+  dark: {
+    background: MAP_BACKGROUNDS.dark,
+    stars: '#ffffff',
+    glowBlending: AdditiveBlending,
+    auraStrength: 1,
+    label: '#ffffff',
+    beacon: '#ffffff',
+    links: LINK_LOOKS,
+  },
+  light: {
+    background: MAP_BACKGROUNDS.light,
+    stars: '#22231f',
+    glowBlending: NormalBlending,
+    auraStrength: 0.55,
+    label: '#22231f',
+    beacon: '#bd5b3f',
+    links: LIGHT_LINK_LOOKS,
+  },
+}
+
 /** Makes the scene's textures; canvasTextures in the browser, plain textures in tests. */
 export interface SceneTextures {
   /** The round starlight disc. */
@@ -159,6 +207,7 @@ export interface GraphScene {
   root: Group
   /** For THREE.Scene.background. */
   background: Color
+  theme: MapTheme
   nodes: Map<string, NodeObjects>
   /** The hit proxies, for the raycaster; nodeIdOf names the record a hit belongs to. */
   hitTargets: Mesh[]
@@ -204,7 +253,9 @@ export function buildGraphScene(
   links: readonly GraphLink[],
   textures: SceneTextures,
   settings: SceneSettings = SCENE_DEFAULTS,
+  theme: MapTheme = 'dark',
 ): GraphScene {
+  const colours = SCENE_THEMES[theme]
   const owned = new Set<{ dispose(): void }>()
   const own = <T extends { dispose(): void }>(thing: T): T => {
     owned.add(thing)
@@ -215,7 +266,7 @@ export function buildGraphScene(
   root.name = 'graph'
   root.add(...lights())
 
-  let stars = starfield(settings, textures, own)
+  let stars = starfield(settings, colours, textures, own)
   if (stars) root.add(stars)
 
   // Shared by every record of a size or a type.
@@ -268,8 +319,8 @@ export function buildGraphScene(
         new SpriteMaterial({
           map: own(textures.aura(color)),
           transparent: true,
-          opacity: Math.min(1, auraStyle.opacity * glow),
-          blending: AdditiveBlending,
+          opacity: Math.min(1, auraStyle.opacity * glow) * colours.auraStrength,
+          blending: colours.glowBlending,
           depthWrite: false,
         }),
       )
@@ -296,7 +347,12 @@ export function buildGraphScene(
     // Its texture is made the first time the camera comes near (updateView).
     const label = new Sprite(
       own(
-        new SpriteMaterial({ transparent: true, opacity: labelStyle.opacity, depthWrite: false }),
+        new SpriteMaterial({
+          color: colours.label,
+          transparent: true,
+          opacity: labelStyle.opacity,
+          depthWrite: false,
+        }),
       ),
     )
     label.position.y = labelStyle.y
@@ -314,7 +370,7 @@ export function buildGraphScene(
   }
   root.add(records)
 
-  const built = conduitMesh(layout, links, settings, own)
+  const built = conduitMesh(layout, links, settings, colours.links.resting, own)
   const conduits = built.mesh
   const { linkVertices, drawn } = built
   if (conduits) root.add(conduits)
@@ -324,7 +380,7 @@ export function buildGraphScene(
     own(new RingGeometry(beaconStyle.inner, beaconStyle.outer, beaconStyle.segments)),
     own(
       new MeshBasicMaterial({
-        color: 0xffffff,
+        color: colours.beacon,
         side: DoubleSide,
         transparent: true,
         opacity: beaconStyle.opacity,
@@ -349,7 +405,7 @@ export function buildGraphScene(
       orb.opacity = values.orbOpacity
       orb.emissiveIntensity = values.orbEmissive
     }
-    if (aura) aura.opacity = values.auraOpacity
+    if (aura) aura.opacity = values.auraOpacity * colours.auraStrength
   }
   const variant = <M extends MeshStandardMaterial | SpriteMaterial>(
     looks: Map<GraphNodeType, Map<NodeLook, M>>,
@@ -394,7 +450,8 @@ export function buildGraphScene(
 
   const scene: GraphScene = {
     root,
-    background: new Color(SCENE_STYLE.background),
+    background: new Color(colours.background),
+    theme,
     nodes,
     hitTargets,
     nodeIdOf: (object) => object.userData.nodeId as string | undefined,
@@ -456,7 +513,7 @@ export function buildGraphScene(
           const look = linkLook(state, link)
           if (linkLooks[i] === look) return
           linkLooks[i] = look
-          const { color, opacity } = LINK_LOOKS[look]
+          const { color, opacity } = colours.links[look]
           linkColor.set(color)
           const { start, count } = linkVertices.get(link.id)!
           for (let k = start; k < start + count; k++) {
@@ -504,7 +561,7 @@ export function buildGraphScene(
       // their geometry.
       if (next.starDensity !== previous.starDensity) {
         if (!stars) {
-          stars = starfield(next, textures, own)
+          stars = starfield(next, colours, textures, own)
           // Where the build put it, straight after the lights.
           if (stars) insertAt(root, stars, 2)
         } else if (next.starDensity !== 'off') {
@@ -521,14 +578,14 @@ export function buildGraphScene(
         next.starDensity !== 'off' &&
         (next.starDensity !== previous.starDensity || next.glowIntensity !== previous.glowIntensity)
       ) {
-        const look = SCENE_STYLE.stars[next.starDensity]
+        const density = SCENE_STYLE.stars[next.starDensity]
         const material = stars.material as PointsMaterial
-        material.size = look.size * next.glowIntensity
-        material.opacity = Math.min(1, look.opacity * next.glowIntensity)
+        material.size = density.size * next.glowIntensity
+        material.opacity = Math.min(1, density.opacity * next.glowIntensity)
       }
 
       if (next.linkWidth !== previous.linkWidth && conduits) {
-        const rebuilt = conduitMesh(layout, links, next, own)
+        const rebuilt = conduitMesh(layout, links, next, colours.links.resting, own)
         swapGeometry(conduits, rebuilt.mesh!)
         linkVertices.clear()
         for (const [id, range] of rebuilt.linkVertices) linkVertices.set(id, range)
@@ -585,15 +642,24 @@ export function fitCameraToBounds(
   margin = 1.15,
 ): Vector3 {
   const center = new Vector3(bounds.center.x, bounds.center.y, bounds.center.z)
-  const halfHeight = MathUtils.degToRad(camera.fov) / 2
-  const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect)
-  const distance = (bounds.radius * margin) / Math.sin(Math.min(halfHeight, halfWidth))
+  const distance = framingDistance(camera, bounds, margin)
   const { x, y, z } = SCENE_STYLE.cameraDirection
   camera.position.copy(center).addScaledVector(new Vector3(x, y, z).normalize(), distance)
   camera.far = Math.max(SCENE_STYLE.camera.far, distance + bounds.radius * 2)
   camera.updateProjectionMatrix()
   camera.lookAt(center)
   return center
+}
+
+/** How far from the bounds' centre the camera must be for the whole sphere to fit the view. */
+export function framingDistance(
+  camera: PerspectiveCamera,
+  bounds: GraphLayout['bounds'],
+  margin = 1.15,
+): number {
+  const halfHeight = MathUtils.degToRad(camera.fov) / 2
+  const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect)
+  return (bounds.radius * margin) / Math.sin(Math.min(halfHeight, halfWidth))
 }
 
 /** Canvas-drawn textures, as in the prototype; the browser only. */
@@ -668,6 +734,7 @@ function lights() {
 
 function starfield(
   settings: SceneSettings,
+  theme: SceneTheme,
   textures: SceneTextures,
   own: <T extends { dispose(): void }>(thing: T) => T,
 ): Points | null {
@@ -676,12 +743,12 @@ function starfield(
   const geometry = own(starGeometry(settings.starDensity))
   const material = own(
     new PointsMaterial({
-      color: 0xffffff,
+      color: theme.stars,
       size: look.size * settings.glowIntensity,
       map: own(textures.star()),
       transparent: true,
       opacity: Math.min(1, look.opacity * settings.glowIntensity),
-      blending: AdditiveBlending,
+      blending: theme.glowBlending,
       depthWrite: false,
     }),
   )
@@ -710,6 +777,7 @@ function conduitMesh(
   layout: GraphLayout,
   links: readonly GraphLink[],
   settings: SceneSettings,
+  resting: { color: string; opacity: number },
   own: <T extends { dispose(): void }>(thing: T) => T,
 ) {
   const linkVertices = new Map<string, { start: number; count: number }>()
@@ -717,8 +785,9 @@ function conduitMesh(
   const drawn = links.filter((link) => byId.has(link.source) && byId.has(link.target))
   if (drawn.length === 0) return { mesh: null, linkVertices, drawn }
 
-  const { sides, opacity } = SCENE_STYLE.conduit
-  const color = new Color(SCENE_STYLE.conduit.color)
+  const { sides } = SCENE_STYLE.conduit
+  const { opacity } = resting
+  const color = new Color(resting.color)
   const perLink = sides * 2
   const positions = new Float32Array(drawn.length * perLink * 3)
   const colors = new Float32Array(drawn.length * perLink * 4)

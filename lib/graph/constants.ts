@@ -36,8 +36,17 @@ export const TYPE_NAMES: Record<GraphNodeType, string> = {
   tag: 'Tag',
 }
 
-/** The map's deep-space backdrop, shared by the scene and the page around it. */
-export const MAP_BACKGROUND = '#080a0e'
+/**
+ * The map's look follows the app's theme (user decision 2026-10-11): deep space after
+ * dark, as approved; by day the palette's paper (app/globals.css `--paper`) with dark stars.
+ */
+export type MapTheme = 'dark' | 'light'
+
+/** The map's backdrop in each theme, shared by the scene and the page around it. */
+export const MAP_BACKGROUNDS: Record<MapTheme, string> = {
+  dark: '#080a0e',
+  light: '#f5f2eb',
+}
 
 /**
  * Relations of the links that no EntityEdge stores. A saved edge keeps its own

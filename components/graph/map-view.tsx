@@ -5,6 +5,9 @@
  * selects it and opens the inspector, whose connections select the next record. Escape, a
  * click on empty space or the inspector's close button clears it. The "Records" list
  * reaches any record without a pointer. The overlay's settings last for the visit only.
+ * Its "Attraction" slider lays the map out again once it has settled for ATTRACTION_SETTLE
+ * ms; the map drawn stays until the new arrangement is in, and the selection is kept.
+ * The map follows the app's theme (use-map-theme.ts).
  *
  * `?focus=<type>:<id>` (lib/graph/deep-link.ts) selects that record once the map is drawn,
  * as a pick from the Records list would. A focus that is not on the map, or not a record id
@@ -27,20 +30,22 @@ import {
   GraphLoading,
   GraphRecordList,
 } from '@/components/graph/graph-states'
-import { MAP_BACKGROUND } from '@/lib/graph/constants'
 import { readMapFocus, withRecordHref } from '@/lib/graph/deep-link'
 import { highlightState, highlightSummary, neighbourSets } from '@/lib/graph/highlight'
 import { connectionRows } from '@/lib/graph/inspector'
 import { SCENE_DEFAULTS, type SceneSettings } from '@/lib/graph/scene'
 import { FOCUS_NOT_FOUND, useGraphLayout } from '@/lib/graph/use-graph-layout'
+import { useMapTheme } from '@/lib/graph/use-map-theme'
 
 export interface MapViewProps {
   /** A record's page, from its desktop path; the desktop's own path when left out. */
   recordHref?: (path: string) => string
 }
 
+export const REARRANGING = 'Arranging the map…'
+
 const FRAME = 'relative h-full min-h-[24rem] overflow-hidden'
-const FRAME_STYLE = { background: MAP_BACKGROUND, colorScheme: 'dark' } as const
+const FRAME_STYLE = { background: 'var(--map-background)' } as const
 
 export function MapView(props: MapViewProps) {
   // The query is only known in the browser; until then the frame shows it is loading.
@@ -58,8 +63,27 @@ export function MapView(props: MapViewProps) {
   )
 }
 
+/** How long the Attraction slider rests before the map is laid out again. */
+export const ATTRACTION_SETTLE = 250
+
 function MapBody({ recordHref }: MapViewProps) {
-  const { status, graph: data, layout, error, retry } = useGraphLayout()
+  // The slider's value at once; the layout's once it has settled.
+  const [attraction, setAttraction] = React.useState(1)
+  const [settled, setSettled] = React.useState(1)
+  React.useEffect(() => {
+    if (attraction === settled) return
+    const timer = window.setTimeout(() => setSettled(attraction), ATTRACTION_SETTLE)
+    return () => window.clearTimeout(timer)
+  }, [attraction, settled])
+  const {
+    status,
+    graph: data,
+    layout,
+    error,
+    retry,
+    rearranging,
+  } = useGraphLayout(undefined, settled)
+  const theme = useMapTheme()
   const graph = React.useMemo(() => withRecordHref(data, recordHref), [data, recordHref])
   const [webgl, setWebgl] = React.useState(true)
   const unavailable = React.useCallback(() => setWebgl(false), [])
@@ -131,6 +155,8 @@ function MapBody({ recordHref }: MapViewProps) {
         hoveredId={hoveredId}
         selectedId={selectedId}
         settings={settings}
+        frame={data}
+        theme={theme}
         autoOrbit={autoOrbit}
         inset={inset}
         onHover={setHoveredId}
@@ -147,6 +173,8 @@ function MapBody({ recordHref }: MapViewProps) {
       style={FRAME_STYLE}
       data-active-id={highlight.activeId ?? ''}
       data-highlight={highlight.mode}
+      data-attraction={rearranging || attraction !== settled ? undefined : settled}
+      aria-busy={rearranging || attraction !== settled || undefined}
     >
       <h1 className="sr-only">Map</h1>
       {body}
@@ -154,6 +182,8 @@ function MapBody({ recordHref }: MapViewProps) {
         <GraphOverlay
           settings={settings}
           onSettingsChange={setSettings}
+          attraction={attraction}
+          onAttractionChange={setAttraction}
           autoOrbit={autoOrbit}
           onAutoOrbitChange={setAutoOrbit}
           onReset={reset}
@@ -180,14 +210,16 @@ function MapBody({ recordHref }: MapViewProps) {
       {mapShown && (
         <p
           aria-live="polite"
-          className="pointer-events-none absolute right-3 bottom-3 left-3 truncate rounded-md bg-black/55 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-sm sm:right-auto sm:max-w-md"
+          className="pointer-events-none absolute right-3 bottom-3 left-3 truncate rounded-md bg-(--panel)/85 dark:bg-black/55 px-3 py-1.5 text-xs text-(--ink-raw) dark:text-slate-200 backdrop-blur-sm sm:right-auto sm:max-w-md"
           data-testid="map-status"
           data-map-chrome
         >
-          {highlightSummary(
-            highlight,
-            highlight.activeId === null ? undefined : records.get(highlight.activeId)?.name,
-          )}
+          {rearranging
+            ? REARRANGING
+            : highlightSummary(
+                highlight,
+                highlight.activeId === null ? undefined : records.get(highlight.activeId)?.name,
+              )}
         </p>
       )}
     </div>
@@ -204,14 +236,14 @@ function FocusNotice({ message, onDismiss }: { message: string; onDismiss: () =>
       role="status"
       data-testid="map-notice"
       data-map-chrome
-      className="absolute top-14 right-3 left-3 z-[5] flex items-start gap-2 rounded-lg border border-amber-300/30 bg-slate-900/80 p-3 text-sm text-slate-100 shadow-lg backdrop-blur-md sm:top-3 sm:left-auto sm:max-w-sm"
+      className="absolute top-14 right-3 left-3 z-[5] flex items-start gap-2 rounded-lg border border-(--ochre)/50 dark:border-amber-300/30 bg-(--panel)/95 dark:bg-slate-900/80 p-3 text-sm text-(--ink-raw) dark:text-slate-100 shadow-lg backdrop-blur-md sm:top-3 sm:left-auto sm:max-w-sm"
     >
       <p className="min-w-0 flex-1">{message}</p>
       <button
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="-m-1 shrink-0 rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+        className="-m-1 shrink-0 rounded-md p-1 text-(--muted-raw) dark:text-slate-400 hover:bg-(--ink-raw)/[0.07] dark:hover:bg-white/10 hover:text-(--ink-raw) dark:hover:text-white focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none"
       >
         <X aria-hidden className="h-4 w-4" />
       </button>

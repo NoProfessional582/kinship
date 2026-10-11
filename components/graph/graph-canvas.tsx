@@ -14,6 +14,9 @@
  * showing, so the selected record is not hidden behind it.
  * Leaving the page frees everything it made: the scene's geometries, materials and
  * textures, the controls, the observer, the listeners and the WebGL context.
+ * A new `theme` rebuilds the scene in its colours and leaves the camera where it is, as does
+ * a new layout of the same records (the Attraction slider, `frame` unchanged), so the map
+ * is seen to draw together or spread out; a new `frame` frames the graph afresh.
  * `compact` is for the small map inside a record's page: the page keeps the wheel and a
  * vertical swipe, so it scrolls past the map; a sideways drag still turns it, a tap or click
  * still picks, and a hover lights over the selection (highlight.ts, hoverFirst).
@@ -21,7 +24,7 @@
 import * as React from 'react'
 import { PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import type { GraphLink } from '@/lib/graph/constants'
+import type { GraphLink, MapTheme } from '@/lib/graph/constants'
 import { highlightState, neighbourSets } from '@/lib/graph/highlight'
 import type { GraphLayout } from '@/lib/graph/layout3d'
 import {
@@ -30,6 +33,7 @@ import {
   buildGraphScene,
   canvasTextures,
   fitCameraToBounds,
+  framingDistance,
   type GraphScene,
   type SceneSettings,
 } from '@/lib/graph/scene'
@@ -49,6 +53,13 @@ export interface GraphCanvasProps {
   selectedId?: string | null
   /** The overlay's settings, applied to the built scene as they change. */
   settings?: SceneSettings
+  /**
+   * The camera frames the whole graph again when this changes, and holds its place for a
+   * new layout otherwise. The layout itself when left out: every new layout is framed.
+   */
+  frame?: unknown
+  /** The app's theme: the dark map, as approved, or the light one. */
+  theme?: MapTheme
   /** Turns the view slowly round the orbit centre; off unless the user turns it on. */
   autoOrbit?: boolean
   /** CSS pixels covered on the right and along the bottom (the inspector), if any. */
@@ -149,6 +160,8 @@ export default function GraphCanvas({
   hoveredId = null,
   selectedId = null,
   settings = SCENE_DEFAULTS,
+  frame,
+  theme = 'dark',
   autoOrbit = false,
   inset = NO_INSET,
   compact = false,
@@ -380,22 +393,33 @@ export default function GraphCanvas({
   // The settings the scene was last given, so a rebuilt scene starts with them.
   const applied = React.useRef(settings)
 
-  // The scene: rebuilt for each new layout, and fitted to it.
+  // What the camera was last fitted to, so a new theme or arrangement keeps the view.
+  const framed = frame ?? layout
+  const fitted = React.useRef<unknown>(null)
+
+  // The scene: rebuilt for each new layout, fitted to it, and rebuilt for a new theme.
   React.useEffect(() => {
     const current = view.current
     if (!current) return
     current.building = performance.now()
-    const graph = buildGraphScene(layout, links, canvasTextures(), applied.current)
+    const graph = buildGraphScene(layout, links, canvasTextures(), applied.current, theme)
     current.world.background = graph.background
     current.world.add(graph.root)
     current.graph = graph
-    fit(current, graph)
+    if (fitted.current !== framed) {
+      fitted.current = framed
+      fit(current, graph)
+    } else {
+      roomFor(current, graph)
+      graph.updateView(current.camera.position)
+      current.invalidate()
+    }
     return () => {
       if (current.graph === graph) current.graph = null
       graph.dispose()
       current.invalidate()
     }
-  }, [layout, links])
+  }, [layout, links, theme, framed])
 
   // The settings: applied to the built scene in place, never re-running the layout.
   React.useEffect(() => {
@@ -420,7 +444,7 @@ export default function GraphCanvas({
     if (!current || !graph) return
     graph.applyHighlight(highlightState({ hoveredId, selectedId, neighbours, hoverFirst: compact }))
     current.invalidate()
-  }, [hoveredId, selectedId, neighbours, layout, compact])
+  }, [hoveredId, selectedId, neighbours, layout, compact, theme])
 
   // A new selection: the beacon moves to it and the orbit centres on it.
   React.useEffect(() => {
@@ -479,4 +503,16 @@ function fit(current: View, graph: GraphScene) {
   controls.update()
   graph.updateView(camera.position)
   current.invalidate()
+}
+
+/**
+ * Keeps the camera where it is for a new arrangement, but lets it zoom out far enough to
+ * see all of it, and draws as far as it reaches.
+ */
+function roomFor(current: View, graph: GraphScene) {
+  const { camera, controls } = current
+  const distance = framingDistance(camera, graph.bounds)
+  controls.maxDistance = Math.max(controls.maxDistance, distance * 1.5)
+  camera.far = Math.max(camera.far, controls.maxDistance + graph.bounds.radius * 2)
+  camera.updateProjectionMatrix()
 }
