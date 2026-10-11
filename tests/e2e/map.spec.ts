@@ -1,8 +1,10 @@
 /**
  * The 3D map page (/map): it draws the seeded records, picks a record under the pointer,
  * lights a hovered or selected record's connections and dims the rest, changes live with
- * the overlay's controls (by mouse and by keyboard), and shows its other states: no records, a failed request (and its retry), and a browser
- * without WebGL, which lists the records instead. Leaving the page frees the canvas.
+ * the overlay's controls (by mouse and by keyboard), opens the inspector for a selection
+ * and moves along its connections, reaches any record from the Records list by keyboard
+ * alone, and shows its other states: no records, a failed request (and its retry), and a
+ * browser without WebGL, which lists the records instead. Leaving the page frees the canvas.
  *
  * Headless Chromium draws WebGL in software, so these check that something was drawn and
  * what it looks like broadly (coloured orbs on a dark sky), not exact pixels.
@@ -517,3 +519,285 @@ test('on a phone the controls fold behind one button', { tag: '@phone' }, async 
   await toggle.tap()
   await expect(overlay).toBeHidden()
 })
+
+interface MapNode {
+  id: string
+  type: string
+  name: string
+  subtitle?: string
+  description?: string
+  url: string | null
+}
+
+/** The graph the page draws, and a record's connected records, as the API sends them. */
+async function graphOf(page: Page) {
+  const response = await page.request.get('/api/graph')
+  expect(response.status()).toBe(200)
+  const graph = (await response.json()) as {
+    nodes: MapNode[]
+    links: { source: string; target: string; relation: string }[]
+  }
+  const byName = (name: string) => {
+    const node = graph.nodes.find((n) => n.name === name)
+    expect(node, `the graph has ${name}`).toBeTruthy()
+    return node!
+  }
+  const connected = (id: string) => {
+    const ids = new Set<string>()
+    for (const { source, target } of graph.links) {
+      if (source === target) continue
+      if (source === id) ids.add(target)
+      if (target === id) ids.add(source)
+    }
+    return graph.nodes.filter((n) => ids.has(n.id))
+  }
+  return { graph, byName, connected }
+}
+
+const inspectorOf = (page: Page) => page.getByTestId('map-inspector')
+const recordsButton = (page: Page) => page.getByRole('button', { name: 'Records', exact: true })
+const pickerOf = (page: Page) => page.getByRole('dialog', { name: 'Records' })
+
+/** Selects a record by name through the Records list. */
+async function pick(page: Page, name: string) {
+  await recordsButton(page).click()
+  const picker = pickerOf(page)
+  await expect(picker).toBeVisible()
+  await picker.getByRole('searchbox', { name: 'Filter records by name' }).fill(name)
+  await picker
+    .getByRole('button', { name: new RegExp(`^${name}`) })
+    .first()
+    .click()
+  await expect(picker).toBeHidden()
+}
+
+test(
+  'selecting a record opens the inspector with its details and connections',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/map')
+    await drawn(page)
+    const { byName, connected } = await graphOf(page)
+    const maya = byName(SEEDED.contact)
+
+    await pick(page, SEEDED.contact)
+    await expect(mapOf(page)).toHaveAttribute('data-active-id', maya.id)
+    const inspector = inspectorOf(page)
+    await expect(inspector).toBeVisible()
+    const heading = inspector.getByRole('heading', { level: 2, name: SEEDED.contact })
+    await expect(heading).toBeFocused()
+    await expect(inspector).toContainText('Contact')
+    if (maya.subtitle) await expect(inspector).toContainText(maya.subtitle)
+    if (maya.description) await expect(inspector).toContainText(maya.description)
+    await expect(inspector.getByRole('link', { name: 'Open record' })).toHaveAttribute(
+      'href',
+      maya.url!,
+    )
+
+    // One button per connected record, matching the status line's count.
+    const others = connected(maya.id)
+    const rows = inspector.getByRole('listitem').getByRole('button')
+    await expect(rows).toHaveCount(others.length)
+    await expect(inspector.getByRole('heading', { level: 3 })).toHaveText(
+      `Connections (${others.length})`,
+    )
+    await expect(statusOf(page)).toHaveText(
+      `Selected: ${SEEDED.contact} · ${others.length} direct connection${others.length === 1 ? '' : 's'}`,
+    )
+    // The note mentions Maya: an incoming link, read with its stored relation.
+    const note = inspector.getByRole('button', { name: new RegExp(`^${SEEDED.note}`) })
+    await expect(note).toContainText('← mentions')
+    await expect(note).toHaveAccessibleName(/mentions, to this record/)
+
+    // The legend steps aside rather than sit under the drawer.
+    const legend = page.getByRole('group', { name: 'Legend' }).last()
+    const [a, b] = [(await legend.boundingBox())!, (await inspector.boundingBox())!]
+    expect(a.x + a.width, 'the legend ends left of the drawer').toBeLessThanOrEqual(b.x)
+
+    // The close button clears the selection.
+    await inspector.getByRole('button', { name: 'Close details' }).click()
+    await expect(inspector).toBeHidden()
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+  },
+)
+
+test(
+  'a connection in the inspector selects that record; a click on the map opens it too',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/map')
+    await drawn(page)
+    const { byName } = await graphOf(page)
+    const note = byName(SEEDED.note)
+
+    await pick(page, SEEDED.contact)
+    const inspector = inspectorOf(page)
+    await inspector.getByRole('button', { name: new RegExp(`^${SEEDED.note}`) }).click()
+    await expect(mapOf(page)).toHaveAttribute('data-active-id', note.id)
+    await expect(inspector.getByRole('heading', { level: 2 })).toHaveText(SEEDED.note)
+    await expect(inspector.getByRole('heading', { level: 2 })).toBeFocused()
+    await expect(statusOf(page)).toHaveText(new RegExp(`^Selected: ${SEEDED.note} · `))
+    // Back to Maya from the note's side, where the same link points out.
+    await expect(
+      inspector.getByRole('button', { name: new RegExp(`^${SEEDED.contact}`) }),
+    ).toContainText('→ mentions')
+    await inspector.getByRole('button', { name: new RegExp(`^${SEEDED.contact}`) }).click()
+    await expect(inspector.getByRole('heading', { level: 2 })).toHaveText(SEEDED.contact)
+
+    await page.keyboard.press('Escape')
+    await expect(inspector).toBeHidden()
+    await expect.poll(() => still(page)).toBe(true)
+    const point = await findRecord(page)
+    const hovered = await mapOf(page).getAttribute('data-active-id')
+    await page.mouse.click(point.x, point.y)
+    await expect(inspector).toBeVisible()
+    await expect(mapOf(page)).toHaveAttribute('data-active-id', hovered!)
+  },
+)
+
+test('a tag shows its connections and no record link', { tag: '@desktop' }, async ({ page }) => {
+  await page.goto('/map')
+  await drawn(page)
+  const { graph, connected } = await graphOf(page)
+  const tag = graph.nodes.find((n) => n.type === 'tag' && connected(n.id).length > 0)!
+  await pick(page, tag.name)
+  const inspector = inspectorOf(page)
+  await expect(inspector.getByRole('heading', { level: 2 })).toHaveText(tag.name)
+  await expect(inspector).toContainText('Tag')
+  await expect(inspector.getByRole('link')).toHaveCount(0)
+  await expect(inspector.getByRole('listitem')).toHaveCount(connected(tag.id).length)
+})
+
+test('"Open record" goes to the record’s page', { tag: '@desktop' }, async ({ page }) => {
+  await page.goto('/map')
+  await drawn(page)
+  const { byName } = await graphOf(page)
+  const maya = byName(SEEDED.contact)
+  await pick(page, SEEDED.contact)
+  await inspectorOf(page).getByRole('link', { name: 'Open record' }).click()
+  await expect(page).toHaveURL(new RegExp(`${maya.url!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+  await expect(page.getByRole('heading', { level: 1, name: SEEDED.contact })).toBeVisible()
+})
+
+test(
+  'the map can be explored by keyboard alone, from the Records list',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/map')
+    await drawn(page)
+    const records = recordsButton(page)
+    await expect(records).toBeVisible()
+    // Tab reaches the Records button.
+    await page.locator('body').focus()
+    for (
+      let i = 0;
+      i < 40 && !(await records.evaluate((el) => el === document.activeElement));
+      i++
+    ) {
+      await page.keyboard.press('Tab')
+    }
+    await expect(records).toBeFocused()
+    expect(await records.evaluate((el) => el.matches(':focus-visible'))).toBe(true)
+
+    await page.keyboard.press('Enter')
+    const picker = pickerOf(page)
+    await expect(picker).toBeVisible()
+    const filter = picker.getByRole('searchbox', { name: 'Filter records by name' })
+    await expect(filter).toBeFocused()
+    await page.keyboard.type(SEEDED.contact.toLowerCase())
+    await expect(picker.getByText(/^[1-9]\d* records?$/)).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(
+      picker.getByRole('button', { name: new RegExp(`^${SEEDED.contact}`) }),
+    ).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(picker).toBeHidden()
+
+    const inspector = inspectorOf(page)
+    const heading = inspector.getByRole('heading', { level: 2 })
+    await expect(heading).toHaveText(SEEDED.contact)
+    await expect(heading).toBeFocused()
+    // Tab: close, Open record, then the connections.
+    await page.keyboard.press('Tab')
+    await expect(inspector.getByRole('button', { name: 'Close details' })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(inspector.getByRole('link', { name: 'Open record' })).toBeFocused()
+    const note = inspector.getByRole('button', { name: new RegExp(`^${SEEDED.note}`) })
+    for (let i = 0; i < 20 && !(await note.evaluate((el) => el === document.activeElement)); i++) {
+      await page.keyboard.press('Tab')
+    }
+    await expect(note).toBeFocused()
+    expect(await note.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe('none')
+    await page.keyboard.press('Enter')
+    await expect(heading).toHaveText(SEEDED.note)
+    await expect(heading).toBeFocused()
+
+    await page.keyboard.press('Escape')
+    await expect(inspector).toBeHidden()
+    await expect(records).toBeFocused()
+  },
+)
+
+test(
+  'Escape closes the Records list and keeps the selection',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/map')
+    await drawn(page)
+    await pick(page, SEEDED.contact)
+    await recordsButton(page).click()
+    await expect(pickerOf(page)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(pickerOf(page)).toBeHidden()
+    await expect(inspectorOf(page)).toBeVisible()
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+    await expect(recordsButton(page)).toBeFocused()
+  },
+)
+
+test(
+  'on a phone the inspector is a bottom sheet that leaves the controls free',
+  { tag: '@phone' },
+  async ({ page }) => {
+    await page.goto('/map')
+    await drawn(page)
+    const point = await findRecord(page)
+    await page.touchscreen.tap(point.x, point.y)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+    const inspector = inspectorOf(page)
+    await expect(inspector).toBeVisible()
+
+    const view = page.viewportSize()!
+    const sheet = (await inspector.boundingBox())!
+    expect(sheet.x).toBeGreaterThanOrEqual(0)
+    expect(sheet.x + sheet.width).toBeLessThanOrEqual(view.width + 0.5)
+    expect(sheet.y + sheet.height, 'along the bottom').toBeGreaterThan(view.height - 2)
+    expect(sheet.height, 'leaves the top of the map').toBeLessThanOrEqual(view.height * 0.6)
+    const fits = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    )
+    expect(fits, 'no sideways scroll with the sheet open').toBe(true)
+
+    // The controls stay above the sheet and usable.
+    const toggle = page.getByRole('button', { name: 'View', exact: true })
+    for (const control of [toggle, recordsButton(page)]) {
+      const box = (await control.boundingBox())!
+      expect(box.y + box.height).toBeLessThan(sheet.y)
+    }
+    await recordsButton(page).tap()
+    await expect(pickerOf(page)).toBeVisible()
+    const list = (await pickerOf(page).boundingBox())!
+    expect(list.x + list.width).toBeLessThanOrEqual(view.width)
+    await pickerOf(page).getByRole('button', { name: 'Close records' }).tap()
+
+    // A connection is a tap away, and the close button clears the selection.
+    const first = inspector.getByRole('listitem').getByRole('button').first()
+    if (await first.count()) {
+      await first.tap()
+      await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+    }
+    await inspector.getByRole('button', { name: 'Close details' }).tap()
+    await expect(inspector).toBeHidden()
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+  },
+)

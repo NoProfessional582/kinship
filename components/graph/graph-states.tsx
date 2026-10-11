@@ -12,6 +12,7 @@ import {
   GRAPH_COLORS,
   GRAPH_NODE_TYPES,
   type GraphData,
+  type GraphNode,
   type GraphNodeType,
 } from '@/lib/graph/constants'
 
@@ -74,14 +75,20 @@ export function GraphError({ message, onRetry }: { message: string; onRetry?: ()
   )
 }
 
+/**
+ * Records grouped by type in the legend's order, each group by name; empty groups are left
+ * out. Shared by the list below and the map's record picker.
+ */
+export function groupRecords(nodes: readonly GraphNode[]) {
+  return GRAPH_NODE_TYPES.map((type) => ({
+    type,
+    nodes: nodes.filter((node) => node.type === type).sort((a, b) => a.name.localeCompare(b.name)),
+  })).filter((group) => group.nodes.length > 0)
+}
+
 /** The records as a list, for a browser without WebGL. */
 export function GraphRecordList({ graph }: { graph: GraphData }) {
-  const groups = GRAPH_NODE_TYPES.map((type) => ({
-    type,
-    nodes: graph.nodes
-      .filter((node) => node.type === type)
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  })).filter((group) => group.nodes.length > 0)
+  const groups = groupRecords(graph.nodes)
 
   return (
     <div className="absolute inset-0 overflow-y-auto p-6 text-slate-200">

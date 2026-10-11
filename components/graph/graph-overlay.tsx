@@ -4,8 +4,11 @@
  * for node size, link width, glow and stars. Settings last for the visit; nothing is saved.
  *
  * On a wide screen the controls sit top left and the legend bottom right, clear of the
- * status line (bottom left). On a phone both fold into one panel behind a "View" button,
- * so the map stays free to turn with a finger.
+ * status line (bottom left), stepping left of the inspector while it is open (on a wide
+ * enough screen; hidden otherwise). On a phone
+ * both fold into one panel behind a "View" button, so the map stays free to turn with a
+ * finger. The "Records" picker (graph-record-picker.tsx) sits beside that button at every
+ * width.
  *
  * Like the rest of the map, it is always dark (#080a0e behind it), whatever the app's theme.
  */
@@ -82,6 +85,10 @@ export interface GraphOverlayProps {
   onAutoOrbitChange: (on: boolean) => void
   /** Back to the whole graph, with nothing selected. */
   onReset: () => void
+  /** The record picker, given the overlay's button look; shown at every width. */
+  records?: (buttonClass: string) => React.ReactNode
+  /** The inspector is open on the right, where the legend would sit. */
+  drawerOpen?: boolean
 }
 
 export function GraphOverlay({
@@ -90,6 +97,8 @@ export function GraphOverlay({
   autoOrbit,
   onAutoOrbitChange,
   onReset,
+  records,
+  drawerOpen = false,
 }: GraphOverlayProps) {
   // Only folds on a phone; on a wide screen the panel is always open (sm:flex below).
   const [open, setOpen] = React.useState(false)
@@ -101,16 +110,19 @@ export function GraphOverlay({
         data-map-chrome
         className="absolute top-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2"
       >
-        <button
-          type="button"
-          className={`${GLASS} ${BUTTON} sm:hidden`}
-          aria-expanded={open}
-          aria-controls={panel}
-          onClick={() => setOpen(!open)}
-        >
-          <Settings2 aria-hidden className="h-3.5 w-3.5" />
-          View
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={`${GLASS} ${BUTTON} sm:hidden`}
+            aria-expanded={open}
+            aria-controls={panel}
+            onClick={() => setOpen(!open)}
+          >
+            <Settings2 aria-hidden className="h-3.5 w-3.5" />
+            View
+          </button>
+          {records?.(`${GLASS} ${BUTTON}`)}
+        </div>
         <section
           id={panel}
           aria-label="Map controls"
@@ -175,7 +187,12 @@ export function GraphOverlay({
         </section>
       </div>
 
-      <Legend className={`${GLASS} absolute right-3 bottom-3 z-10 hidden p-3 sm:block`} />
+      <Legend
+        className={`${GLASS} absolute bottom-3 z-10 hidden p-3 ${
+          // Beside the drawer only where there is room for it and the status line.
+          drawerOpen ? 'right-[calc(350px+1.5rem)] lg:block' : 'right-3 sm:block'
+        }`}
+      />
     </>
   )
 }

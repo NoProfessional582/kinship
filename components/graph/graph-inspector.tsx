@@ -1,0 +1,138 @@
+'use client'
+/**
+ * The selected record's details, in a glass drawer: on the right on a wide screen, a sheet
+ * along the bottom on a phone. Each connected record is a button that selects it (the map's
+ * orbit moves there); records with a page get an "Open record" link, tags do not.
+ *
+ * Focus moves to the heading when the drawer opens and when another record is chosen from
+ * it, and goes back to what had it before when the drawer closes. Escape closes it (the
+ * page listens for that) as does the close button.
+ *
+ * Like the rest of the map, it is always dark, whatever the app's theme.
+ */
+import * as React from 'react'
+import Link from 'next/link'
+import { ArrowUpRight, X } from 'lucide-react'
+import { TYPE_NAMES, type GraphNode } from '@/lib/graph/constants'
+import { linkSpeech, linkText, type ConnectionRow } from '@/lib/graph/inspector'
+
+export interface GraphInspectorProps {
+  node: GraphNode
+  rows: readonly ConnectionRow[]
+  /** A connection was chosen: select that record. */
+  onSelect: (nodeId: string) => void
+  onClose: () => void
+}
+
+export function GraphInspector({ node, rows, onSelect, onClose }: GraphInspectorProps) {
+  const heading = React.useRef<HTMLHeadingElement>(null)
+  const headingId = React.useId()
+
+  // Whatever had focus when the drawer opened gets it back when it closes, if it is still
+  // on the page (a click on the map leaves it on the body, which needs nothing back).
+  React.useEffect(() => {
+    const before = document.activeElement
+    return () => {
+      if (before instanceof HTMLElement && before !== document.body && before.isConnected) {
+        before.focus()
+      }
+    }
+  }, [])
+
+  React.useEffect(() => {
+    heading.current?.focus()
+  }, [node.id])
+
+  return (
+    <section
+      aria-labelledby={headingId}
+      data-testid="map-inspector"
+      data-map-chrome
+      className="absolute inset-x-0 bottom-0 z-20 flex max-h-[55%] flex-col gap-4 rounded-t-xl border border-white/10 bg-slate-900/80 p-4 text-slate-200 shadow-2xl backdrop-blur-md sm:inset-x-auto sm:top-3 sm:right-3 sm:bottom-3 sm:max-h-none sm:w-[350px] sm:rounded-xl sm:p-5"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span
+            className="mb-1.5 inline-block rounded px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase"
+            style={{ color: node.color, background: `${node.color}22` }}
+          >
+            {TYPE_NAMES[node.type]}
+          </span>
+          <h2
+            id={headingId}
+            ref={heading}
+            tabIndex={-1}
+            className="text-xl leading-tight font-bold break-words text-white focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+          >
+            {node.name}
+          </h2>
+          {node.subtitle && <p className="mt-0.5 text-sm text-slate-400">{node.subtitle}</p>}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close details"
+          title="Close (Esc)"
+          className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+        >
+          <X aria-hidden className="h-4 w-4" />
+        </button>
+      </div>
+
+      {node.description && (
+        <p className="rounded-lg border border-white/5 bg-white/[0.03] p-3 text-sm leading-normal text-slate-300">
+          {node.description}
+        </p>
+      )}
+
+      {node.url !== null && (
+        <Link
+          href={node.url}
+          className="inline-flex items-center gap-1.5 self-start rounded-md border border-white/15 px-2.5 py-1.5 text-xs font-medium text-sky-200 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+        >
+          Open record
+          <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
+        </Link>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <h3 className="text-[11px] font-bold tracking-wide text-slate-400 uppercase">
+          Connections ({rows.length})
+        </h3>
+        {rows.length === 0 ? (
+          <p className="text-sm text-slate-400">No direct connections.</p>
+        ) : (
+          <ul className="-mx-1 flex min-h-0 flex-col gap-1.5 overflow-y-auto px-1 pb-1">
+            {rows.map(({ node: other, links }) => (
+              <li key={other.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(other.id)}
+                  className="flex w-full items-center gap-2.5 rounded-lg border border-white/5 bg-white/[0.04] px-3 py-2 text-left hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+                >
+                  <span
+                    aria-hidden
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: other.color, boxShadow: `0 0 8px ${other.color}` }}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-white">
+                      {other.name}
+                      <span className="sr-only">, {TYPE_NAMES[other.type]}</span>
+                    </span>
+                    {links.map((link) => (
+                      <span key={link.id} className="block truncate text-[11px] text-slate-400">
+                        <span aria-hidden>{linkText(link)}</span>
+                        <span className="sr-only">: {linkSpeech(link)}</span>
+                      </span>
+                    ))}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  )
+}

@@ -1,13 +1,16 @@
 'use client'
 /**
  * The 3D map of every record and how they connect. Hovering a record previews its direct
- * connections; clicking selects it, and Escape or a click on empty space clears it. The
- * overlay's settings last for the visit only. No sidebar link or inspector yet (plan
- * kinship-3d-map, phases 03-04).
+ * connections; clicking selects it and opens the inspector, whose connections select the
+ * next record. Escape, a click on empty space or the inspector's close button clears it.
+ * The "Records" list reaches any record without a pointer. The overlay's settings last for
+ * the visit only. No sidebar link yet (plan kinship-3d-map, phase 04).
  */
 import * as React from 'react'
 import { GraphCanvas, type GraphCanvasHandle } from '@/components/graph/graph-canvas-loader'
+import { GraphInspector } from '@/components/graph/graph-inspector'
 import { GraphOverlay } from '@/components/graph/graph-overlay'
+import { GraphRecordPicker } from '@/components/graph/graph-record-picker'
 import {
   GraphEmpty,
   GraphError,
@@ -16,6 +19,7 @@ import {
 } from '@/components/graph/graph-states'
 import { MAP_BACKGROUND } from '@/lib/graph/constants'
 import { highlightState, highlightSummary, neighbourSets } from '@/lib/graph/highlight'
+import { connectionRows } from '@/lib/graph/inspector'
 import { SCENE_DEFAULTS, type SceneSettings } from '@/lib/graph/scene'
 import { useGraphLayout } from '@/lib/graph/use-graph-layout'
 
@@ -38,11 +42,17 @@ export default function MapPage() {
   }, [])
 
   const neighbours = React.useMemo(() => neighbourSets(graph?.links ?? []), [graph])
-  const names = React.useMemo(
-    () => new Map((graph?.nodes ?? []).map((node) => [node.id, node.name])),
+  const records = React.useMemo(
+    () => new Map((graph?.nodes ?? []).map((node) => [node.id, node])),
     [graph],
   )
   const highlight = highlightState({ hoveredId, selectedId, neighbours })
+  const selected = selectedId === null ? undefined : records.get(selectedId)
+  const rows = React.useMemo(
+    () => (selected ? connectionRows(selected.id, graph?.links ?? [], records) : []),
+    [selected, graph, records],
+  )
+  const clear = React.useCallback(() => setSelectedId(null), [])
 
   React.useEffect(() => {
     if (selectedId === null) return
@@ -93,7 +103,18 @@ export default function MapPage() {
           autoOrbit={autoOrbit}
           onAutoOrbitChange={setAutoOrbit}
           onReset={reset}
+          drawerOpen={selected !== undefined}
+          records={(buttonClass) => (
+            <GraphRecordPicker
+              nodes={graph!.nodes}
+              onSelect={setSelectedId}
+              className={buttonClass}
+            />
+          )}
         />
+      )}
+      {mapShown && selected && (
+        <GraphInspector node={selected} rows={rows} onSelect={setSelectedId} onClose={clear} />
       )}
       {mapShown && (
         <p
@@ -104,7 +125,7 @@ export default function MapPage() {
         >
           {highlightSummary(
             highlight,
-            highlight.activeId === null ? undefined : names.get(highlight.activeId),
+            highlight.activeId === null ? undefined : records.get(highlight.activeId)?.name,
           )}
         </p>
       )}
