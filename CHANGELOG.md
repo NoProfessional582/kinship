@@ -6,6 +6,15 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
+### Added
+
+- The map at `/map` is now explorable. Hovering a record lights its direct connections and dims the rest; clicking selects it, centres the orbit on it and rings it with a pulsing beacon (a still ring with reduced motion). Hovered records grow 1.2x and the selected one 1.35x, as in the approved prototype.
+- A glass overlay on the map: the colour legend, auto-orbit (off at first), Reset view, a star density button, and live sliders for node size, link width and glow. Settings last for the visit; nothing is saved. On phones the controls fold behind a "View" button.
+- An inspector for the selected record: its type, name, subtitle and description, an "Open record" link where it has a page (tags have none), and a button per connected record listing each relation with its direction, which selects that record. A drawer on the right on wide screens, a sheet along the bottom on phones; the view moves so the selected record stays in sight beside it.
+- A "Records" list on the map, grouped by type with a name filter, so the map can be explored by keyboard alone. Focus moves into the inspector when it opens and back when it closes; Escape, a click on empty space or the close button clears the selection.
+
 ## [0.2.0] - 2026-10-11
 
 ### Added
