@@ -238,16 +238,33 @@ describe('graph layout state', () => {
 
   it('never pairs a graph with a layout made for another one', () => {
     const newer = graph('a', 'b')
-    const state = graphLayoutState({ data: newer }, { graph: data, layout: layout.layout })
+    const state = graphLayoutState(
+      { data: newer },
+      { graph: data, attraction: 1, layout: layout.layout },
+    )
     expect(state).toEqual({ status: 'loading', graph: newer })
   })
 
   it('is ready with the graph and its layout', () => {
-    expect(graphLayoutState({ data }, { graph: data, layout: layout.layout })).toEqual({
+    expect(
+      graphLayoutState({ data }, { graph: data, attraction: 1, layout: layout.layout }),
+    ).toEqual({
       status: 'ready',
       graph: data,
       layout: layout.layout,
     })
+  })
+
+  it('keeps drawing the layout it has while another attraction is laid out', () => {
+    const outcome = { graph: data, attraction: 1, layout: layout.layout }
+    expect(graphLayoutState({ data }, outcome, 1.5)).toEqual({
+      status: 'ready',
+      graph: data,
+      layout: layout.layout,
+      rearranging: true,
+    })
+    // A new graph still waits for its own layout, whatever the attraction.
+    expect(graphLayoutState({ data: graph('a', 'b') }, outcome, 1.5).status).toBe('loading')
   })
 
   it('is empty for a graph with no records, without a layout', () => {
@@ -268,7 +285,7 @@ describe('graph layout state', () => {
 
   it('shows a layout refusal as an error, not a picture', () => {
     const failed = new LayoutFailedError('Two nodes have the id entry:x.')
-    expect(graphLayoutState({ data }, { graph: data, error: failed })).toEqual({
+    expect(graphLayoutState({ data }, { graph: data, attraction: 1, error: failed })).toEqual({
       status: 'error',
       graph: data,
       error: { message: failed.message, notFound: false },

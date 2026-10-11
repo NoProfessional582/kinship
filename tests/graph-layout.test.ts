@@ -5,6 +5,8 @@ import { GRAPH_COLORS, type GraphLink, type GraphNode } from '@/lib/graph/consta
 import {
   LAYOUT_DEFAULTS,
   LayoutInputError,
+  MAX_ATTRACTION,
+  MIN_ATTRACTION,
   MIN_BOUNDS_RADIUS,
   NODE_RADIUS,
   compute3DLayout,
@@ -172,6 +174,50 @@ describe('compute3DLayout: shapes of graph', () => {
   })
 })
 
+describe('compute3DLayout: attraction', () => {
+  /** The mean distance between linked records' centres. */
+  const meanLink = (layout: GraphLayout, links: GraphLink[]) => {
+    const placed = byId(layout)
+    const total = links.reduce(
+      (sum, l) => sum + distance(placed.get(l.source)!, placed.get(l.target)!),
+      0,
+    )
+    return total / links.length
+  }
+
+  it('pulls linked records closer the higher it is, keeping orbs apart', () => {
+    const { nodes, links } = clique(10)
+    const extra = star(30)
+    const all = { nodes: [...nodes, ...extra.nodes], links: [...links, ...extra.links] }
+    const lengths = [MIN_ATTRACTION, 1, 1.5, MAX_ATTRACTION].map((attraction) => {
+      const layout = compute3DLayout(all.nodes, all.links, { attraction })
+      expectInBounds(layout, LAYOUT_DEFAULTS.maxRadius / Math.min(attraction, 1))
+      expect(smallestGap(layout)).toBeGreaterThan(0)
+      return meanLink(layout, all.links)
+    })
+    for (let i = 1; i < lengths.length; i++) expect(lengths[i]).toBeLessThan(lengths[i - 1])
+  })
+
+  it('leaves the layout as it was at 1', () => {
+    const { nodes, links } = islands()
+    expect(compute3DLayout(nodes, links, { attraction: 1 })).toEqual(compute3DLayout(nodes, links))
+  })
+
+  it('gives the same positions every call at any value', () => {
+    const { nodes, links } = clique(12)
+    expect(compute3DLayout(nodes, links, { attraction: 2.25 })).toEqual(
+      compute3DLayout(nodes, links, { attraction: 2.25 }),
+    )
+  })
+
+  it('grows the room below 1, so a spread-out map is not shrunk back', () => {
+    const { nodes, links } = star(80)
+    const spread = compute3DLayout(nodes, links, { maxRadius: 20, attraction: 0.5 })
+    expectInBounds(spread, 40)
+    expect(spread.bounds.radius).toBeGreaterThan(20)
+  })
+})
+
 describe('compute3DLayout: repeatable and side-effect free', () => {
   it('gives the same positions every call', () => {
     const { nodes, links } = clique(12)
@@ -264,6 +310,10 @@ describe('compute3DLayout: refusals', () => {
     ['gravity', 2],
     ['maxRadius', 3],
     ['maxRadius', Number.NaN],
+    ['attraction', MIN_ATTRACTION - 0.01],
+    ['attraction', MAX_ATTRACTION + 0.01],
+    ['attraction', 0],
+    ['attraction', Number.NaN],
   ]
   it.each(bad)('refuses %s = %s', (name, value) => {
     expect(() => compute3DLayout([node('a')], [], { [name]: value })).toThrow(LayoutInputError)
@@ -279,5 +329,7 @@ describe('compute3DLayout: refusals', () => {
     const edge = { iterations: 1, seed: 0, charge: 0, spacing: 0, gravity: 0 }
     expectInBounds(compute3DLayout(nodes, links, edge))
     expectInBounds(compute3DLayout(nodes, links, { seed: 2 ** 32 - 1, gravity: 1 }))
+    expectInBounds(compute3DLayout(nodes, links, { attraction: MIN_ATTRACTION }), 240)
+    expectInBounds(compute3DLayout(nodes, links, { attraction: MAX_ATTRACTION }))
   })
 })

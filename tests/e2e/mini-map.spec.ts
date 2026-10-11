@@ -5,7 +5,7 @@
  * states: no connections, a failed request (and its retry), a record the map no longer has,
  * and no WebGL (a list of links). On a phone the links stay within /m and a vertical swipe
  * over the card scrolls the page. Leaving the page, or deleting the record, frees the canvas
- * without asking for the record again.
+ * without asking for the record again. It follows the app's theme, as the full map does.
  */
 import type { Page } from '@playwright/test'
 import { test, expect } from '../support/fixtures'
@@ -243,6 +243,20 @@ test(
     await expect(page).toHaveURL(new RegExp(`${escaped(note.url!)}$`))
   },
 )
+
+test('the small map follows the app theme', { tag: '@desktop' }, async ({ page }) => {
+  const maya = await recordNamed(page, SEEDED.contact)
+  await page.goto(maya.url!)
+  await drawn(page)
+  const surface = cardOf(page).getByTestId('graph-canvas').locator('..')
+  await expect(surface).toHaveCSS('background-color', 'rgb(245, 242, 235)')
+  await page.getByRole('button', { name: 'Theme' }).click()
+  await expect(surface).toHaveCSS('background-color', 'rgb(8, 10, 14)')
+  // Tailwind's slate comes back as lab(): its lightness, first, is what matters here.
+  await expect
+    .poll(() => captionOf(page).evaluate((el) => getComputedStyle(el).color))
+    .toMatch(/^lab\((8\d|9\d)/)
+})
 
 test('leaving the page frees the small map', { tag: '@desktop' }, async ({ page }) => {
   const maya = await recordNamed(page, SEEDED.contact)

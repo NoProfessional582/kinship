@@ -5,7 +5,9 @@ import {
   Color,
   Material,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
+  NormalBlending,
   PerspectiveCamera,
   Points,
   PointsMaterial,
@@ -19,11 +21,12 @@ import {
 } from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import { GRAPH_COLORS, type GraphLink, type GraphNode } from '@/lib/graph/constants'
-import { highlightState, neighbourSets } from '@/lib/graph/highlight'
+import { LIGHT_LINK_LOOKS, LINK_LOOKS, highlightState, neighbourSets } from '@/lib/graph/highlight'
 import { NODE_RADIUS, compute3DLayout, type GraphLayout } from '@/lib/graph/layout3d'
 import {
   SCENE_DEFAULTS,
   SCENE_STYLE,
+  SCENE_THEMES,
   buildGraphScene,
   fitCameraToBounds,
   type SceneTextures,
@@ -94,6 +97,65 @@ function resources(root: Object3D) {
   })
   return { geometries, materials, textures }
 }
+
+describe('buildGraphScene: themes', () => {
+  const parts = (theme?: 'dark' | 'light') => {
+    const { links, layout } = sample()
+    const scene = buildGraphScene(layout, links, fakeTextures().textures, SCENE_DEFAULTS, theme)
+    const stars = scene.root.getObjectByName('stars') as Points<BufferGeometry, PointsMaterial>
+    const beacon = scene.root.getObjectByName('beacon') as Mesh<BufferGeometry, MeshBasicMaterial>
+    const first = [...scene.nodes.values()][0]
+    return { scene, stars, beacon, first }
+  }
+
+  it('is the approved dark map unless told otherwise', () => {
+    const { scene, stars, beacon, first } = parts()
+    expect(scene.theme).toBe('dark')
+    expect(scene.background.getHexString()).toBe('080a0e')
+    expect(stars.material.color.getHexString()).toBe('ffffff')
+    expect(stars.material.blending).toBe(AdditiveBlending)
+    expect(first.aura.material.blending).toBe(AdditiveBlending)
+    expect(first.aura.material.opacity).toBeCloseTo(SCENE_STYLE.aura.opacity)
+    expect(first.label.material.color.getHexString()).toBe('ffffff')
+    expect(beacon.material.color.getHexString()).toBe('ffffff')
+    expect(SCENE_THEMES.dark.links).toBe(LINK_LOOKS)
+  })
+
+  it('draws the light map on paper with dark stars and names, laid on normally', () => {
+    const { scene, stars, beacon, first } = parts('light')
+    expect(scene.theme).toBe('light')
+    expect(scene.background.getHexString()).toBe('f5f2eb')
+    expect(stars.material.color.getHexString()).toBe('22231f')
+    expect(stars.material.blending).toBe(NormalBlending)
+    expect(first.aura.material.blending).toBe(NormalBlending)
+    expect(first.aura.material.opacity).toBeCloseTo(
+      SCENE_STYLE.aura.opacity * SCENE_THEMES.light.auraStrength,
+    )
+    expect(first.label.material.color.getHexString()).toBe('22231f')
+    expect(beacon.material.color.getHexString()).toBe('bd5b3f')
+    // The type colours stay the same in both themes.
+    expect(first.orb.material.color.getHexString()).toBe(first.node.color.slice(1))
+  })
+
+  it('lights and dims the links of the light map in its own colours', () => {
+    const { links, layout } = sample()
+    const scene = buildGraphScene(layout, links, fakeTextures().textures, SCENE_DEFAULTS, 'light')
+    const colors = () => scene.conduits!.geometry.getAttribute('color')
+    expect(colors().getX(0)).toBeCloseTo(new Color(LIGHT_LINK_LOOKS.resting.color).r)
+    const neighbours = neighbourSets(links)
+    scene.applyHighlight(highlightState({ hoveredId: null, selectedId: 'contact:c', neighbours }))
+    const lit = new Color(LIGHT_LINK_LOOKS.lit.color)
+    const faded = new Color(LIGHT_LINK_LOOKS.fadedSelected.color)
+    const reds = new Set<number>()
+    for (let i = 0; i < colors().count; i++) reds.add(Number(colors().getX(i).toFixed(4)))
+    expect(reds).toEqual(new Set([Number(lit.r.toFixed(4)), Number(faded.r.toFixed(4))]))
+    // Glow changes keep the light auras fainter than the dark ones.
+    scene.applyHighlight(highlightState({ hoveredId: null, selectedId: null, neighbours }))
+    scene.applySettings({ ...SCENE_DEFAULTS, glowIntensity: 2 })
+    const aura = [...scene.nodes.values()][0].aura.material
+    expect(aura.opacity).toBeCloseTo(SCENE_THEMES.light.auraStrength)
+  })
+})
 
 describe('buildGraphScene', () => {
   it('makes one orb, aura, hit proxy and label per record, one conduit per link', () => {
