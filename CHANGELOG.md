@@ -6,6 +6,13 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-10
+
+### Changed
+
+- Remove the unused Separator component, its direct dependency and the obsolete attributesPayload helper.
+- Record final acceptance for all six review findings, including an in-place upgrade from source version 0.1.3.
+
 ## [0.1.3] - 2026-10-10
 
 ### Fixed
