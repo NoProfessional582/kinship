@@ -757,8 +757,3 @@ export function attributeRows(v: ContactFormValue) {
     .filter((a) => a.key.trim())
     .map((a) => ({ category: a.category.trim() || 'Details', key: a.key.trim(), value: a.value }))
 }
-
-/** Body for the standalone attributes endpoint. */
-export function attributesPayload(v: ContactFormValue) {
-  return { attributes: attributeRows(v) }
-}

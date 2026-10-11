@@ -1,7 +1,6 @@
 'use client'
 import * as React from 'react'
 import * as AvatarPrimitive from '@radix-ui/react-avatar'
-import * as SeparatorPrimitive from '@radix-ui/react-separator'
 import { cn, initials } from '@/lib/utils'
 
 // ------------------------------------------------------------------ Avatar
@@ -30,27 +29,6 @@ export function Avatar({
         {initials(name)}
       </AvatarPrimitive.Fallback>
     </AvatarPrimitive.Root>
-  )
-}
-
-// --------------------------------------------------------------- Separator
-
-export function Separator({
-  className,
-  orientation = 'horizontal',
-}: {
-  className?: string
-  orientation?: 'horizontal' | 'vertical'
-}) {
-  return (
-    <SeparatorPrimitive.Root
-      orientation={orientation}
-      className={cn(
-        'bg-[var(--border)] shrink-0',
-        orientation === 'horizontal' ? 'h-px w-full' : 'w-px h-full',
-        className,
-      )}
-    />
   )
 }
 
