@@ -14,6 +14,7 @@
  */
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from '../support/fixtures'
+import { withoutWebgl } from '../support/map'
 import { SEEDED } from '../support/stack'
 
 const canvasOf = (page: Page) => page.getByTestId('graph-canvas').locator('canvas')
@@ -109,21 +110,6 @@ async function colouredShare(page: Page, target: Locator): Promise<number> {
     }
     return coloured / (canvas.width * canvas.height)
   }, png.toString('base64'))
-}
-
-/** The page as a browser without WebGL sees it: no WebGL context can be made. */
-async function withoutWebgl(page: Page) {
-  await page.addInitScript(() => {
-    const getContext = HTMLCanvasElement.prototype.getContext
-    HTMLCanvasElement.prototype.getContext = function (
-      this: HTMLCanvasElement,
-      kind: string,
-      ...rest: unknown[]
-    ) {
-      if (/webgl/.test(kind)) return null
-      return (getContext as (...args: unknown[]) => unknown).call(this, kind, ...rest)
-    } as typeof getContext
-  })
 }
 
 test('the map draws the seeded records', { tag: '@desktop' }, async ({ page }) => {
