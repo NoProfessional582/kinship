@@ -20,6 +20,9 @@ export interface HighlightState {
   mode: HighlightMode
   /** The active record's direct connections (empty when nothing is active). */
   neighbours: ReadonlySet<string>
+  /** What the pointer is on and what is selected, which can differ; for growth. */
+  hoveredId: string | null
+  selectedId: string | null
 }
 
 export type NodeLook = 'resting' | 'target' | 'neighbour' | 'otherHover' | 'otherSelected'
@@ -114,12 +117,27 @@ export function highlightState({
 }): HighlightState {
   // While something is selected, hovering another record changes nothing.
   const activeId = selectedId ?? hoveredId
-  if (activeId === null) return { activeId, mode: 'none', neighbours: NONE }
+  if (activeId === null) return { activeId, mode: 'none', neighbours: NONE, hoveredId, selectedId }
   return {
     activeId,
     mode: selectedId !== null ? 'selected' : 'hover',
     neighbours: neighbours.get(activeId) ?? NONE,
+    hoveredId,
+    selectedId,
   }
+}
+
+/**
+ * How much bigger than its node size a record draws (prototype `applyScaleTransforms`,
+ * user decision 2026-10-11). Unlike the looks, hovering grows a record even while another
+ * is selected; the selected one keeps its own growth when the pointer is on it too.
+ */
+export const GROWTH = { selected: 1.35, hovered: 1.2, resting: 1 } as const
+
+export function growthOf(state: HighlightState, id: string): number {
+  if (id === state.selectedId) return GROWTH.selected
+  if (id === state.hoveredId) return GROWTH.hovered
+  return GROWTH.resting
 }
 
 export function roleOf(state: HighlightState, id: string): HighlightRole {

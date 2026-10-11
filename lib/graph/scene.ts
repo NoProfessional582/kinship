@@ -45,6 +45,7 @@ import {
 import { GRAPH_COLORS, MAP_BACKGROUND, type GraphLink, type GraphNodeType } from './constants'
 import {
   LINK_LOOKS,
+  growthOf,
   linkLook,
   nodeLook,
   nodeLookValues,
@@ -142,7 +143,10 @@ export interface SceneTextures {
 
 export interface NodeObjects {
   node: PositionedNode
-  /** At the record's position, scaled by nodeScale; holds the four below. */
+  /**
+   * At the record's position, scaled by nodeScale times its growth (bigger while hovered
+   * or selected, highlight.ts `growthOf`); holds the four below.
+   */
   group: Group
   orb: Mesh<SphereGeometry, MeshStandardMaterial>
   aura: Sprite
@@ -172,8 +176,9 @@ export interface GraphScene {
   updateView(cameraPosition: Vector3): boolean
   /**
    * Lights the active record and its direct connections and dims the rest (highlight.ts),
-   * by swapping materials and rewriting the touched links' vertex colours; the geometry is
-   * never changed. True when anything changed, so an on-demand renderer knows to draw.
+   * by swapping materials and rewriting the touched links' vertex colours, and grows the
+   * hovered and selected records by their group's scale; the geometry is never changed.
+   * True when anything changed, so an on-demand renderer knows to draw.
    */
   applyHighlight(state: HighlightState): boolean
   /**
@@ -186,7 +191,7 @@ export interface GraphScene {
   applySettings(settings: SceneSettings): boolean
   /**
    * Puts the beacon ring round a record, facing the camera, at its size for `time` (in
-   * seconds), or hides it for null. True while it pulses, so the caller keeps drawing; with
+   * seconds) times the record's scale, so it stays clear of a grown orb, or hides it for null. True while it pulses, so the caller keeps drawing; with
    * reduced motion it is a still ring.
    */
   placeBeacon(nodeId: string | null, camera: Camera, time: number, reducedMotion: boolean): boolean
@@ -363,6 +368,7 @@ export function buildGraphScene(
     return material
   }
   const nodeLooks = new Map<string, NodeLook>()
+  const growths = new Map<string, number>()
   const linkLooks: LinkLook[] = drawn.map(() => 'resting')
   const linkColor = new Color()
 
@@ -426,7 +432,13 @@ export function buildGraphScene(
       if (disposed) return false
       let changed = false
       lastState = state
-      for (const { node, orb, aura, label } of nodes.values()) {
+      for (const { node, group, orb, aura, label } of nodes.values()) {
+        const growth = growthOf(state, node.id)
+        if ((growths.get(node.id) ?? 1) !== growth) {
+          growths.set(node.id, growth)
+          group.scale.setScalar(current.nodeScale * growth)
+          changed = true
+        }
         const look = nodeLook(state, node.id)
         if ((nodeLooks.get(node.id) ?? 'resting') === look) continue
         nodeLooks.set(node.id, look)
@@ -470,8 +482,10 @@ export function buildGraphScene(
       let changed = false
 
       if (next.nodeScale !== previous.nodeScale) {
-        // The beacon reads it from `current` on its next placing.
-        for (const { group } of nodes.values()) group.scale.setScalar(next.nodeScale)
+        // Grown records keep their growth; the beacon reads the scale on its next placing.
+        for (const { node, group } of nodes.values()) {
+          group.scale.setScalar(next.nodeScale * (growths.get(node.id) ?? 1))
+        }
         changed = true
       }
 
@@ -531,12 +545,12 @@ export function buildGraphScene(
         beacon.visible = false
         return false
       }
-      const { node } = objects
+      const { node, group } = objects
       beacon.visible = true
       beacon.position.set(node.x, node.y, node.z)
       beacon.quaternion.copy(camera.quaternion)
       const pulse = reducedMotion ? 1 : 1 + beaconStyle.pulse * Math.sin(beaconStyle.speed * time)
-      const side = pulse * current.nodeScale
+      const side = pulse * group.scale.x
       beacon.scale.set(side, side, 1)
       return !reducedMotion
     },

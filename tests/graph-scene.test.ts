@@ -442,8 +442,8 @@ describe('applyHighlight', () => {
     expect(attribute.version).toBeGreaterThan(version)
     expect(attribute.updateRanges).toEqual([{ start: 2 * perLink * 4, count: 2 * perLink * 4 }])
 
-    // Nothing changed, nothing to draw.
-    expect(scene.applyHighlight(state(null, e.node.id))).toBe(false)
+    // Nothing changed, nothing to draw. (Dropping the hover on t would shrink it back.)
+    expect(scene.applyHighlight(state(t.node.id, e.node.id))).toBe(false)
   })
 
   it('goes back to the built materials and colours at rest, and reuses its looks', () => {
@@ -503,6 +503,69 @@ describe('applyHighlight', () => {
     scene.dispose()
     for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1)
     expect(scene.applyHighlight(state(e.node.id))).toBe(false)
+  })
+})
+
+describe('growth', () => {
+  function grown() {
+    const { nodes, links, layout } = sample()
+    const scene = buildGraphScene(layout, links, fakeTextures().textures)
+    const neighbours = neighbourSets(links)
+    const state = (hoveredId: string | null, selectedId: string | null = null) =>
+      highlightState({ hoveredId, selectedId, neighbours })
+    const [c, p, e] = nodes.map((n) => scene.nodes.get(n.id)!)
+    const sizes = () => [...scene.nodes.values()].map(({ group }) => group.scale.x)
+    return { scene, state, c, p, e, sizes }
+  }
+  const s = SCENE_DEFAULTS.nodeScale
+
+  it('grows a hovered record 1.2x and a selected one 1.35x, in all three directions', () => {
+    const { scene, state, c, e } = grown()
+    expect(scene.applyHighlight(state(e.node.id))).toBe(true)
+    expect(e.group.scale.toArray()).toEqual([s * 1.2, s * 1.2, s * 1.2])
+    expect(c.group.scale.x).toBe(s)
+    scene.applyHighlight(state(c.node.id, e.node.id))
+    expect(e.group.scale.x).toBe(s * 1.35)
+    expect(c.group.scale.x).toBe(s * 1.2)
+  })
+
+  it('returns every record to its size at rest, and moves none of them', () => {
+    const { scene, state, e, sizes } = grown()
+    const places = [...scene.nodes.values()].map(({ group }) => group.position.toArray())
+    scene.applyHighlight(state(null, e.node.id))
+    expect(scene.applyHighlight(state(null))).toBe(true)
+    expect(sizes().every((size) => size === s)).toBe(true)
+    expect([...scene.nodes.values()].map(({ group }) => group.position.toArray())).toEqual(places)
+  })
+
+  it('reports a change when only the growth changes', () => {
+    const { scene, state, c, e } = grown()
+    // Selected e; hovering c changes no look (c stays dimmed) but grows c.
+    scene.applyHighlight(state(null, e.node.id))
+    expect(scene.applyHighlight(state(c.node.id, e.node.id))).toBe(true)
+    expect(scene.applyHighlight(state(c.node.id, e.node.id))).toBe(false)
+  })
+
+  it('keeps its growth through a node size change', () => {
+    const { scene, state, c, e } = grown()
+    scene.applyHighlight(state(c.node.id, e.node.id))
+    scene.applySettings({ ...SCENE_DEFAULTS, nodeScale: 2 })
+    expect(e.group.scale.x).toBe(2 * 1.35)
+    expect(c.group.scale.x).toBe(2 * 1.2)
+    scene.applyHighlight(state(null))
+    expect(e.group.scale.x).toBe(2)
+  })
+
+  it('grows the beacon with the selected record, so the ring stays outside its orb', () => {
+    const { scene, state, c } = grown()
+    scene.applyHighlight(state(null, c.node.id))
+    scene.placeBeacon(c.node.id, new PerspectiveCamera(), 0, true)
+    const beacon = scene.root.getObjectByName('beacon')!
+    expect(beacon.scale.x).toBeCloseTo(s * 1.35)
+    // The ring's inner edge is at least the orb's radius.
+    expect(SCENE_STYLE.beacon.inner * beacon.scale.x).toBeGreaterThanOrEqual(
+      c.node.radius * c.group.scale.x,
+    )
   })
 })
 

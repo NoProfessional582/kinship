@@ -2,8 +2,10 @@
 import { describe, expect, it } from 'vitest'
 import type { GraphLink } from '@/lib/graph/constants'
 import {
+  GROWTH,
   LINK_LOOKS,
   NODE_LOOKS,
+  growthOf,
   highlightState,
   highlightSummary,
   linkLook,
@@ -88,6 +90,36 @@ describe('highlightState', () => {
     expect(state.neighbours.size).toBe(0)
     expect(nodeLook(state, 'lone')).toBe('target')
     expect(nodeLook(state, 'a')).toBe('otherSelected')
+  })
+})
+
+describe('growthOf', () => {
+  const neighbours = neighbourSets([link('a', 'b')])
+  const at = (hoveredId: string | null, selectedId: string | null) =>
+    highlightState({ hoveredId, selectedId, neighbours })
+
+  it('has the approved sizes', () => {
+    expect(GROWTH).toEqual({ selected: 1.35, hovered: 1.2, resting: 1 })
+  })
+
+  it('grows nothing at rest', () => {
+    for (const id of ['a', 'b', 'c']) expect(growthOf(at(null, null), id)).toBe(1)
+  })
+
+  it('grows a hovered record, but not its connections', () => {
+    expect(growthOf(at('a', null), 'a')).toBe(1.2)
+    expect(growthOf(at('a', null), 'b')).toBe(1)
+  })
+
+  it('grows a hovered record while another is selected', () => {
+    const state = at('c', 'a')
+    expect(growthOf(state, 'a')).toBe(1.35)
+    expect(growthOf(state, 'c')).toBe(1.2)
+    expect(growthOf(state, 'b')).toBe(1)
+  })
+
+  it('lets the selection win when it is hovered too', () => {
+    expect(growthOf(at('a', 'a'), 'a')).toBe(1.35)
   })
 })
 
