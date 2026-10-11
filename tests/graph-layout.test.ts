@@ -210,6 +210,25 @@ describe('compute3DLayout: attraction', () => {
     )
   })
 
+  it('spreads the core below 1, not only the edges', () => {
+    // A dense ball: one hub and a clique, so most records start packed together.
+    const { nodes, links } = clique(14)
+    const extra = star(40)
+    const all = { nodes: [...nodes, ...extra.nodes], links: [...links, ...extra.links] }
+    const nearest = (layout: GraphLayout) => {
+      let total = 0
+      for (const a of layout.nodes) {
+        let best = Infinity
+        for (const b of layout.nodes) if (b !== a) best = Math.min(best, distance(a, b))
+        total += best
+      }
+      return total / layout.nodes.length
+    }
+    const at1 = nearest(compute3DLayout(all.nodes, all.links))
+    const low = nearest(compute3DLayout(all.nodes, all.links, { attraction: MIN_ATTRACTION }))
+    expect(low).toBeGreaterThan(at1 * 2)
+  })
+
   it('grows the room below 1, so a spread-out map is not shrunk back', () => {
     const { nodes, links } = star(80)
     const spread = compute3DLayout(nodes, links, { maxRadius: 20, attraction: 0.5 })
@@ -329,7 +348,10 @@ describe('compute3DLayout: refusals', () => {
     const edge = { iterations: 1, seed: 0, charge: 0, spacing: 0, gravity: 0 }
     expectInBounds(compute3DLayout(nodes, links, edge))
     expectInBounds(compute3DLayout(nodes, links, { seed: 2 ** 32 - 1, gravity: 1 }))
-    expectInBounds(compute3DLayout(nodes, links, { attraction: MIN_ATTRACTION }), 240)
+    expectInBounds(
+      compute3DLayout(nodes, links, { attraction: MIN_ATTRACTION }),
+      LAYOUT_DEFAULTS.maxRadius / MIN_ATTRACTION,
+    )
     expectInBounds(compute3DLayout(nodes, links, { attraction: MAX_ATTRACTION }))
   })
 })

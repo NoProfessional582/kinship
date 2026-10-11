@@ -211,6 +211,9 @@ export default function GraphCanvas({
     const controls = new OrbitControls(camera, canvas)
     controls.enableDamping = !motion.matches
     controls.dampingFactor = CONTROLS.dampingFactor
+    // The wheel zooms towards the record under the pointer, not the middle of the view
+    // (user decision 2026-10-11); the small map does not zoom at all.
+    controls.zoomToCursor = !compact
     controls.minDistance = CONTROLS.minDistance
     controls.maxDistance = CONTROLS.maxDistance
     controls.autoRotate = false

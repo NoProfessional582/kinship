@@ -54,7 +54,8 @@ export interface LayoutOptions {
    * How hard linked records pull together, as a multiple of the settings above: from
    * MIN_ATTRACTION to MAX_ATTRACTION, 1 leaves them as they are. Above 1, links are
    * stronger and shorter and the push weaker, so connected records sit closer; below 1,
-   * the reverse, with maxRadius grown to match so the spread is not shrunk back.
+   * the reverse, with the push reaching further (chargeRange) so the core spreads out
+   * too, not only the edges, and maxRadius grown to match so the spread is not shrunk back.
    * Changing linkDistance alone barely moves a large graph, where the push dominates.
    */
   attraction?: number
@@ -73,7 +74,7 @@ export const LAYOUT_DEFAULTS: Required<LayoutOptions> = {
 }
 
 /** The attraction slider's range (LayoutOptions.attraction). */
-export const MIN_ATTRACTION = 0.5
+export const MIN_ATTRACTION = 0.2
 export const MAX_ATTRACTION = 2.5
 
 const MAX_ITERATIONS = 1000
@@ -145,6 +146,7 @@ export function compute3DLayout(
   const linkDistance = settings.linkDistance / pull
   const charge = settings.charge / pull
   const maxRadius = settings.maxRadius / Math.min(pull, 1)
+  const chargeRange = settings.chargeRange / Math.min(pull, 1)
 
   // Sorted by id, so the order the graph arrives in can't change the result. Plain
   // comparison, not localeCompare: the same everywhere, whatever the locale.
@@ -194,10 +196,7 @@ export function compute3DLayout(
     .force('link', linkForce(springs, pull).distance(linkDistance).iterations(1))
     .force(
       'charge',
-      forceManyBody<SimNode>()
-        .strength(charge)
-        .theta(CHARGE_THETA)
-        .distanceMax(settings.chargeRange),
+      forceManyBody<SimNode>().strength(charge).theta(CHARGE_THETA).distanceMax(chargeRange),
     )
     .force('x', forceX<SimNode>(0).strength(settings.gravity))
     .force('y', forceY<SimNode>(0).strength(settings.gravity))

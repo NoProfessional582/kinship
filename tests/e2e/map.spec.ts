@@ -479,8 +479,8 @@ test('every overlay control works by keyboard', { tag: '@desktop' }, async ({ pa
   await expect(glow).toHaveAttribute('aria-valuetext', '2.5x')
   await attraction.focus()
   await page.keyboard.press('ArrowRight')
-  await expect(attraction).toHaveAttribute('aria-valuetext', '1.25x')
-  await expect(mapOf(page)).toHaveAttribute('data-attraction', '1.25', { timeout: 30_000 })
+  await expect(attraction).toHaveAttribute('aria-valuetext', '1.10x')
+  await expect(mapOf(page)).toHaveAttribute('data-attraction', '1.1', { timeout: 30_000 })
 
   const point = await findRecord(page)
   await page.mouse.click(point.x, point.y)
@@ -1048,4 +1048,27 @@ test('the map follows the app theme, keeping its view', { tag: '@desktop' }, asy
   await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
   await expect(inspectorOf(page)).toBeVisible()
   expect(await textLightness(overlay), 'ink again').toBeLessThan(30)
+})
+
+test('the wheel zooms towards the pointer', { tag: '@desktop' }, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/map')
+  await drawn(page)
+  const canvas = canvasOf(page)
+  const box = (await canvas.boundingBox())!
+  const point = await findRecord(page)
+  const record = await mapOf(page).getAttribute('data-active-id')
+  expect(record).toBeTruthy()
+  // Far enough from the middle that a zoom to the middle would carry it away.
+  const off = Math.hypot(point.x - (box.x + box.width / 2), point.y - (box.y + box.height / 2))
+  expect(off, 'a record away from the middle').toBeGreaterThan(box.height * 0.15)
+
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -200)
+  await settled(canvas)
+  // Off and back again, so the map looks under the pointer afresh.
+  const empty = await emptySpace(page)
+  await page.mouse.move(empty.x, empty.y)
+  await expect(mapOf(page)).toHaveAttribute('data-active-id', '')
+  await page.mouse.move(point.x, point.y)
+  await expect(mapOf(page)).toHaveAttribute('data-active-id', record!)
 })

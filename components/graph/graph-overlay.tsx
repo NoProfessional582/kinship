@@ -73,7 +73,7 @@ export const ATTRACTION_SLIDER = {
   label: 'Attraction',
   min: MIN_ATTRACTION,
   max: MAX_ATTRACTION,
-  step: 0.25,
+  step: 0.1,
   show: (v: number) => `${v.toFixed(2)}x`,
 } as const
 

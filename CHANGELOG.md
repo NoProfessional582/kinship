@@ -8,7 +8,8 @@ All notable changes to Kinship are recorded here. The format follows
 
 ### Added
 
-- An "Attraction" slider on the map (0.5x to 2.5x): higher pulls linked records closer together, lower spreads them out. The map is laid out again a moment after the slider settles; the current map stays on screen meanwhile, and the view and the selection are kept.
+- An "Attraction" slider on the map (0.2x to 2.5x): higher pulls linked records closer together, lower spreads them out. The map is laid out again a moment after the slider settles; the current map stays on screen meanwhile, and the view and the selection are kept.
+- The mouse wheel zooms the map towards the pointer rather than the middle of the view.
 - The map follows the app's theme. By day it is drawn on Kinship's paper with dark stars, ink names and terracotta highlights, with the controls, inspector and Records list in the light palette; after dark it is the approved deep-space map. The small maps on contact and project pages follow too.
 
 ## [0.3.0] - 2026-10-11
