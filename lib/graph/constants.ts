@@ -27,6 +27,15 @@ export const GRAPH_COLORS: Record<GraphNodeType, string> = {
   tag: '#10b981',
 }
 
+/** One record's type, as the inspector's chip names it. */
+export const TYPE_NAMES: Record<GraphNodeType, string> = {
+  contact: 'Contact',
+  project: 'Project',
+  entry: 'Note',
+  task: 'Task',
+  tag: 'Tag',
+}
+
 /** The map's deep-space backdrop, shared by the scene and the page around it. */
 export const MAP_BACKGROUND = '#080a0e'
 
