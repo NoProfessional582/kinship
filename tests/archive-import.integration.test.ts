@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readFile, readdir, writeFile, mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { prisma } from '@/lib/db'
 import {
   importArchive as importOwnedArchive,
@@ -33,7 +34,7 @@ const HTML = Buffer.from('<html><script>alert(1)</script></html>')
 const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>')
 const BAD_MAGIC = Buffer.from('NOTANIMAGE' + 'x'.repeat(40))
 
-const VICTIM = `${MARK}victim.png`
+const VICTIM = `${randomUUID()}.png`
 
 const archiveWith = (
   uploads: { name: string; data: string }[],
@@ -46,7 +47,12 @@ const archiveWith = (
   // transaction fails AFTER the truncate — the exact window K07 is about.
   data: {
     Contact: rows ?? [
-      { id: `${MARK}c1`, slug: `${MARK}dup`, displayName: `${MARK}One` },
+      {
+        id: `${MARK}c1`,
+        slug: `${MARK}dup`,
+        displayName: `${MARK}One`,
+        avatarUrl: `/uploads/${uploads[0]?.name ?? VICTIM}`,
+      },
       { id: `${MARK}c2`, slug: `${MARK}dup`, displayName: `${MARK}Two` },
     ],
   },
@@ -91,7 +97,7 @@ describe('import — a failed import must not destroy live assets (K07)', () => 
     const before = (await listUploads()).sort()
 
     await expect(
-      importArchive(archiveWith([{ name: `${MARK}new.png`, data: PNG_A.toString('base64') }])),
+      importArchive(archiveWith([{ name: `${randomUUID()}.png`, data: PNG_A.toString('base64') }])),
     ).rejects.toThrow()
 
     expect((await listUploads()).sort()).toEqual(before)

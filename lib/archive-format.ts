@@ -46,6 +46,7 @@ export type Archive = {
 export type ImportSummary = {
   /** Rows written, per table. */
   counts: Record<string, number>
+  /** Referenced archive names resolved, including reused files; excludes legacy orphans. */
   uploads: number
   /** Set only when a mismatch was forced past, naming what differed. */
   schemaDrift: { missing: string[]; extra: string[] } | null

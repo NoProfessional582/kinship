@@ -1,5 +1,5 @@
 import { rm } from 'node:fs/promises'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 import path from 'node:path'
 import {
   ARCHIVE_FORMAT,
@@ -20,9 +20,17 @@ import {
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { ValidationError } from '../errors'
-import { lockOwnerGraph, ownerSnapshot } from '../owner-lock'
+import { lockOwnerGraph, ownerSnapshot, ownerTransaction } from '../owner-lock'
 import { recomputeLastContact } from './recency'
-import { ownerUploadDir, uploadUrl, localPhotoName, readPhoto, writePhoto } from '../uploads'
+import {
+  ownerUploadDir,
+  uploadUrl,
+  localPhotoName,
+  readPhoto,
+  writePhoto,
+  listPhotos,
+  recordPhotoCandidate,
+} from '../uploads'
 import { allowedImageLabel, extensionFor, sniffImageType } from '../image-types'
 
 /**
@@ -321,28 +329,32 @@ export async function importArchive(
   // files or the database.
   assertReferencesClosed(prepared)
 
-  // Files first, but under NEW names, and nothing existing is touched.
-  //
-  // K07: this used to write each upload to its own name from the archive, which
-  // OVERWROTE any current file called the same thing — before the transaction
-  // that could still fail. The comment here claimed a failure only left
-  // unreferenced images behind, and that was false for exactly the case that
-  // matters: a collision destroyed a live avatar and the database rollback
-  // could not put it back. Staging under fresh names means a failed import can
-  // only ever leave its own bytes behind, which `cleanupStaged` then removes.
-  const staged = await stageUploads(owner, archive.uploads)
-  const uploads = staged.size
+  // Validate every payload, even legacy orphans, before acquiring/mutating files.
+  const checked = validateUploads(archive.uploads)
+  const required = new Set<string>()
+  for (const row of prepared.Contact) {
+    const name = localPhotoName(row.avatarUrl)
+    if (name) required.add(name)
+  }
+  for (const name of required) {
+    if (!checked.has(name))
+      throw new ValidationError(
+        `Archive is missing referenced photo "${name}". Nothing was changed.`,
+      )
+  }
 
-  // The rows the archive carries still point at the OLD names, so rewrite them
-  // to the staged ones before anything is committed. `Contact.avatarUrl` is the
-  // only column in the schema that references an upload.
-  rewriteAvatarUrls(prepared, staged)
-
-  let counts: Record<string, number>
+  const created = new Set<string>()
+  let result: { counts: Record<string, number>; uploads: number; candidates: Set<string> }
   try {
-    counts = await prisma.$transaction(
+    result = await prisma.$transaction(
       async (tx) => {
         await lockOwnerGraph(tx, owner)
+        const previous = await tx.contact.findMany({
+          where: { owner },
+          select: { avatarUrl: true },
+        })
+        const staged = await stageUploads(owner, checked, required, created)
+        rewriteAvatarUrls(prepared, staged)
         // Delete only this owner's graph. Root cascades remove all child/join
         // rows; no import may replace another owner's data.
         await tx.entityEdge.deleteMany({ where: { owner } })
@@ -369,20 +381,49 @@ export async function importArchive(
           owner,
           (prepared.Contact ?? []).map((r) => r.id as string),
         )
-        return written
+
+        const retained = new Set(staged.values())
+        const candidates = new Set<string>()
+        for (const row of previous) {
+          try {
+            const name = localPhotoName(row.avatarUrl)
+            if (name && !retained.has(name)) candidates.add(name)
+          } catch {
+            /* Invalid legacy references are never cleanup candidates. */
+          }
+        }
+        return { counts: written, uploads: staged.size, candidates }
       },
-      // A few hundred contacts restore in well under a second, but the default
-      // 5 s ceiling is not a budget worth betting a whole migration on.
       { timeout: 120_000, maxWait: 20_000, isolationLevel: 'ReadCommitted' },
     )
   } catch (err) {
-    // The database is back where it was; take the staged files with it, so a
-    // failed import leaves the uploads directory exactly as it found it.
-    await cleanupStaged(owner, staged)
+    // Rollback releases the transaction lock. Reacquire before removing attempt
+    // files: another import could have reused one while this attempt rolled back.
+    if (created.size) {
+      await ownerTransaction(owner, async (tx) => {
+        const rows = await tx.contact.findMany({ where: { owner }, select: { avatarUrl: true } })
+        const referenced = new Set(rows.map((r) => r.avatarUrl))
+        const unreferenced = new Set(
+          [...created].filter((name) => !referenced.has(uploadUrl(name))),
+        )
+        await cleanupStaged(owner, unreferenced)
+      }).catch((cleanupError) =>
+        console.warn('Could not coordinate restore rollback cleanup', cleanupError),
+      )
+    }
     throw err
   }
 
-  return { counts, uploads, schemaDrift }
+  // A private, candidate-only journal for step 03. Recording failure after commit
+  // is diagnostic and cannot turn a successful database replacement into failure.
+  for (const name of result.candidates) {
+    await recordPhotoCandidate(owner, name).catch((err: NodeJS.ErrnoException) => {
+      if (err.code !== 'EEXIST')
+        console.warn('Could not record superseded restore photo candidate', err.code)
+    })
+  }
+  // Count referenced archive names resolved, including reuse, not physical writes.
+  return { counts: result.counts, uploads: result.uploads, schemaDrift }
 }
 
 /** Database-enforced foreign keys, per model, and the model each one targets. */
@@ -499,66 +540,82 @@ async function checkSchema(
   return { missing, extra }
 }
 
-/**
- * Write the archive's uploads under fresh, immutable names, and return the
- * old-name -> new-name map so the rows can be repointed at them.
- *
- * Two properties, one per finding:
- *
- *  * **K07.** Every target name is a new UUID, so a write can never land on a
- *    file that is already here. Existing avatars are untouched until — and in
- *    fact regardless of whether — the import's transaction commits.
- *  * **K08.** Every payload is decoded and SNIFFED before it is written, and
- *    the extension comes from what the bytes are, not from the name the archive
- *    supplied. Nothing that is not one of the four raster types reaches
- *    the uploads directory, which this app serves back from its own origin
- *    through `app/uploads/[name]/route.ts`.
- *
- * Validation happens for ALL entries before the first byte is written, so a
- * hostile archive is rejected without having created anything at all.
- */
-async function stageUploads(owner: string, uploads: ArchiveUpload[]): Promise<Map<string, string>> {
-  const staged = new Map<string, string>()
-  if (!uploads.length) return staged
+type CheckedUpload = { bytes: Buffer; extension: string }
 
-  // Decode and check everything first — "rejected before any public file is
-  // written" is the property, so a bad entry at index 40 must not leave 39
-  // files behind.
-  const checked: { from: string; to: string; bytes: Buffer }[] = []
+/** Validate ALL payloads before mutation, including older archives' orphan bytes. */
+function validateUploads(uploads: ArchiveUpload[]): Map<string, CheckedUpload> {
+  const checked = new Map<string, CheckedUpload>()
   let decodedTotal = 0
   for (const file of uploads) {
     const bytes = Buffer.from(file.data, 'base64')
-    // DECODED size, per file and cumulative. The body cap bounds the base64;
-    // this bounds what it turns into, and every `bytes` here is held at once
-    // until the write loop below runs.
     decodedTotal += bytes.byteLength
-    if (bytes.byteLength > MAX_ARCHIVE_UPLOAD_BYTES) {
+    if (bytes.byteLength > MAX_ARCHIVE_UPLOAD_BYTES)
       throw new ValidationError(
-        `Archive upload "${file.name}" decodes to ${Math.round(bytes.byteLength / 1024)} KB; ` +
-          `the maximum for one image is ${MAX_ARCHIVE_UPLOAD_BYTES / (1024 * 1024)} MB. ` +
-          'Nothing was written.',
+        `Archive upload "${file.name}" exceeds the maximum for one image. Nothing was written.`,
       )
-    }
-    if (decodedTotal > MAX_ARCHIVE_UPLOAD_TOTAL_BYTES) {
+    if (decodedTotal > MAX_ARCHIVE_UPLOAD_TOTAL_BYTES)
       throw new ValidationError(
-        `Archive uploads decode to more than ` +
-          `${MAX_ARCHIVE_UPLOAD_TOTAL_BYTES / (1024 * 1024)} MB in total. Nothing was written.`,
+        `Archive uploads decode to more than ${MAX_ARCHIVE_UPLOAD_TOTAL_BYTES / (1024 * 1024)} MB in total. Nothing was written.`,
       )
-    }
     const mime = sniffImageType(bytes)
-    if (!mime) {
+    if (!mime)
       throw new ValidationError(
-        `Archive upload "${file.name}" is not an image this app accepts. ` +
-          `Uploads must be one of: ${allowedImageLabel()}. ` +
-          'Nothing was written.',
+        `Archive upload "${file.name}" is not an image this app accepts. Uploads must be one of: ${allowedImageLabel()}. Nothing was written.`,
       )
-    }
-    checked.push({ from: file.name, to: `${randomUUID()}.${extensionFor(mime)}`, bytes })
+    const previous = checked.get(file.name)
+    if (previous && !previous.bytes.equals(bytes))
+      throw new ValidationError(
+        `Archive has conflicting payloads for photo "${file.name}". Nothing was written.`,
+      )
+    checked.set(file.name, { bytes, extension: extensionFor(mime) })
   }
+  return checked
+}
 
-  for (const item of checked) {
-    await writePhoto(owner, item.to, item.bytes)
-    staged.set(item.from, item.to)
+/** Caller holds the owner transaction lock through staging and replacement commit. */
+async function stageUploads(
+  owner: string,
+  checked: Map<string, CheckedUpload>,
+  required: Set<string>,
+  created: Set<string>,
+): Promise<Map<string, string>> {
+  const staged = new Map<string, string>()
+  if (!required.size) return staged
+  // Hashes index candidates only; every reuse also compares the complete bytes.
+  // Do not retain an entire legacy directory's image bytes in memory.
+  const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
+  const existing = new Map<string, string[]>()
+  const index = (name: string, bytes: Buffer) => {
+    const key = digest(bytes)
+    existing.set(key, [...(existing.get(key) ?? []), name])
+  }
+  for (const name of await listPhotos(owner)) {
+    try {
+      index(name, await readPhoto(owner, name, MAX_ARCHIVE_UPLOAD_BYTES))
+    } catch {
+      /* Unsafe/non-image/oversized legacy entries cannot be reused. */
+    }
+  }
+  for (const from of [...required].sort()) {
+    const item = checked.get(from)!
+    let matching: string | undefined
+    const candidates = [...(existing.get(digest(item.bytes)) ?? [])]
+    candidates.sort((a, b) => (a === from ? -1 : b === from ? 1 : a.localeCompare(b)))
+    for (const name of candidates) {
+      if ((await readPhoto(owner, name, MAX_ARCHIVE_UPLOAD_BYTES)).equals(item.bytes)) {
+        matching = name
+        break
+      }
+    }
+    if (matching) {
+      staged.set(from, matching)
+      continue
+    }
+    const to = `${randomUUID()}.${item.extension}`
+    await writePhoto(owner, to, item.bytes)
+    created.add(to)
+    index(to, item.bytes)
+    staged.set(from, to)
   }
   return staged
 }
@@ -585,12 +642,14 @@ function rewriteAvatarUrls(
 
 /**
  * Remove what this import staged. Only ever its own files: every name in the
- * map was minted by `stageUploads` moments earlier, so nothing here can belong
+ * set was exclusively created by `stageUploads` moments earlier, so nothing here can belong
  * to anything that was already on disk.
  */
-async function cleanupStaged(owner: string, staged: Map<string, string>) {
+async function cleanupStaged(owner: string, created: Set<string>) {
   const directory = ownerUploadDir(owner)
-  for (const name of staged.values()) {
-    await rm(path.join(directory, name), { force: true }).catch(() => {})
+  for (const name of created) {
+    await rm(path.join(directory, name), { force: true }).catch((err: NodeJS.ErrnoException) => {
+      console.warn('Could not remove attempt-owned restore photo', name, err.code)
+    })
   }
 }

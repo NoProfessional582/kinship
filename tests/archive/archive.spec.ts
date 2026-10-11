@@ -79,6 +79,14 @@ test('download and restore an archive without changing its records', async ({
   const served = await request.get(restored.contact.avatarUrl)
   expect(served.status()).toBe(200)
   expect(await served.body()).toEqual(photo)
+  expect(restored.contact.avatarUrl).toBe(uploaded.url)
+  for (let n = 0; n < 2; n++) {
+    const repeated = await request.post('/api/import?confirm=replace', { data: archive })
+    expect(repeated.status()).toBe(200)
+    const repeatedExport = await json<Archive>(await request.get('/api/export'))
+    expect(repeatedExport.uploads).toEqual(after.uploads)
+    expect(records(repeatedExport)).toEqual(records(after))
+  }
   // Export carries only the restored rows' references, excluding superseded files.
   expect(after.uploads).toHaveLength(before.uploads.length)
   expect(after.uploads.map((u) => u.data).sort()).toEqual(before.uploads.map((u) => u.data).sort())
