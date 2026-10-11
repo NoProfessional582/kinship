@@ -247,13 +247,30 @@ describe('buildGraphScene', () => {
     ])
   })
 
-  it('shows labels only near the camera, making each texture once', () => {
+  it('shows every label in a small graph, wherever the camera is', () => {
+    const { layout } = sample()
+    const scene = buildGraphScene(layout, [], fakeTextures().textures)
+    expect(scene.updateView(new Vector3(5000, 0, 0))).toBe(true)
+    for (const { label } of scene.nodes.values()) expect(label.visible).toBe(true)
+    scene.dispose()
+  })
+
+  it('in a big graph, shows labels only near the camera, making each texture once', () => {
     const near = node('near', 'contact')
     const far = node('far', 'contact')
+    // Enough records, far from both cameras below, that the graph counts as big.
+    const crowd = Array.from({ length: SCENE_STYLE.label.allUpTo }, (_, i) => ({
+      ...node(`crowd${i}`, 'tag'),
+      x: 100,
+      y: 1000 + i * 5,
+      z: 0,
+      radius: 1.25,
+    }))
     const layout: GraphLayout = {
       nodes: [
         { ...near, x: 0, y: 0, z: 0, radius: 1.6 },
         { ...far, x: 200, y: 0, z: 0, radius: 1.6 },
+        ...crowd,
       ],
       bounds: { center: { x: 0, y: 0, z: 0 }, radius: 202 },
       scale: 1,

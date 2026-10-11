@@ -100,6 +100,11 @@ export const SCENE_STYLE = {
      * is some 9 pixels tall in a 1,000-pixel-high view, about the smallest that reads.
      */
     maxDistance: 90,
+    /**
+     * A graph this small shows every name wherever the camera is, as the prototype did
+     * (user decision 2026-10-11); only bigger graphs hide the far ones.
+     */
+    allUpTo: 150,
   },
   conduit: { color: '#5a6372', opacity: 0.55, sides: 6 },
   stars: {
@@ -147,7 +152,7 @@ export interface GraphScene {
   bounds: GraphLayout['bounds']
   /**
    * Fits the scene to where the camera is: shows the labels near enough to read and hides
-   * the rest, and gives near orbs the full sphere and far ones the coarse one. Call after
+   * the rest (in a graph of more than `SCENE_STYLE.label.allUpTo` records), and gives near orbs the full sphere and far ones the coarse one. Call after
    * the camera moves; true when anything changed, so an on-demand renderer knows to draw.
    */
   updateView(cameraPosition: Vector3): boolean
@@ -288,6 +293,7 @@ export function buildGraphScene(
     updateView(cameraPosition) {
       if (disposed) return false
       let changed = false
+      const everyLabel = nodes.size <= labelStyle.allUpTo
       for (const { node, group, orb, label } of nodes.values()) {
         position.set(node.x, node.y, node.z)
         const sphere = orbGeometry.get(node.radius)!
@@ -299,7 +305,7 @@ export function buildGraphScene(
         }
 
         position.y += labelStyle.y * group.scale.y
-        const near = position.distanceTo(cameraPosition) <= labelStyle.maxDistance
+        const near = everyLabel || position.distanceTo(cameraPosition) <= labelStyle.maxDistance
         if (near && !label.material.map) {
           label.material.map = own(textures.label(node.name))
           label.material.needsUpdate = true
