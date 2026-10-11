@@ -165,9 +165,15 @@ test(
     await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
     await expect.poll(() => still(page)).toBe(true)
 
-    await page.mouse.click(point.x, point.y)
+    // The selection turned the view to centre on the record, so find one again.
+    const again = await findRecord(page)
+    await page.mouse.click(again.x, again.y)
     await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
     await page.keyboard.press('Escape')
+    // The pointer is still over the record, so the map goes back to previewing it.
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'hover')
+    await expect(statusOf(page)).toHaveText(/^Hovering: /)
+    await page.mouse.move(empty.x, empty.y)
     await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
     await expect(statusOf(page)).toHaveText(/^Hover over or select a record/)
   },
