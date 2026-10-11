@@ -56,21 +56,32 @@ come out a little under `spacing`; the tests don't promise more than no overlap 
 
 ## Worker messages (phase 02)
 
-Everything in and out is plain data, safe for `postMessage` (a unit test round-trips the
-result through `structuredClone` and JSON).
+`lib/graph/layout.worker.ts` is a module worker that runs `compute3DLayout`, one request at a
+time, in the order they arrive. The messages are typed once, in `lib/graph/layout-messages.ts`,
+and used by both sides. Everything in and out is plain data, safe for `postMessage` (a unit
+test round-trips the result through `structuredClone` and JSON).
 
-- In: `{ nodes: GraphNode[], links: GraphLink[], options?: LayoutOptions }`, the API's
-  response as it came, plus any options.
-- Out: `GraphLayout`:
+- In: `{ requestId, nodes: GraphNode[], links: GraphLink[], options?: LayoutOptions }`, the
+  API's response as it came, plus any options. `requestId` counts up from 1 per page.
+- Out: `{ requestId, layout: GraphLayout }`, the same id with:
   - `nodes`: new objects, in the order they came in: each API node's fields plus `x`, `y`,
     `z` and `radius`;
   - `bounds`: `{ center: { x: 0, y: 0, z: 0 }, radius }`, a sphere holding every orb, at
     least 10 across so an empty or one-record map frames sensibly;
   - `scale`: 1, or below 1 when the layout was shrunk to fit `maxRadius`;
   - `iterations`: the steps run.
-- On a refusal, the worker posts the error's message; the map shows an error, not a guess.
+- On a refusal: `{ requestId, error }` with the refusal's message (a `LayoutInputError`), or
+  a plain "could not be laid out" for any other failure. The map shows an error, not a guess.
 
-The worker, cancelling stale work when the graph changes, and drawing belong to phase 02.
+The page's side is `lib/graph/layout-client.ts`, used by the `useGraphLayout` hook
+(`lib/graph/use-graph-layout.ts`):
+
+- One layout is wanted at a time. A new graph, a cancel, or leaving the page stops the worker
+  mid-run (a layout cannot be interrupted any other way); the next request starts a fresh
+  worker. A finished layout leaves the worker running for the next one.
+- An answer whose `requestId` is not the one awaited is dropped, and the hook pairs each
+  layout with the very graph it was made from, so a stale layout is never drawn.
+- A worker that crashes fails the waiting layout with a plain message and is replaced.
 
 ## Measured
 
