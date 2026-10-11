@@ -2,7 +2,7 @@
 title: Kinship: security and data correctness repairs
 summary: Address all six review findings with focused regression tests and safe handling of existing data.
 created: 2026-10-10
-next: 
+next: ""
 overview_url: /home/nicho/Agents/plans/completed/kinship-review-fixes/overview.html
 started: 2026-10-10
 completed: 2026-10-10
