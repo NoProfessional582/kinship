@@ -170,6 +170,33 @@ avatar_sha256() {
   ' "$avatar"
 }
 
+step "Previous version: shared/trashed photo references and a legacy orphan"
+in_web '
+  const fs = require("node:fs"), path = require("node:path"), crypto = require("node:crypto")
+  ;(async () => {
+    const base = "http://web:3000"
+    const response = await fetch(base + "/api/contacts", { method: "POST", headers: { origin: base, "content-type": "application/json" }, body: JSON.stringify({ displayName: "Upgrade Shared Photo", avatarUrl: process.argv[1] }) })
+    if (!response.ok) throw new Error(await response.text())
+    const directory = path.join("/app/public/uploads", crypto.createHash("sha256").update("tester").digest("hex"))
+    fs.copyFileSync(path.join(directory, process.argv[1].split("/").pop()), path.join(directory, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.png"), fs.constants.COPYFILE_EXCL)
+  })().catch(e => { console.error(e); process.exit(1) })
+' "$avatar"
+sql "UPDATE \"Contact\" SET \"deletedAt\" = timestamp '2000-01-01' WHERE \"displayName\" = 'Upgrade Shared Photo'" >/dev/null
+photo_files() {
+  in_web '
+    const fs = require("node:fs"), path = require("node:path"), crypto = require("node:crypto")
+    const dir = path.join("/app/public/uploads", crypto.createHash("sha256").update("tester").digest("hex"))
+    console.log(JSON.stringify(fs.readdirSync(dir).filter(n => /^[0-9a-f-]{36}\.png$/i.test(n)).sort().map(n => [n, crypto.createHash("sha256").update(fs.readFileSync(path.join(dir,n))).digest("hex")])))
+  '
+}
+photos_before=$(photo_files)
+in_web 'if (JSON.parse(process.argv[1]).length !== 2) throw new Error("Expected exactly two physical fixture photos")' "$photos_before"
+echo "physical photo names/hashes $photos_before"
+photo_sources() {
+  sql "SELECT md5(string_agg(to_jsonb(c)::text, '' ORDER BY id)) FROM \"Contact\" c WHERE \"displayName\" IN ('Upgrade Photo', 'Upgrade Shared Photo')"
+}
+photo_sources_before=$(photo_sources)
+
 step "Previous version: deliberately stale recency, with source rows to preserve"
 sql "$(cat tests/fixtures/recency-upgrade.sql)" >/dev/null
 # A fingerprint of all fixture source fields; only derived recency may change.
@@ -180,9 +207,12 @@ recency_sources() {
     UNION ALL SELECT to_jsonb(m) FROM \"Mention\" m WHERE id LIKE '__recency_upgrade_%'
   ) AS source"
 }
+if test "$(sql "SELECT count(*) FROM \"_prisma_migrations\" WHERE migration_name = '20261010150000_rebuild_contact_recency'")" = 1; then
+  sql "UPDATE \"Contact\" SET \"lastContactAt\" = CASE WHEN slug IN ('backdated','other-owner') THEN timestamp '2001-01-01' WHEN slug IN ('fallback','unchanged') THEN timestamp '2000-01-01' ELSE NULL END WHERE id LIKE '__recency_upgrade_%'" >/dev/null
+else
+  test "$(sql "SELECT count(*) FROM \"Contact\" WHERE id LIKE '__recency_upgrade_%' AND \"lastContactAt\" = timestamp '2002-01-01'")" = 7
+fi
 recency_sources_before=$(recency_sources)
-test "$(sql "SELECT count(*) FROM \"Contact\" WHERE id LIKE '__recency_upgrade_%' AND \"lastContactAt\" = timestamp '2002-01-01'")" = 7
-
 step "Previous version: what the database and the uploads hold"
 row_counts | tee "$STACK_RUNTIME/rows-before"
 avatar_before=$(avatar_sha256)
@@ -231,6 +261,41 @@ grep -q 'No pending migrations to apply' "$STACK_RUNTIME/migrate-again.log"
 test "$(recency_expected)" = 8
 test "$(recency_sources)" = "$recency_sources_before"
 echo "8 exact recency values; unchanged source fingerprint; repeat migration no-op"
+
+step "Photo upgrade and repeated HTTP/archive restore preserve rows and physical bytes"
+test "$(photo_files)" = "$photos_before"
+test "$(photo_sources)" = "$photo_sources_before"
+in_web '
+  ;(async () => {
+    const base = "http://web:3000"
+    const ok = async r => { if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`); return r.json() }
+    let original = await ok(await fetch(base + "/api/export"))
+    if (original.uploads.length !== 1 || original.uploads[0].name !== process.argv[1].split("/").pop()) throw new Error("Referenced-only export failed")
+    for (let i = 0; i < 3; i++) {
+      await ok(await fetch(base + "/api/import?confirm=replace", { method: "POST", headers: { origin: base, "content-type": "application/json" }, body: JSON.stringify(original) }))
+      const next = await ok(await fetch(base + "/api/export"))
+      if (JSON.stringify(next.uploads) !== JSON.stringify(original.uploads)) throw new Error("Repeated restore changed photos")
+      original = next
+    }
+    console.log("Three restores: one shared referenced photo; legacy orphan excluded")
+  })().catch(e => { console.error(e); process.exit(1) })
+' "$avatar"
+test "$(photo_files)" = "$photos_before"
+test "$(photo_sources)" = "$photo_sources_before"
+test "$(avatar_sha256)" = "$avatar_before"
+step "Packaged CLI: referenced-photo round trip and read-only inventory"
+"${compose[@]}" run --rm -T --no-deps migrate npm run --silent export >"$STACK_RUNTIME/photo-archive.json"
+"${compose[@]}" run --rm -T --no-deps migrate npm run --silent import -- --replace <"$STACK_RUNTIME/photo-archive.json"
+"${compose[@]}" run --rm -T --no-deps migrate npm run --silent photos:check >"$STACK_RUNTIME/photo-inventory.json"
+scripts/node.sh node -e '
+  const report = JSON.parse(process.argv[1])
+  if (report.totals.files !== 2 || report.totals.orphans !== 1) throw new Error("Unexpected upgrade inventory totals")
+  console.log("Read-only inventory: two physical photos, one legacy orphan")
+' "$(cat "$STACK_RUNTIME/photo-inventory.json")"
+test "$(photo_files)" = "$photos_before"
+test "$(photo_sources)" = "$photo_sources_before"
+test "$(avatar_sha256)" = "$avatar_before"
+echo "Source row fingerprint and physical photo names/hashes unchanged; legacy orphan retained"
 
 step "Playwright: every desktop page, on the upgraded data"
 "${compose[@]}" run --rm --no-deps browser npm run --silent test:e2e -- pages.spec.ts --project=desktop

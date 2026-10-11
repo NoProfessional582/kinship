@@ -6,6 +6,19 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-10
+
+### Fixed
+
+- Export only referenced live and trashed contact photos; preserve shared photos and external URLs.
+- Reuse verified immutable photo bytes on restore, with safe partial-stage and transaction rollback.
+- Protect pending uploads for seven days and reclaim only recorded new-operation candidates after grace and reference checks.
+- Add a read-only owner photo inventory; existing untracked orphan files remain untouched.
+
+### Tests
+
+- Cover photo concurrency, filesystem failures, repeated restore, desktop and phone flows, and in-place upgrades with shared, trashed and legacy orphan photos.
+
 ## [0.1.2] - 2026-10-10
 
 ### Fixed

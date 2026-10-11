@@ -303,7 +303,7 @@ scripts/check.sh quick privacy   # only those parts
   flows on a desktop and on a phone, and importing archives, old ones included.
 - `upgrade` (`scripts/test-upgrade.sh`): the previous version (the newest `vX.Y.Z` tag,
   or `origin/main` until there is one) makes a database and uploads a photo; this
-  version then migrates it and runs on it. Every table must keep its rows and the photo
+  version then migrates it and runs on it. Shared/trashed photo references and an untracked legacy orphan are included; repeated restores must preserve physical image names and hashes while excluding the orphan from exports. Every table must keep its rows and the photo
   its bytes, and every page must load. `scripts/test-upgrade.sh REF` starts from another
   version.
 
