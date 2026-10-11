@@ -4,12 +4,13 @@
  * filtered by name as you type. Choosing one selects it, so the map can be explored without
  * a pointer. Enter in the filter chooses the first match.
  *
- * The list is a native modal dialog: it holds focus while open, and Escape closes it
- * without reaching the page (which would clear the selection).
+ * The list is a native modal dialog: it holds focus while open, and Escape closes it (even
+ * from a filter with text in it) without reaching the page, which would clear the selection.
  */
 import * as React from 'react'
 import { ListTree, X } from 'lucide-react'
 import { GRAPH_COLORS, type GraphNode } from '@/lib/graph/constants'
+import { BODY_FONT } from './graph-inspector'
 import { TYPE_HEADINGS, groupRecords } from './graph-states'
 
 export interface GraphRecordPickerProps {
@@ -90,7 +91,7 @@ export function GraphRecordPicker({ nodes, onSelect, className }: GraphRecordPic
         className="m-auto max-h-[min(36rem,85vh)] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-900 p-0 text-slate-200 shadow-2xl backdrop:bg-black/60 open:flex"
       >
         <div className="flex items-center justify-between gap-3 border-b border-white/10 p-3">
-          <h2 id={titleId} className="text-sm font-semibold text-white">
+          <h2 id={titleId} style={BODY_FONT} className="text-sm font-semibold text-white">
             Records
           </h2>
           <button
@@ -109,6 +110,12 @@ export function GraphRecordPicker({ nodes, onSelect, className }: GraphRecordPic
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
             onKeyDown={(event) => {
+              // A search box with text would only clear it; Escape always closes the list.
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                close()
+                return
+              }
               const first = groups[0]?.nodes[0]
               if (event.key === 'Enter' && first) {
                 event.preventDefault()
@@ -129,6 +136,7 @@ export function GraphRecordPicker({ nodes, onSelect, className }: GraphRecordPic
             <section key={type} aria-labelledby={`${titleId}-${type}`} className="mb-4 last:mb-0">
               <h3
                 id={`${titleId}-${type}`}
+                style={BODY_FONT}
                 className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300"
               >
                 <span

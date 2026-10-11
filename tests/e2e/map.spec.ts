@@ -614,9 +614,18 @@ test(
     const [a, b] = [(await legend.boundingBox())!, (await inspector.boundingBox())!]
     expect(a.x + a.width, 'the legend ends left of the drawer').toBeLessThanOrEqual(b.x)
 
-    // The close button clears the selection.
+    // The view's centre moves left by half the drawer, so the selection is not behind it.
+    const host = page.getByTestId('graph-canvas')
+    const area = (await host.boundingBox())!
+    const half = Math.round((area.x + area.width - b.x) / 2)
+    await expect
+      .poll(async () => (await host.getAttribute('data-view-shift'))?.split(',').map(Number))
+      .toEqual([expect.closeTo(half, 0), 0])
+
+    // The close button clears the selection, and the view's centre goes back.
     await inspector.getByRole('button', { name: 'Close details' }).click()
     await expect(inspector).toBeHidden()
+    await expect(host).toHaveAttribute('data-view-shift', '0,0')
     await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
   },
 )
@@ -747,6 +756,8 @@ test(
     await pick(page, SEEDED.contact)
     await recordsButton(page).click()
     await expect(pickerOf(page)).toBeVisible()
+    // Even with text in the filter, one Escape closes the list.
+    await page.keyboard.type('zz')
     await page.keyboard.press('Escape')
     await expect(pickerOf(page)).toBeHidden()
     await expect(inspectorOf(page)).toBeVisible()
@@ -777,6 +788,12 @@ test(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     )
     expect(fits, 'no sideways scroll with the sheet open').toBe(true)
+    // The view's centre rises by half the sheet, so the selection shows above it.
+    const host = page.getByTestId('graph-canvas')
+    const half = Math.round((view.height - sheet.y) / 2)
+    await expect
+      .poll(async () => (await host.getAttribute('data-view-shift'))?.split(',').map(Number))
+      .toEqual([0, expect.closeTo(half, 0)])
 
     // The controls stay above the sheet and usable.
     const toggle = page.getByRole('button', { name: 'View', exact: true })
@@ -799,5 +816,6 @@ test(
     await inspector.getByRole('button', { name: 'Close details' }).tap()
     await expect(inspector).toBeHidden()
     await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+    await expect(host).toHaveAttribute('data-view-shift', '0,0')
   },
 )

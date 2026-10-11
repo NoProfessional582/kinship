@@ -53,6 +53,8 @@ export default function MapPage() {
     [selected, graph, records],
   )
   const clear = React.useCallback(() => setSelectedId(null), [])
+  // How much of the map the inspector covers, so the canvas keeps the selection in view.
+  const [inset, setInset] = React.useState({ right: 0, bottom: 0 })
 
   React.useEffect(() => {
     if (selectedId === null) return
@@ -79,6 +81,7 @@ export default function MapPage() {
         selectedId={selectedId}
         settings={settings}
         autoOrbit={autoOrbit}
+        inset={inset}
         onHover={setHoveredId}
         onSelect={setSelectedId}
         onReady={ready}
@@ -114,7 +117,13 @@ export default function MapPage() {
         />
       )}
       {mapShown && selected && (
-        <GraphInspector node={selected} rows={rows} onSelect={setSelectedId} onClose={clear} />
+        <GraphInspector
+          node={selected}
+          rows={rows}
+          onSelect={setSelectedId}
+          onClose={clear}
+          onCover={setInset}
+        />
       )}
       {mapShown && (
         <p

@@ -8,6 +8,9 @@
  * it, and goes back to what had it before when the drawer closes. Escape closes it (the
  * page listens for that) as does the close button.
  *
+ * It tells the page how much of the map it covers (`onCover`), so the map can keep the
+ * selected record in the part still showing.
+ *
  * Like the rest of the map, it is always dark, whatever the app's theme.
  */
 import * as React from 'react'
@@ -22,10 +25,45 @@ export interface GraphInspectorProps {
   /** A connection was chosen: select that record. */
   onSelect: (nodeId: string) => void
   onClose: () => void
+  /** CSS pixels of the map it covers on the right and along the bottom; zeros once closed. */
+  onCover?: (inset: { right: number; bottom: number }) => void
 }
 
-export function GraphInspector({ node, rows, onSelect, onClose }: GraphInspectorProps) {
+/** The app sets its headings in the display serif; the map's glass panels use the body
+ * sans, as the prototype did. A class would lose to that unlayered rule. */
+export const BODY_FONT = { fontFamily: 'var(--font-body)' } as const
+
+export function GraphInspector({ node, rows, onSelect, onClose, onCover }: GraphInspectorProps) {
   const heading = React.useRef<HTMLHeadingElement>(null)
+  const drawer = React.useRef<HTMLElement>(null)
+  const cover = React.useRef(onCover)
+  React.useEffect(() => {
+    cover.current = onCover
+  })
+
+  // A drawer on the right covers its width; a sheet along the bottom, its height.
+  React.useLayoutEffect(() => {
+    const element = drawer.current
+    const map = element?.parentElement
+    if (!element || !map) return
+    const measure = () => {
+      const box = element.getBoundingClientRect()
+      const area = map.getBoundingClientRect()
+      const sheet = box.left - area.left < 1
+      cover.current?.({
+        right: sheet ? 0 : Math.max(0, Math.round(area.right - box.left)),
+        bottom: sheet ? Math.max(0, Math.round(area.bottom - box.top)) : 0,
+      })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    observer.observe(map)
+    return () => {
+      observer.disconnect()
+      cover.current?.({ right: 0, bottom: 0 })
+    }
+  }, [])
   const headingId = React.useId()
 
   // Whatever had focus when the drawer opened gets it back when it closes, if it is still
@@ -45,6 +83,7 @@ export function GraphInspector({ node, rows, onSelect, onClose }: GraphInspector
 
   return (
     <section
+      ref={drawer}
       aria-labelledby={headingId}
       data-testid="map-inspector"
       data-map-chrome
@@ -62,6 +101,7 @@ export function GraphInspector({ node, rows, onSelect, onClose }: GraphInspector
             id={headingId}
             ref={heading}
             tabIndex={-1}
+            style={BODY_FONT}
             className="text-xl leading-tight font-bold break-words text-white focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
           >
             {node.name}
@@ -96,7 +136,10 @@ export function GraphInspector({ node, rows, onSelect, onClose }: GraphInspector
       )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <h3 className="text-[11px] font-bold tracking-wide text-slate-400 uppercase">
+        <h3
+          style={BODY_FONT}
+          className="text-[11px] font-bold tracking-wide text-slate-400 uppercase"
+        >
           Connections ({rows.length})
         </h3>
         {rows.length === 0 ? (

@@ -10,6 +10,8 @@
  * selected record, while the selected record's beacon pulses, and while auto-orbit is on;
  * never in a loop while the view is still and nothing is selected. With reduced motion the beacon is a still ring and the
  * orbit moves to a selection at once.
+ * While a drawer covers part of it (`inset`), the view's centre moves into the part still
+ * showing, so the selected record is not hidden behind it.
  * Leaving the page frees everything it made: the scene's geometries, materials and
  * textures, the controls, the observer, the listeners and the WebGL context.
  */
@@ -46,6 +48,8 @@ export interface GraphCanvasProps {
   settings?: SceneSettings
   /** Turns the view slowly round the orbit centre; off unless the user turns it on. */
   autoOrbit?: boolean
+  /** CSS pixels covered on the right and along the bottom (the inspector), if any. */
+  inset?: Inset
   /** The record under the pointer, or null when it leaves them all. */
   onHover?: (nodeId: string | null) => void
   /** A click (not a drag) on a record, or null for a click on empty space. */
@@ -84,6 +88,31 @@ export function webglAvailable(doc: Document = document): boolean {
   }
 }
 
+export interface Inset {
+  right: number
+  bottom: number
+}
+const NO_INSET: Inset = { right: 0, bottom: 0 }
+
+/** The view centre's shift, in CSS pixels: half of what is covered on each side. */
+function shiftFor(inset: Inset) {
+  return new Vector2(inset.right / 2, inset.bottom / 2)
+}
+
+/**
+ * Moves the projection's centre left and up by `shift` without zooming; the raycaster reads
+ * the same projection, so picking still lands on what is drawn.
+ */
+function applyShift(camera: PerspectiveCamera, host: HTMLElement, shift: Vector2) {
+  const width = host.clientWidth
+  const height = host.clientHeight
+  if (width === 0 || height === 0) return
+  // For the browser tests: where the view's centre is now, in whole pixels.
+  host.dataset.viewShift = `${Math.round(shift.x)},${Math.round(shift.y)}`
+  if (shift.x === 0 && shift.y === 0) camera.clearViewOffset()
+  else camera.setViewOffset(width, height, shift.x, shift.y, width, height)
+}
+
 /** What the scene effect needs from the renderer effect. */
 interface View {
   renderer: WebGLRenderer
@@ -100,6 +129,9 @@ interface View {
   selectedId: string | null
   /** Where the orbit centre is gliding to, until it gets there. */
   glide: Vector3 | null
+  /** The view centre's shift now, and the one it eases to (applyShift). */
+  shift: Vector2
+  shiftTo: Vector2
   reducedMotion: boolean
 }
 
@@ -113,6 +145,7 @@ export default function GraphCanvas({
   selectedId = null,
   settings = SCENE_DEFAULTS,
   autoOrbit = false,
+  inset = NO_INSET,
   onHover,
   onSelect,
   onReady,
@@ -189,6 +222,12 @@ export default function GraphCanvas({
       }
       // update() moves the camera on while damping settles or auto-orbit turns it, and says
       // whether it did; auto-orbit turns by the time passed, so as fast on every device.
+      if (!current.shift.equals(current.shiftTo)) {
+        current.shift.lerp(current.shiftTo, controls.dampingFactor)
+        if (current.shift.distanceTo(current.shiftTo) <= 0.5) current.shift.copy(current.shiftTo)
+        else gliding = true
+        applyShift(camera, host, current.shift)
+      }
       const moving = controls.update(elapsed / 1000) || gliding
       lastMoving = moving ? now : 0
       current.graph?.updateView(camera.position)
@@ -216,6 +255,8 @@ export default function GraphCanvas({
       building: null,
       selectedId: null,
       glide: null,
+      shift: new Vector2(),
+      shiftTo: new Vector2(),
       reducedMotion: motion.matches,
     }
     view.current = current
@@ -230,6 +271,10 @@ export default function GraphCanvas({
         current.glide = null
         controls.update()
       }
+      if (motion.matches) {
+        current.shift.copy(current.shiftTo)
+        applyShift(camera, host, current.shift)
+      }
       invalidate()
     }
     motion.addEventListener('change', motionChanged)
@@ -241,6 +286,8 @@ export default function GraphCanvas({
       renderer.setSize(width, height, false)
       camera.aspect = width / height
       camera.updateProjectionMatrix()
+      // The offset is in pixels of the old size; set it again for the new one.
+      applyShift(camera, host, current.shift)
       invalidate()
     }
     const observer = new ResizeObserver(resize)
@@ -380,6 +427,19 @@ export default function GraphCanvas({
     }
     current.invalidate()
   }, [selectedId, layout])
+
+  // A drawer opened, closed or changed size: ease the view's centre into what still shows.
+  const { right, bottom } = inset
+  React.useEffect(() => {
+    const current = view.current
+    if (!current) return
+    current.shiftTo = shiftFor({ right, bottom })
+    if (current.reducedMotion) {
+      current.shift.copy(current.shiftTo)
+      applyShift(current.camera, current.renderer.domElement.parentElement!, current.shift)
+    }
+    current.invalidate()
+  }, [right, bottom])
 
   React.useImperativeHandle(
     ref,
