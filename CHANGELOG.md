@@ -6,8 +6,13 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-11
+
 ### Added
 
+- The map is part of Kinship: "Map" in the desktop sidebar, "Go to map" in the command palette, and "Map" in the phone app's More menu, which opens the map inside the phone app (`/m/map`).
+- Links that open the map on one record: `/map?focus=<type>:<id>` (and `/m/map?focus=`) selects it, centres it and opens its inspector. A record that is not on the map shows the whole map with a short notice instead of an error.
+- A small map on each contact and project page (desktop and phone) showing the record's neighbourhood up to two links away, with the record selected. It loads only when scrolled into view and frees its 3D canvas when the page is left; it has loading, no-connections, failed and no-WebGL states. "Open in map", or picking a record in it, opens the full map focused there.
 - An "Attraction" slider on the map (0.2x to 2.5x): higher pulls linked records closer together, lower spreads them out. The map is laid out again a moment after the slider settles; the current map stays on screen meanwhile, and the view and the selection are kept.
 - The mouse wheel zooms the map towards the pointer rather than the middle of the view.
 - The map follows the app's theme. By day it is drawn on Kinship's paper with dark stars, ink names and terracotta highlights, with the controls, inspector and Records list in the light palette; after dark it is the approved deep-space map. The small maps on contact and project pages follow too.
