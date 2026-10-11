@@ -5,6 +5,9 @@
  * and moves along its connections, reaches any record from the Records list by keyboard
  * alone, and shows its other states: no records, a failed request (and its retry), and a
  * browser without WebGL, which lists the records instead. Leaving the page frees the canvas.
+ * The sidebar, the command palette and the phone's More sheet reach it (the phone's own
+ * page is /m/map), and `?focus=<type>:<id>` opens it on one record, or on the whole map
+ * with a notice when that record is not on it.
  *
  * Headless Chromium draws WebGL in software, so these check that something was drawn and
  * what it looks like broadly (coloured orbs on a dark sky), not exact pixels.
@@ -817,5 +820,131 @@ test(
     await expect(inspector).toBeHidden()
     await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
     await expect(host).toHaveAttribute('data-view-shift', '0,0')
+  },
+)
+
+const NOT_ON_MAP = 'That record is not on the map. It may have been deleted.'
+const noticeOf = (page: Page) => page.getByTestId('map-notice')
+const focusLink = (id: string, base = '/map') => `${base}?${new URLSearchParams({ focus: id })}`
+
+test('the sidebar and the command palette go to the map', { tag: '@desktop' }, async ({ page }) => {
+  await page.goto('/')
+  const link = page.getByRole('complementary').getByRole('link', { name: 'Map', exact: true })
+  await link.click()
+  await expect(page).toHaveURL(/\/map$/)
+  await drawn(page)
+  await expect(link).toHaveAttribute('aria-current', 'page')
+
+  await page.goto('/contacts')
+  await page.getByRole('heading', { level: 1, name: 'Contacts' }).waitFor()
+  await page.keyboard.press('Control+k')
+  await page.getByRole('option', { name: 'Go to map' }).click()
+  await expect(page).toHaveURL(/\/map$/)
+  await drawn(page)
+})
+
+test(
+  'a focus link opens the map on that record, and picking others keeps the link',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    const { byName } = await graphOf(page)
+    const maya = byName(SEEDED.contact)
+    const link = focusLink(maya.id)
+    await page.goto(link)
+    await drawn(page)
+    const inspector = inspectorOf(page)
+    await expect(inspector.getByRole('heading', { level: 2, name: SEEDED.contact })).toBeVisible()
+    await expect(mapOf(page)).toHaveAttribute('data-active-id', maya.id)
+    await expect(noticeOf(page)).toHaveCount(0)
+    // Centred as a pick from the Records list is: the view makes room for the drawer.
+    const host = page.getByTestId('graph-canvas')
+    await expect
+      .poll(async () => Number((await host.getAttribute('data-view-shift'))?.split(',')[0]))
+      .toBeGreaterThan(0)
+
+    await inspector.getByRole('button', { name: new RegExp(`^${SEEDED.note}`) }).click()
+    await expect(inspector.getByRole('heading', { level: 2 })).toHaveText(SEEDED.note)
+    expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(link)
+  },
+)
+
+test(
+  'a focus that is not on the map shows the whole map with a notice',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    // Missing (and so also trashed: the map answers the same), an unknown type, blank.
+    for (const focus of ['contact:no-such-record', 'person:1', 'nonsense', '']) {
+      await page.goto(focusLink(focus))
+      await drawn(page)
+      await expect(noticeOf(page), `focus=${focus}`).toHaveText(NOT_ON_MAP)
+      await expect(inspectorOf(page)).toBeHidden()
+      await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+    }
+    await noticeOf(page).getByRole('button', { name: 'Dismiss' }).click()
+    await expect(noticeOf(page)).toBeHidden()
+    // The map is all there and works as ever.
+    await pick(page, SEEDED.contact)
+    await expect(inspectorOf(page)).toBeVisible()
+  },
+)
+
+test(
+  'on a phone, More and search reach the map, which fills the space between the bars',
+  { tag: '@phone' },
+  async ({ page }) => {
+    await page.goto('/m')
+    await page.getByRole('button', { name: 'More', exact: true }).tap()
+    await page.getByRole('link', { name: 'Map', exact: true }).tap()
+    await expect(page).toHaveURL(/\/m\/map$/)
+    await drawn(page)
+
+    const header = (await page.getByRole('banner').boundingBox())!
+    const tabs = (await page.getByRole('navigation').boundingBox())!
+    const map = (await mapOf(page).boundingBox())!
+    expect(map.y).toBeCloseTo(header.y + header.height, 0)
+    expect(map.y + map.height).toBeCloseTo(tabs.y, 0)
+    expect(map.width).toBeCloseTo(page.viewportSize()!.width, 0)
+    const fits = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    )
+    expect(fits, 'no sideways scroll').toBe(true)
+
+    await page.goto('/m/contacts')
+    await page.getByRole('button', { name: 'Search', exact: true }).tap()
+    await page.getByRole('option', { name: 'Go to map' }).tap()
+    await expect(page).toHaveURL(/\/m\/map$/)
+    await drawn(page)
+  },
+)
+
+test(
+  'a focus link on the phone opens the sheet above the tab bar, linking within /m',
+  { tag: '@phone' },
+  async ({ page }) => {
+    const { byName } = await graphOf(page)
+    const maya = byName(SEEDED.contact)
+    await page.goto(focusLink(maya.id, '/m/map'))
+    await drawn(page)
+    const inspector = inspectorOf(page)
+    await expect(inspector.getByRole('heading', { level: 2, name: SEEDED.contact })).toBeVisible()
+    const sheet = (await inspector.boundingBox())!
+    const tabs = (await page.getByRole('navigation').boundingBox())!
+    expect(sheet.y + sheet.height, 'the sheet ends above the tab bar').toBeLessThanOrEqual(
+      tabs.y + 0.5,
+    )
+    await expect(statusOf(page)).toBeInViewport()
+
+    const open = inspector.getByRole('link', { name: 'Open record' })
+    await expect(open).toHaveAttribute('href', `/m${maya.url!}`)
+    await open.tap()
+    await expect(page).toHaveURL(
+      new RegExp(`/m${maya.url!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+    )
+    await expect(page.getByRole('heading', { level: 1, name: SEEDED.contact })).toBeVisible()
+
+    await page.goto('/m/map?focus=contact:no-such-record')
+    await drawn(page)
+    await expect(noticeOf(page)).toHaveText(NOT_ON_MAP)
+    await expect(inspectorOf(page)).toBeHidden()
   },
 )
