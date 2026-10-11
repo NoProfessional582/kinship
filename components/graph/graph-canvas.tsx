@@ -5,10 +5,10 @@
  * graph-canvas-loader.tsx (next/dynamic, no server rendering) and three never reaches the
  * server's bundle.
  *
- * It draws on demand: once for each camera move, resize, change of labels or highlight,
- * while the controls' damping settles after a drag or the orbit glides to a selected
- * record, and while the selected record's beacon pulses; never in a loop while the view is
- * still and nothing is selected. With reduced motion the beacon is a still ring and the
+ * It draws on demand: once for each camera move, resize, change of labels, highlight or
+ * settings, while the controls' damping settles after a drag or the orbit glides to a
+ * selected record, while the selected record's beacon pulses, and while auto-orbit is on;
+ * never in a loop while the view is still and nothing is selected. With reduced motion the beacon is a still ring and the
  * orbit moves to a selection at once.
  * Leaving the page frees everything it made: the scene's geometries, materials and
  * textures, the controls, the observer, the listeners and the WebGL context.
@@ -20,11 +20,13 @@ import type { GraphLink } from '@/lib/graph/constants'
 import { highlightState, neighbourSets } from '@/lib/graph/highlight'
 import type { GraphLayout } from '@/lib/graph/layout3d'
 import {
+  SCENE_DEFAULTS,
   SCENE_STYLE,
   buildGraphScene,
   canvasTextures,
   fitCameraToBounds,
   type GraphScene,
+  type SceneSettings,
 } from '@/lib/graph/scene'
 
 export interface GraphCanvasHandle {
@@ -40,17 +42,23 @@ export interface GraphCanvasProps {
   /** The record in focus: lit like a hover, but it wins over one, gets the beacon, and the
    * orbit centres on it. */
   selectedId?: string | null
+  /** The overlay's settings, applied to the built scene as they change. */
+  settings?: SceneSettings
+  /** Turns the view slowly round the orbit centre; off unless the user turns it on. */
+  autoOrbit?: boolean
   /** The record under the pointer, or null when it leaves them all. */
   onHover?: (nodeId: string | null) => void
   /** A click (not a drag) on a record, or null for a click on empty space. */
   onSelect?: (nodeId: string | null) => void
+  /** The first frame of a scene is drawn: the map is on screen. */
+  onReady?: () => void
   /** WebGL could not start, or the browser took its context away. */
   onUnavailable: () => void
   ref?: React.Ref<GraphCanvasHandle>
 }
 
 /** As in the prototype. */
-const CONTROLS = { dampingFactor: 0.05, minDistance: 18, maxDistance: 250 }
+const CONTROLS = { dampingFactor: 0.05, minDistance: 18, maxDistance: 250, autoRotateSpeed: 0.65 }
 /** The frame the prototype's damping was tuned at (60 a second), in ms. */
 const FRAME = 1000 / 60
 /** A longer gap (a stalled tab) eases as if it were this long, so the view does not jump. */
@@ -103,17 +111,20 @@ export default function GraphCanvas({
   links,
   hoveredId = null,
   selectedId = null,
+  settings = SCENE_DEFAULTS,
+  autoOrbit = false,
   onHover,
   onSelect,
+  onReady,
   onUnavailable,
   ref,
 }: GraphCanvasProps) {
   const container = React.useRef<HTMLDivElement>(null)
   const view = React.useRef<View | null>(null)
   // The latest callbacks, without rebuilding the renderer when a parent re-renders.
-  const handlers = React.useRef({ onHover, onSelect, onUnavailable })
+  const handlers = React.useRef({ onHover, onSelect, onReady, onUnavailable })
   React.useEffect(() => {
-    handlers.current = { onHover, onSelect, onUnavailable }
+    handlers.current = { onHover, onSelect, onReady, onUnavailable }
   })
 
   // The renderer, camera and controls: made once per mount.
@@ -151,6 +162,7 @@ export default function GraphCanvas({
     controls.minDistance = CONTROLS.minDistance
     controls.maxDistance = CONTROLS.maxDistance
     controls.autoRotate = false
+    controls.autoRotateSpeed = CONTROLS.autoRotateSpeed
 
     let frame = 0
     let frames = 0
@@ -175,8 +187,9 @@ export default function GraphCanvas({
           current.glide = null
         } else gliding = true
       }
-      // update() moves the camera on while damping settles, and says whether it did.
-      const moving = controls.update() || gliding
+      // update() moves the camera on while damping settles or auto-orbit turns it, and says
+      // whether it did; auto-orbit turns by the time passed, so as fast on every device.
+      const moving = controls.update(elapsed / 1000) || gliding
       lastMoving = moving ? now : 0
       current.graph?.updateView(camera.position)
       const pulsing =
@@ -186,8 +199,9 @@ export default function GraphCanvas({
       if (current.building !== null && current.graph) {
         performance.measure(FIRST_DRAW_MEASURE, { start: current.building })
         current.building = null
+        handlers.current.onReady?.()
       }
-      if (moving || pulsing) invalidate()
+      if (moving || pulsing || controls.autoRotate) invalidate()
     }
     const invalidate = () => {
       if (!frame && !disposed) frame = requestAnimationFrame(draw)
@@ -304,12 +318,15 @@ export default function GraphCanvas({
     }
   }, [])
 
+  // The settings the scene was last given, so a rebuilt scene starts with them.
+  const applied = React.useRef(settings)
+
   // The scene: rebuilt for each new layout, and fitted to it.
   React.useEffect(() => {
     const current = view.current
     if (!current) return
     current.building = performance.now()
-    const graph = buildGraphScene(layout, links, canvasTextures())
+    const graph = buildGraphScene(layout, links, canvasTextures(), applied.current)
     current.world.background = graph.background
     current.world.add(graph.root)
     current.graph = graph
@@ -320,6 +337,20 @@ export default function GraphCanvas({
       current.invalidate()
     }
   }, [layout, links])
+
+  // The settings: applied to the built scene in place, never re-running the layout.
+  React.useEffect(() => {
+    const current = view.current
+    applied.current = settings
+    if (current?.graph?.applySettings(settings)) current.invalidate()
+  }, [settings, layout])
+
+  React.useEffect(() => {
+    const current = view.current
+    if (!current) return
+    current.controls.autoRotate = autoOrbit
+    current.invalidate()
+  }, [autoOrbit])
 
   const neighbours = React.useMemo(() => neighbourSets(links), [links])
 

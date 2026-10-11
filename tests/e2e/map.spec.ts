@@ -1,7 +1,7 @@
 /**
  * The 3D map page (/map): it draws the seeded records, picks a record under the pointer,
- * lights a hovered or selected record's connections and dims the rest, and shows its other
- * states: no records, a failed request (and its retry), and a browser
+ * lights a hovered or selected record's connections and dims the rest, changes live with
+ * the overlay's controls (by mouse and by keyboard), and shows its other states: no records, a failed request (and its retry), and a browser
  * without WebGL, which lists the records instead. Leaving the page frees the canvas.
  *
  * Headless Chromium draws WebGL in software, so these check that something was drawn and
@@ -40,10 +40,36 @@ async function findRecord(page: Page) {
   throw new Error('no point over a record shows the pointer cursor')
 }
 
-/** A corner of the view, over no record. */
+/**
+ * A corner of the view, over no record: bottom left, where the status line lets clicks
+ * through (the overlay covers the top left).
+ */
 async function emptySpace(page: Page) {
   const box = (await canvasOf(page).boundingBox())!
-  return { x: box.x + 2, y: box.y + 2 }
+  return { x: box.x + 2, y: box.y + box.height - 2 }
+}
+
+const overlayOf = (page: Page) => page.getByRole('region', { name: 'Map controls' })
+
+/**
+ * A screenshot of the canvas alone: the overlay, legend and status line drawn on top of it
+ * are hidden, so a change in them never passes for a change in the map.
+ */
+const shot = (target: Locator) =>
+  target.screenshot({ style: '[data-map-chrome] { visibility: hidden !important; }' })
+
+/** Waits until two screenshots in a row match: the view has settled. */
+async function settled(target: Locator) {
+  let last = await shot(target)
+  await expect
+    .poll(async () => {
+      const next = await shot(target)
+      const same = next.equals(last)
+      last = next
+      return same
+    })
+    .toBe(true)
+  return last
 }
 
 /** Waits until the scene has drawn its first frame (the page's performance entry). */
@@ -59,7 +85,7 @@ async function drawn(page: Page) {
  * the sky is near black and the stars white, so neither counts.
  */
 async function colouredShare(page: Page, target: Locator): Promise<number> {
-  const png = await target.screenshot()
+  const png = await shot(target)
   return page.evaluate(async (base64) => {
     const image = new Image()
     image.src = `data:image/png;base64,${base64}`
@@ -198,6 +224,7 @@ test('with no records the map says so', { tag: '@desktop' }, async ({ page }) =>
   await page.goto('/map')
   await expect(page.getByText('No records yet', { exact: true })).toBeVisible()
   await expect(canvasOf(page)).toHaveCount(0)
+  await expect(overlayOf(page)).toHaveCount(0)
 })
 
 test(
@@ -235,6 +262,7 @@ test(
     await page.goto('/map')
     await expect(page.getByRole('note')).toContainText('The 3D map needs WebGL')
     await expect(canvasOf(page)).toHaveCount(0)
+    await expect(overlayOf(page)).toHaveCount(0)
     const people = page.getByRole('region', { name: /^People/ })
     await expect(people.getByRole('link', { name: SEEDED.contact, exact: true })).toBeVisible()
     await expect(
@@ -267,7 +295,7 @@ test('the map fits a phone and turns with a finger', { tag: '@phone' }, async ({
   expect(fits, 'no sideways scroll').toBe(true)
 
   const canvas = canvasOf(page)
-  const before = await canvas.screenshot()
+  const before = await shot(canvas)
   const box = (await canvas.boundingBox())!
   const cdp = await page.context().newCDPSession(page)
   const at = (x: number) => [{ x: box.x + x, y: box.y + box.height / 2 }]
@@ -276,7 +304,7 @@ test('the map fits a phone and turns with a finger', { tag: '@phone' }, async ({
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(x) })
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-  await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false)
+  await expect.poll(async () => (await shot(canvas)).equals(before)).toBe(false)
 })
 
 test('a tap selects a record on a phone', { tag: '@phone' }, async ({ page }) => {
@@ -288,4 +316,204 @@ test('a tap selects a record on a phone', { tag: '@phone' }, async ({ page }) =>
   await expect(statusOf(page)).toBeVisible()
   const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
   expect(fits, 'the status line fits without sideways scroll').toBe(true)
+})
+
+test('the overlay changes the map live', { tag: '@desktop' }, async ({ page }) => {
+  await page.goto('/map')
+  await drawn(page)
+  const overlay = overlayOf(page)
+  const canvas = canvasOf(page)
+  await expect(overlay).toBeVisible()
+  const legend = page.getByRole('group', { name: 'Legend' })
+  for (const name of [
+    'Contacts (People)',
+    'Projects',
+    'Notes & Entries',
+    'Tasks',
+    'Tags & Topics',
+  ]) {
+    await expect(legend.getByText(name, { exact: true })).toBeVisible()
+  }
+
+  // The approved defaults.
+  const size = overlay.getByRole('slider', { name: 'Node size' })
+  const width = overlay.getByRole('slider', { name: 'Link width' })
+  const glow = overlay.getByRole('slider', { name: 'Glow' })
+  await expect(size).toHaveValue('0.8')
+  await expect(size).toHaveAttribute('aria-valuetext', '0.8x')
+  await expect(width).toHaveValue('0.1')
+  await expect(width).toHaveAttribute('aria-valuetext', '0.10')
+  await expect(glow).toHaveValue('1')
+  await expect(glow).toHaveAttribute('aria-valuetext', '1.0x')
+  const stars = overlay.getByRole('button', { name: /^Stars: / })
+  await expect(stars).toHaveText('Stars: Dense')
+
+  let before = await settled(canvas)
+  const resting = await colouredShare(page, canvas)
+  await size.fill('1.6')
+  await expect(overlay.getByText('1.6x', { exact: true })).toBeVisible()
+  await expect
+    .poll(() => colouredShare(page, canvas), { message: 'bigger orbs' })
+    .toBeGreaterThan(resting)
+
+  before = await settled(canvas)
+  await width.fill('0.4')
+  await expect(width).toHaveAttribute('aria-valuetext', '0.40')
+  await expect
+    .poll(async () => (await shot(canvas)).equals(before), { message: 'thicker links' })
+    .toBe(false)
+
+  await settled(canvas)
+  const bigger = await colouredShare(page, canvas)
+  await glow.fill('0.4')
+  await expect(glow).toHaveAttribute('aria-valuetext', '0.4x')
+  await expect
+    .poll(() => colouredShare(page, canvas), { message: 'less glow' })
+    .toBeLessThan(bigger)
+
+  for (const next of ['Sparse', 'Off', 'Dense']) {
+    before = await settled(canvas)
+    await stars.click()
+    await expect(stars).toHaveText(`Stars: ${next}`)
+    await expect
+      .poll(async () => (await shot(canvas)).equals(before), { message: `stars ${next}` })
+      .toBe(false)
+  }
+
+  // Each change draws once; nothing loops after them.
+  await expect.poll(() => still(page)).toBe(true)
+})
+
+test('auto-orbit starts off and turns the view while on', { tag: '@desktop' }, async ({ page }) => {
+  await page.goto('/map')
+  await drawn(page)
+  const orbit = overlayOf(page).getByRole('button', { name: 'Auto-orbit' })
+  await expect(orbit).toHaveAttribute('aria-pressed', 'false')
+  await expect.poll(() => still(page), { message: 'not turning at first' }).toBe(true)
+
+  const before = await shot(canvasOf(page))
+  await orbit.click()
+  await expect(orbit).toHaveAttribute('aria-pressed', 'true')
+  expect(await still(page), 'turning').toBe(false)
+  await expect.poll(async () => (await shot(canvasOf(page))).equals(before)).toBe(false)
+
+  await orbit.click()
+  await expect(orbit).toHaveAttribute('aria-pressed', 'false')
+  await expect.poll(() => still(page)).toBe(true)
+})
+
+test('auto-orbit is off with reduced motion too', { tag: '@desktop' }, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/map')
+  await drawn(page)
+  await expect(overlayOf(page).getByRole('button', { name: 'Auto-orbit' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+  await expect.poll(() => still(page)).toBe(true)
+})
+
+test(
+  'reset view frames the whole map and clears the selection',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/map')
+    await drawn(page)
+    const canvas = canvasOf(page)
+    const opening = await settled(canvas)
+
+    const point = await findRecord(page)
+    await page.mouse.click(point.x, point.y)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+    // The orbit glides to the record, so the view moves away from the opening one.
+    await expect.poll(async () => (await shot(canvas)).equals(opening)).toBe(false)
+
+    await overlayOf(page).getByRole('button', { name: 'Reset view' }).click()
+    // Where the pointer was for the opening view, over no record.
+    await page.mouse.move(0, 0)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+    await expect(statusOf(page)).toHaveText(/^Hover over or select a record/)
+    expect((await settled(canvas)).equals(opening), 'back to the opening view').toBe(true)
+    await expect.poll(() => still(page)).toBe(true)
+  },
+)
+
+test('every overlay control works by keyboard', { tag: '@desktop' }, async ({ page }) => {
+  await page.goto('/map')
+  await drawn(page)
+  const overlay = overlayOf(page)
+  const orbit = overlay.getByRole('button', { name: 'Auto-orbit' })
+  const reset = overlay.getByRole('button', { name: 'Reset view' })
+  const stars = overlay.getByRole('button', { name: /^Stars: / })
+  const size = overlay.getByRole('slider', { name: 'Node size' })
+  const width = overlay.getByRole('slider', { name: 'Link width' })
+  const glow = overlay.getByRole('slider', { name: 'Glow' })
+
+  // Tab reaches each control in order, and each shows that it has focus.
+  await orbit.focus()
+  for (const control of [reset, stars, size, width, glow]) {
+    await page.keyboard.press('Tab')
+    await expect(control).toBeFocused()
+    expect(await control.evaluate((el) => el.matches(':focus-visible'))).toBe(true)
+  }
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Shift+Tab')
+  await expect(orbit).toBeFocused()
+  const ring = await orbit.evaluate((el) => getComputedStyle(el).boxShadow)
+  expect(ring, 'a visible focus ring').not.toBe('none')
+
+  await page.keyboard.press('Space')
+  await expect(orbit).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('Enter')
+  await expect(orbit).toHaveAttribute('aria-pressed', 'false')
+
+  await stars.focus()
+  await page.keyboard.press('Enter')
+  await expect(stars).toHaveText('Stars: Sparse')
+
+  await size.focus()
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowRight')
+  await expect(size).toHaveAttribute('aria-valuetext', '1.0x')
+  await width.focus()
+  await page.keyboard.press('ArrowLeft')
+  await expect(width).toHaveAttribute('aria-valuetext', '0.08')
+  await glow.focus()
+  await page.keyboard.press('End')
+  await expect(glow).toHaveAttribute('aria-valuetext', '2.5x')
+
+  const point = await findRecord(page)
+  await page.mouse.click(point.x, point.y)
+  await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+  await reset.focus()
+  await page.keyboard.press('Enter')
+  await expect(mapOf(page)).not.toHaveAttribute('data-highlight', 'selected')
+})
+
+test('on a phone the controls fold behind one button', { tag: '@phone' }, async ({ page }) => {
+  await page.goto('/map')
+  await drawn(page)
+  const toggle = page.getByRole('button', { name: 'View', exact: true })
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(overlayOf(page)).toBeHidden()
+
+  await toggle.tap()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  const overlay = overlayOf(page)
+  await expect(overlay).toBeVisible()
+  await expect(overlay.getByRole('slider', { name: 'Node size' })).toBeVisible()
+  await expect(overlay.getByRole('group', { name: 'Legend' })).toBeVisible()
+  const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+  expect(fits, 'no sideways scroll with the panel open').toBe(true)
+  const panel = (await overlay.boundingBox())!
+  const view = page.viewportSize()!
+  expect(panel.x + panel.width).toBeLessThanOrEqual(view.width)
+
+  await overlay.getByRole('button', { name: /^Stars: / }).tap()
+  await expect(overlay.getByRole('button', { name: /^Stars: / })).toHaveText('Stars: Sparse')
+  await toggle.tap()
+  await expect(overlay).toBeHidden()
 })
