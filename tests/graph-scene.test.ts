@@ -227,7 +227,7 @@ describe('buildGraphScene', () => {
     const { links, layout } = sample()
     const before = structuredClone({ layout, links })
     const scene = buildGraphScene(layout, links, fakeTextures().textures)
-    scene.updateLabels(new Vector3())
+    scene.updateView(new Vector3())
     scene.dispose()
     expect({ layout, links }).toEqual(before)
   })
@@ -264,17 +264,43 @@ describe('buildGraphScene', () => {
     const label = (id: string) => scene.nodes.get(id)!.label
     expect(label(near.id).visible).toBe(false)
 
-    expect(scene.updateLabels(new Vector3(0, 0, 50))).toBe(true)
+    expect(scene.updateView(new Vector3(0, 0, 50))).toBe(true)
     expect(label(near.id).visible).toBe(true)
     expect(label(far.id).visible).toBe(false)
     expect(made.filter((m) => m.kind === 'label').map((m) => m.arg)).toEqual(['Record near'])
 
-    expect(scene.updateLabels(new Vector3(0, 0, 50))).toBe(false)
-    expect(scene.updateLabels(new Vector3(190, 0, 0))).toBe(true)
+    expect(scene.updateView(new Vector3(0, 0, 50))).toBe(false)
+    expect(scene.updateView(new Vector3(190, 0, 0))).toBe(true)
     expect(label(near.id).visible).toBe(false)
     expect(label(far.id).visible).toBe(true)
-    scene.updateLabels(new Vector3(0, 0, 50))
+    scene.updateView(new Vector3(0, 0, 50))
     expect(made.filter((m) => m.kind === 'label')).toHaveLength(2)
+  })
+
+  it('gives near orbs the full sphere and far ones the coarse one', () => {
+    const near = node('near', 'contact')
+    const far = node('far', 'contact')
+    const layout: GraphLayout = {
+      nodes: [
+        { ...near, x: 0, y: 0, z: 0, radius: 1.6 },
+        { ...far, x: 200, y: 0, z: 0, radius: 1.6 },
+      ],
+      bounds: { center: { x: 0, y: 0, z: 0 }, radius: 202 },
+      scale: 1,
+      iterations: 0,
+    }
+    const scene = buildGraphScene(layout, [], fakeTextures().textures)
+    const segments = (id: string) => scene.nodes.get(id)!.orb.geometry.parameters.widthSegments
+    const { segments: full, farSegments: coarse, detailDistance } = SCENE_STYLE.orb
+    expect([segments(near.id), segments(far.id)]).toEqual([full, full])
+
+    expect(scene.updateView(new Vector3(0, 0, detailDistance - 1))).toBe(true)
+    expect([segments(near.id), segments(far.id)]).toEqual([full, coarse])
+    expect(scene.nodes.get(far.id)!.orb.geometry.parameters.radius).toBe(1.6)
+    expect(scene.updateView(new Vector3(200, 0, 10))).toBe(true)
+    expect([segments(near.id), segments(far.id)]).toEqual([coarse, full])
+    expect(scene.updateView(new Vector3(200, 0, 10))).toBe(false)
+    scene.dispose()
   })
 
   it('lets a raycast find a record by its hit proxy, though the proxy is never drawn', () => {
@@ -300,7 +326,7 @@ describe('buildGraphScene', () => {
     const scene = buildGraphScene(layout, links, textures)
     const parent = new Scene()
     parent.add(scene.root)
-    scene.updateLabels(new Vector3(0, 0, 0))
+    scene.updateView(new Vector3(0, 0, 0))
 
     const found = resources(scene.root)
     // Every texture the factory made is reachable, labels included.
@@ -316,7 +342,7 @@ describe('buildGraphScene', () => {
     expect(scene.root.parent).toBeNull()
     expect(scene.nodes.size).toBe(0)
     expect(scene.hitTargets).toHaveLength(0)
-    expect(scene.updateLabels(new Vector3())).toBe(false)
+    expect(scene.updateView(new Vector3())).toBe(false)
   })
 })
 

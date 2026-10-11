@@ -12,10 +12,12 @@ All notable changes to Kinship are recorded here. The format follows
 
 - `GET /api/graph`: the owner's contacts, projects, entries, tasks and tags with the links between them, or one record's neighbourhood with `focusId` and `depth`, for the coming 3D map. Read-only, uncached, and typed from `docs/api/graph.openapi.json`.
 - A 3D layout for the map (`lib/graph/layout3d.ts`): repeatable, browser-safe positions with spacing between orbs; 1,000 records and 3,000 links in about 1.5 s on the dev VM (`docs/graph-layout.md`).
+- The 3D map at `/map` (no sidebar link yet): the Cosmic Nexus scene drawn with Three.js, laid out in a browser worker, with orbit, zoom and touch controls. It shows a message while loading, when there are no records, and when loading fails (with Try again); a browser without WebGL gets a list of the records with their links instead.
+- A render benchmark for the map (`tests/benchmark`), with results in `docs/graph-layout.md`.
 
 ### Dependencies
 
-- Add d3-force-3d 3.0.6, and openapi-typescript 7.13.0 for development.
+- Add d3-force-3d 3.0.6 and three 0.186.1, and openapi-typescript 7.13.0 and @types/three 0.186.0 for development.
 
 ## [0.1.4] - 2026-10-10
 

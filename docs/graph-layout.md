@@ -111,3 +111,51 @@ These are a reference point, not a promise: a phone may well be slower, and the 
 faster than the graph (twice the records took about 2.3 times as long). Past about 1,000
 records the layout also outgrows the 120-unit sphere and is shrunk, so orbs sit closer than
 `spacing`. Limits for larger graphs are a later decision, on measurements in the browser.
+
+## Measured in the browser
+
+The render benchmark opens `/map` with the same made-up 1,000-record, 3,000-link graph
+(`tests/support/synthetic-graph.ts`, shared with the layout benchmark), served in place of
+the API's answer, three times. It reads two timings the page records with
+`performance.measure`: `graph:layout` (request to answer from the layout worker) and
+`graph:first-draw` (building the scene and drawing its first frame). Then it drags the view
+round and times the gaps between the browser's frames. Run it in the `browser` service of a
+running test stack (the same compose files and project as `scripts/test-stack.sh`):
+
+    docker compose -p <project> ... run --rm --no-deps browser \
+      npx playwright test -c tests/benchmark/playwright.config.ts
+
+`MAP_BENCH_NODES`, `MAP_BENCH_LINKS` and `MAP_BENCH_RUNS` (passed with `-e`) change the size
+and the number of runs.
+
+2026-10-11, this dev VM (4 CPUs, 16 GB, load average about 11 to 14 from other work):
+headless Chromium 153 in the Playwright 1.63 image, 1280 x 800 (canvas 1072 x 800), device
+pixel ratio 1. The VM has no graphics card, so WebGL ran in software: `ANGLE (Google, Vulkan
+1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)`, WebGL 2.0.
+
+| Graph                      | Layout in worker | Scene + first frame | Page to first frame | Frame while dragging (median / p95) |
+| -------------------------- | ---------------- | ------------------- | ------------------- | ----------------------------------- |
+| 1,000 records, 3,000 links | 1.12 - 2.23 s    | 146 - 366 ms        | 1.85 - 3.60 s       | 350 - 367 / 667 - 767 ms            |
+| 100 records, 300 links     | 0.26 - 0.38 s    | 72 - 125 ms         | 0.90 - 1.36 s       | 50 - 83 / 83 - 117 ms               |
+
+Software WebGL is slow for any 3D scene: even 100 records draw at only 12 to 20 frames a
+second. These numbers are a floor, for a browser that has no graphics card or has turned it
+off. They are not what a computer or phone with a GPU will see. Nothing here measured one.
+
+What a frame cost, timed part by part in the same browser (1,000 records): the orbs at 24
+segments, 590 to 660 ms; the 1,000 aura sprites, 38 ms, although they are as many draws as
+the orbs; the merged conduits, 113 to 127 ms; and the starfield, a few ms. The orbs cost
+in proportion to their triangles, not their draws. At 16, 12 and 8 segments they took 283,
+167 and 87 ms, so the instancing first planned as the fallback would not have helped. Two
+changes came from this:
+
+- Orbs further than 60 units from the camera use a 12-segment sphere. At that distance an
+  orb is at most a few dozen pixels across and looks the same. Nearer orbs keep the full 24
+  segments (`SCENE_STYLE.orb`, `updateView`). This took a whole 1,000-record frame from 760 -
+  980 ms to about 345 ms, and a 100-record frame from 135 to 72 ms.
+- The controls' damping is scaled by the time since the last frame. A slow device eases to a
+  stop in the same time as a fast one, but in fewer frames. Before this change, each drag
+  was followed by some 200 slow frames (tens of seconds) and the pointer stalled.
+
+No records are dropped and there is no size limit. Whether larger graphs, or software WebGL,
+need one is an open question in the plan.

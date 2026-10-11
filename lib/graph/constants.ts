@@ -27,6 +27,9 @@ export const GRAPH_COLORS: Record<GraphNodeType, string> = {
   tag: '#10b981',
 }
 
+/** The map's deep-space backdrop, shared by the scene and the page around it. */
+export const MAP_BACKGROUND = '#080a0e'
+
 /**
  * Relations of the links that no EntityEdge stores. A saved edge keeps its own
  * relation (lib/relations.ts names the built-in ones), so these are chosen not to

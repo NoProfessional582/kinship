@@ -41,6 +41,9 @@ export interface LayoutOutcome {
   error?: Error
 }
 
+/** The performance entry timing each layout, request to answer, in the browser. */
+export const LAYOUT_MEASURE = 'graph:layout'
+
 export const GRAPH_LOAD_FAILED = 'The map could not load your records.'
 export const FOCUS_NOT_FOUND = 'That record is not on the map. It may have been deleted.'
 
@@ -102,9 +105,13 @@ export function useGraphLayout(query: GraphQuery = {}): GraphLayoutState & { ret
     const layouts = client.current
     if (!graph || graph.nodes.length === 0 || !layouts) return
     let current = true
+    const started = performance.now()
     layouts.layout(graph).then(
       (layout) => {
-        if (current) setOutcome({ graph, layout })
+        if (!current) return
+        // Read by the render benchmark (tests/benchmark); one entry per layout.
+        performance.measure(LAYOUT_MEASURE, { start: started })
+        setOutcome({ graph, layout })
       },
       (err: unknown) => {
         if (!current || err instanceof LayoutCancelledError) return

@@ -11,7 +11,9 @@
  * Costs, for 1,000 records and 3,000 links: orbs and auras are one object each per record
  * but share a geometry per radius and a material per type; hit proxies are hidden, so they
  * are never drawn yet still answer raycasts; labels make their texture only once the camera
- * comes near; and every conduit is one merged geometry, a single draw.
+ * comes near; orbs far from the camera use a coarser sphere, since the orbs' triangles, not
+ * the number of draws, cost the most (docs/graph-layout.md, "Measured in the browser"); and
+ * every conduit is one merged geometry, a single draw.
  */
 import {
   AdditiveBlending,
@@ -37,7 +39,7 @@ import {
   type Object3D,
   type Texture,
 } from 'three'
-import { GRAPH_COLORS, type GraphLink, type GraphNodeType } from './constants'
+import { GRAPH_COLORS, MAP_BACKGROUND, type GraphLink, type GraphNodeType } from './constants'
 import type { GraphLayout, PositionedNode } from './layout3d'
 
 export type StarDensity = 'dense' | 'sparse' | 'off'
@@ -62,7 +64,7 @@ export const SCENE_DEFAULTS: Readonly<SceneSettings> = Object.freeze({
 
 /** The approved look. Phase 03's highlighting adds the active and dimmed values. */
 export const SCENE_STYLE = {
-  background: '#080a0e',
+  background: MAP_BACKGROUND,
   camera: { fov: 46, near: 0.1, far: 1000 },
   /** Where the camera looks from at first, as in the prototype: a little above, in front. */
   cameraDirection: { x: 0, y: 32, z: 120 },
@@ -71,7 +73,19 @@ export const SCENE_STYLE = {
     directional: 0.85,
     directionalFrom: { x: 40, y: 60, z: 50 },
   },
-  orb: { segments: 24, roughness: 0.15, metalness: 0.2, opacity: 0.95, emissive: 0.45 },
+  orb: {
+    segments: 24,
+    /**
+     * Further than `detailDistance` from the camera, an orb is at most a few dozen pixels
+     * across, and a sphere of `farSegments` looks the same there for a quarter the triangles.
+     */
+    farSegments: 12,
+    detailDistance: 60,
+    roughness: 0.15,
+    metalness: 0.2,
+    opacity: 0.95,
+    emissive: 0.45,
+  },
   /** The aura sprite's side, as a multiple of the orb's base radius. */
   aura: { scale: 4.33, opacity: 0.7 },
   /** Raised so one sphere covers both the orb and its label. */
@@ -132,10 +146,11 @@ export interface GraphScene {
   linkVertices: Map<string, { start: number; count: number }>
   bounds: GraphLayout['bounds']
   /**
-   * Shows the labels near enough to read and hides the rest. Call after the camera
-   * moves; true when anything changed, so an on-demand renderer knows to draw.
+   * Fits the scene to where the camera is: shows the labels near enough to read and hides
+   * the rest, and gives near orbs the full sphere and far ones the coarse one. Call after
+   * the camera moves; true when anything changed, so an on-demand renderer knows to draw.
    */
-  updateLabels(cameraPosition: Vector3): boolean
+  updateView(cameraPosition: Vector3): boolean
   /** Removes the scene and frees every geometry, material and texture it made. */
   dispose(): void
 }
@@ -160,7 +175,7 @@ export function buildGraphScene(
   if (stars) root.add(stars)
 
   // Shared by every record of a size or a type.
-  const orbGeometry = new Map<number, SphereGeometry>()
+  const orbGeometry = new Map<number, { near: SphereGeometry; far: SphereGeometry }>()
   const proxyGeometry = new Map<number, SphereGeometry>()
   const orbMaterial = new Map<GraphNodeType, MeshStandardMaterial>()
   const auraMaterial = new Map<GraphNodeType, SpriteMaterial>()
@@ -179,7 +194,10 @@ export function buildGraphScene(
 
     let geometry = orbGeometry.get(radius)
     if (!geometry) {
-      geometry = own(new SphereGeometry(radius, orbStyle.segments, orbStyle.segments))
+      geometry = {
+        near: own(new SphereGeometry(radius, orbStyle.segments, orbStyle.segments)),
+        far: own(new SphereGeometry(radius, orbStyle.farSegments, orbStyle.farSegments)),
+      }
       orbGeometry.set(radius, geometry)
     }
     let material = orbMaterial.get(node.type)
@@ -197,7 +215,8 @@ export function buildGraphScene(
       )
       orbMaterial.set(node.type, material)
     }
-    const orb = new Mesh(geometry, material)
+    // Full detail until updateView knows where the camera is.
+    const orb = new Mesh(geometry.near, material)
 
     let auraLook = auraMaterial.get(node.type)
     if (!auraLook) {
@@ -230,7 +249,7 @@ export function buildGraphScene(
     proxy.userData.nodeId = node.id
     hitTargets.push(proxy)
 
-    // Its texture is made the first time the camera comes near (updateLabels).
+    // Its texture is made the first time the camera comes near (updateView).
     const label = new Sprite(
       own(
         new SpriteMaterial({ transparent: true, opacity: labelStyle.opacity, depthWrite: false }),
@@ -266,11 +285,20 @@ export function buildGraphScene(
     conduits,
     linkVertices,
     bounds: layout.bounds,
-    updateLabels(cameraPosition) {
+    updateView(cameraPosition) {
       if (disposed) return false
       let changed = false
-      for (const { node, group, label } of nodes.values()) {
-        position.set(node.x, node.y + labelStyle.y * group.scale.y, node.z)
+      for (const { node, group, orb, label } of nodes.values()) {
+        position.set(node.x, node.y, node.z)
+        const sphere = orbGeometry.get(node.radius)!
+        const detail =
+          position.distanceTo(cameraPosition) <= orbStyle.detailDistance ? sphere.near : sphere.far
+        if (orb.geometry !== detail) {
+          orb.geometry = detail
+          changed = true
+        }
+
+        position.y += labelStyle.y * group.scale.y
         const near = position.distanceTo(cameraPosition) <= labelStyle.maxDistance
         if (near && !label.material.map) {
           label.material.map = own(textures.label(node.name))
