@@ -2,9 +2,10 @@
 title: Kinship: security and data correctness repairs
 summary: Address all six review findings with focused regression tests and safe handling of existing data.
 created: 2026-10-10
-next: awaiting final merge approval (0.1.4)
-overview_url: /home/nicho/Agents/plans/active/kinship-review-fixes/overview.html
+next: 
+overview_url: /home/nicho/Agents/plans/completed/kinship-review-fixes/overview.html
 started: 2026-10-10
+completed: 2026-10-10
 ---
 # Kinship: security and data correctness repairs
 
@@ -126,7 +127,7 @@ The packaged `photos:check` inventory reports an owner-scoped nonmutating snapsh
 - 01 · Request security · done · Reject forged browser writes and hostile hosts; preserve browser/CLI/health flows with regression tests and full checks.
 - 02 · Data correctness · done · Prevent task cycles, include overlapping calendar spans, and correct recency on edits and upgrades.
 - 03 · Avatar lifecycle · done · Referenced export, reusable restore, pending protection, candidate cleanup and inventory passed full acceptance and three upgrade baselines.
-- 04 · Unused code and final acceptance · done · Unused exports/dependency removed; all six findings verified; final 0.1.4 patch/spec ready for separate merge approval.
+- 04 · Unused code and final acceptance · done · Unused exports/dependency removed; all six findings verified; final 0.1.4 patch/spec merged and pushed after approval.
 
 ## Phase 03 result
 
@@ -156,4 +157,4 @@ Full `scripts/check.sh` passed: format/lint/types, 234 unit tests, zero audit vu
 
 All six findings have an evidence map in `/home/nicho/Agents/artifacts/kinship-final-acceptance/six-findings.md`; passing logs, corrected failed attempts and exact commit/check boundaries are recorded alongside it in `results.md`. Disposable task stacks/images/data are removed. Existing user data was not modified or inventoried. Legacy hierarchy repair and legacy orphan deletion remain separately authorized actions requiring a concrete preview and verified full backup.
 
-Final source merge/push of `0.1.4` is awaiting separate approval under code.md 7. No tag/image was published and nothing was deployed. After approval, merge/push, reconcile the final master/spec/overview record, then run `plan-done kinship-review-fixes`. The active plan intentionally remains open until that approved final merge is recorded.
+The user approved the final source merge/push on 2026-10-10. Re-fetching main/tags and synchronizing changed no files. Main fast-forwarded from `8d2a656` through `8d78045` to checked acceptance commit `a062dc8`; push succeeded and GitHub main was verified at `a062dc86d607c70d921bda293c633ce303e3150e`. The final documentation reconciliation is recorded in the acceptance evidence. All four phases are complete; merge-pending statements in earlier results are historical and resolved. No tag/image was published and nothing was deployed. The plan is complete.
