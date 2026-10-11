@@ -3,6 +3,7 @@
  * a phone). Pure, like focus.ts. Only the link is read here; whether the record is on the
  * map is up to the map, once it has loaded.
  */
+import type { GraphData } from './constants'
 import { parseGraphId } from './focus'
 
 export const MAP_PATH = '/map'
@@ -25,4 +26,21 @@ export function readMapFocus(params: Pick<URLSearchParams, 'getAll'>): MapFocus 
 export function mapHref(focusId?: string): string {
   if (!focusId) return MAP_PATH
   return `${MAP_PATH}?${new URLSearchParams({ focus: focusId })}`
+}
+
+/**
+ * The graph with each record's link made the page's own (m() on a phone, so the phone stays
+ * in its own pages); the same graph without a mapper.
+ */
+export function withRecordHref(
+  graph: GraphData | undefined,
+  recordHref: ((path: string) => string) | undefined,
+): GraphData | undefined {
+  if (!graph || !recordHref) return graph
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) =>
+      node.url === null ? node : { ...node, url: recordHref(node.url) },
+    ),
+  }
 }

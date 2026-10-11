@@ -27,8 +27,8 @@ import {
   GraphLoading,
   GraphRecordList,
 } from '@/components/graph/graph-states'
-import { MAP_BACKGROUND, type GraphData } from '@/lib/graph/constants'
-import { readMapFocus } from '@/lib/graph/deep-link'
+import { MAP_BACKGROUND } from '@/lib/graph/constants'
+import { readMapFocus, withRecordHref } from '@/lib/graph/deep-link'
 import { highlightState, highlightSummary, neighbourSets } from '@/lib/graph/highlight'
 import { connectionRows } from '@/lib/graph/inspector'
 import { SCENE_DEFAULTS, type SceneSettings } from '@/lib/graph/scene'
@@ -192,20 +192,6 @@ function MapBody({ recordHref }: MapViewProps) {
       )}
     </div>
   )
-}
-
-/** The graph with each record's link made the page's own; the same graph without a mapper. */
-function withRecordHref(
-  graph: GraphData | undefined,
-  recordHref: MapViewProps['recordHref'],
-): GraphData | undefined {
-  if (!graph || !recordHref) return graph
-  return {
-    ...graph,
-    nodes: graph.nodes.map((node) =>
-      node.url === null ? node : { ...node, url: recordHref(node.url) },
-    ),
-  }
 }
 
 /**

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/misc'
 import { MobileBoard } from '@/components/mobile/board'
 import { MobileTaskSheet } from '@/components/mobile/task-sheet'
 import { NewTaskDialog } from '@/components/board/new-task-dialog'
+import { MiniGraph } from '@/components/graph/mini-graph'
 import { NotFound } from '@/components/shared/not-found'
 import { api, useBoard } from '@/lib/hooks/api'
 import { m } from '@/lib/mobile/href'
@@ -76,6 +77,10 @@ export default function MobileProject() {
           projectId={project.id}
           onOpenTask={setOpenTask}
         />
+      )}
+
+      {board && !project.isDraft && (
+        <MiniGraph focusId={`project:${project.id}`} name={project.name} phone level={2} />
       )}
 
       <MobileTaskSheet taskId={openTask} onClose={() => setOpenTask(null)} />

@@ -106,21 +106,27 @@ export function neighbourSets(links: readonly GraphLink[]): Map<string, Set<stri
   return sets
 }
 
+/**
+ * On the full map, while something is selected, hovering another record changes nothing.
+ * With `hoverFirst` (the small map on a record's page, whose record is always selected) a
+ * hover lights that record's connections instead; the selection keeps its growth and beacon.
+ */
 export function highlightState({
   hoveredId,
   selectedId,
   neighbours,
+  hoverFirst = false,
 }: {
   hoveredId: string | null
   selectedId: string | null
   neighbours: NeighbourSets
+  hoverFirst?: boolean
 }): HighlightState {
-  // While something is selected, hovering another record changes nothing.
-  const activeId = selectedId ?? hoveredId
+  const activeId = hoverFirst ? (hoveredId ?? selectedId) : (selectedId ?? hoveredId)
   if (activeId === null) return { activeId, mode: 'none', neighbours: NONE, hoveredId, selectedId }
   return {
     activeId,
-    mode: selectedId !== null ? 'selected' : 'hover',
+    mode: activeId === selectedId ? 'selected' : 'hover',
     neighbours: neighbours.get(activeId) ?? NONE,
     hoveredId,
     selectedId,

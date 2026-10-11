@@ -14,6 +14,9 @@
  * showing, so the selected record is not hidden behind it.
  * Leaving the page frees everything it made: the scene's geometries, materials and
  * textures, the controls, the observer, the listeners and the WebGL context.
+ * `compact` is for the small map inside a record's page: the page keeps the wheel and a
+ * vertical swipe, so it scrolls past the map; a sideways drag still turns it, a tap or click
+ * still picks, and a hover lights over the selection (highlight.ts, hoverFirst).
  */
 import * as React from 'react'
 import { PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from 'three'
@@ -50,6 +53,8 @@ export interface GraphCanvasProps {
   autoOrbit?: boolean
   /** CSS pixels covered on the right and along the bottom (the inspector), if any. */
   inset?: Inset
+  /** A small map inside a page, which scrolls over it: no zoom or pan, hover first. */
+  compact?: boolean
   /** The record under the pointer, or null when it leaves them all. */
   onHover?: (nodeId: string | null) => void
   /** A click (not a drag) on a record, or null for a click on empty space. */
@@ -146,6 +151,7 @@ export default function GraphCanvas({
   settings = SCENE_DEFAULTS,
   autoOrbit = false,
   inset = NO_INSET,
+  compact = false,
   onHover,
   onSelect,
   onReady,
@@ -196,6 +202,12 @@ export default function GraphCanvas({
     controls.maxDistance = CONTROLS.maxDistance
     controls.autoRotate = false
     controls.autoRotateSpeed = CONTROLS.autoRotateSpeed
+    if (compact) {
+      // Only sideways drags reach the controls; the browser scrolls the page for the rest.
+      canvas.style.touchAction = 'pan-y'
+      controls.enableZoom = false
+      controls.enablePan = false
+    }
 
     let frame = 0
     let frames = 0
@@ -363,7 +375,7 @@ export default function GraphCanvas({
       renderer.forceContextLoss()
       canvas.remove()
     }
-  }, [])
+  }, [compact])
 
   // The settings the scene was last given, so a rebuilt scene starts with them.
   const applied = React.useRef(settings)
@@ -406,9 +418,9 @@ export default function GraphCanvas({
     const current = view.current
     const graph = current?.graph
     if (!current || !graph) return
-    graph.applyHighlight(highlightState({ hoveredId, selectedId, neighbours }))
+    graph.applyHighlight(highlightState({ hoveredId, selectedId, neighbours, hoverFirst: compact }))
     current.invalidate()
-  }, [hoveredId, selectedId, neighbours, layout])
+  }, [hoveredId, selectedId, neighbours, layout, compact])
 
   // A new selection: the beacon moves to it and the orbit centres on it.
   React.useEffect(() => {

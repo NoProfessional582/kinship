@@ -8,6 +8,7 @@ import { Badge, EmptyState } from '@/components/ui/misc'
 import { Board } from '@/components/board/board'
 import { TaskDialog } from '@/components/shared/task-dialog'
 import { NewTaskDialog } from '@/components/board/new-task-dialog'
+import { MiniGraph } from '@/components/graph/mini-graph'
 import { NotFound } from '@/components/shared/not-found'
 import { api, useBoard } from '@/lib/hooks/api'
 import type { ProjectDetail } from '@/lib/api-types'
@@ -94,6 +95,13 @@ export default function ProjectPage() {
             />
           )}
         </div>
+        {/* Below the board, which fills the view: scrolled to, and only then drawn. Not
+            before the board is in, or it would be in view for a moment and load at once. */}
+        {board && !project.isDraft && (
+          <div className="mx-auto w-full max-w-[var(--page-max)] px-6 pb-6 lg:px-8">
+            <MiniGraph focusId={`project:${project.id}`} name={project.name} level={2} />
+          </div>
+        )}
       </div>
 
       <TaskDialog taskId={openTask} onClose={() => setOpenTask(null)} />

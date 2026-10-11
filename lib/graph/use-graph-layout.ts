@@ -79,10 +79,13 @@ export function graphLayoutState(
   return { status: 'ready', graph, layout: outcome.layout }
 }
 
+/** The request's React Query key, so a page can leave one alone (refreshAfterDelete). */
+export const graphQueryKey = (query: GraphQuery = {}) => ['graph', graphUrl(query)] as const
+
 export function useGraphLayout(query: GraphQuery = {}): GraphLayoutState & { retry: () => void } {
   const url = graphUrl(query)
   const request = useQuery({
-    queryKey: ['graph', url],
+    queryKey: graphQueryKey(query),
     // React Query aborts the request when the page leaves or the query changes.
     queryFn: ({ signal }) => api.get<GraphData>(url, { signal }),
   })
