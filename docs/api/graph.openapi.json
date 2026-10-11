@@ -1,0 +1,123 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Kinship graph API",
+    "version": "1.0.0",
+    "description": "The read-only graph behind the 3D map: the configured owner's visible contacts, projects, entries, tasks and tags, and every relationship between them. lib/graph/api.generated.ts is generated from this file (npm run graph:types); never edit it by hand."
+  },
+  "paths": {
+    "/api/graph": {
+      "get": {
+        "operationId": "getGraph",
+        "summary": "The owner's graph, or one record's neighbourhood",
+        "parameters": [
+          {
+            "name": "focusId",
+            "in": "query",
+            "required": false,
+            "description": "A graph node id, '<type>:<database id>'. Only the records within `depth` steps of it are returned, following links in either direction.",
+            "schema": { "type": "string", "examples": ["contact:clx0abc123"] }
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "description": "How many steps from the focus to include. Needs focusId. Defaults to 2.",
+            "schema": { "type": "integer", "enum": [1, 2] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The graph",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/GraphDataResponse" } }
+            }
+          },
+          "400": {
+            "description": "A malformed query: a bad focusId or depth, depth without focusId, or a repeated parameter with different values",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          },
+          "404": {
+            "description": "The focus is not a visible record of this owner",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GraphNodeType": {
+        "type": "string",
+        "enum": ["contact", "project", "entry", "task", "tag"]
+      },
+      "GraphNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "entityId", "type", "name", "color", "url"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "'<type>:<database id>': unique across types, and what focusId takes"
+          },
+          "entityId": { "type": "string", "description": "The record's database id" },
+          "type": { "$ref": "#/components/schemas/GraphNodeType" },
+          "name": { "type": "string" },
+          "subtitle": {
+            "type": "string",
+            "description": "A short label: a headline, a status, a kind"
+          },
+          "description": {
+            "type": "string",
+            "description": "A short plain-text excerpt; never a full body"
+          },
+          "color": { "type": "string", "description": "The type's colour, '#rrggbb'" },
+          "url": {
+            "type": ["string", "null"],
+            "description": "The record's page in the app; null for tags, which have none"
+          }
+        }
+      },
+      "GraphLink": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "source", "target", "relation", "origins"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable identity of the directed source, target and relation"
+          },
+          "source": { "type": "string", "description": "A GraphNode id" },
+          "target": { "type": "string", "description": "A GraphNode id" },
+          "relation": {
+            "type": "string",
+            "description": "A saved relationship's own relation, or the name of an inferred one"
+          },
+          "origins": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Where the link came from, sorted; several when identical links were merged"
+          }
+        }
+      },
+      "GraphDataResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["nodes", "links"],
+        "properties": {
+          "nodes": { "type": "array", "items": { "$ref": "#/components/schemas/GraphNode" } },
+          "links": { "type": "array", "items": { "$ref": "#/components/schemas/GraphLink" } }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": { "error": { "type": "string" } }
+      }
+    }
+  }
+}

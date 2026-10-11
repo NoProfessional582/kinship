@@ -71,6 +71,17 @@ part_quick() {
   scripts/node.sh npx prisma validate
   scripts/node.sh npx prisma generate
 
+  step "Graph API types: lib/graph/api.generated.ts is generated from docs/api/graph.openapi.json"
+  # Regenerated here and compared, so a contract change without `npm run graph:types` fails.
+  # A failed generation prints nothing, which differs from the file and fails too.
+  scripts/node.sh sh -c 'npx openapi-typescript docs/api/graph.openapi.json 2>/dev/null |
+    npx prettier --stdin-filepath lib/graph/api.generated.ts' >"$tmp/graph-types.ts"
+  if ! diff -u lib/graph/api.generated.ts "$tmp/graph-types.ts"; then
+    echo "lib/graph/api.generated.ts is out of date: run scripts/node.sh npm run graph:types." >&2
+    return 1
+  fi
+  echo "up to date"
+
   step "Format (Prettier)"
   scripts/node.sh npm run --silent format:check
 
