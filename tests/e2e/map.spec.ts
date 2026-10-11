@@ -1,6 +1,7 @@
 /**
  * The 3D map page (/map): it draws the seeded records, picks a record under the pointer,
- * and shows its other states: no records, a failed request (and its retry), and a browser
+ * lights a hovered or selected record's connections and dims the rest, and shows its other
+ * states: no records, a failed request (and its retry), and a browser
  * without WebGL, which lists the records instead. Leaving the page frees the canvas.
  *
  * Headless Chromium draws WebGL in software, so these check that something was drawn and
@@ -11,6 +12,39 @@ import { test, expect } from '../support/fixtures'
 import { SEEDED } from '../support/stack'
 
 const canvasOf = (page: Page) => page.getByTestId('graph-canvas').locator('canvas')
+const mapOf = (page: Page) => page.locator('[data-highlight]')
+const statusOf = (page: Page) => page.getByTestId('map-status')
+
+/** How many frames the canvas has drawn so far. */
+const framesOf = async (page: Page) =>
+  Number((await page.getByTestId('graph-canvas').getAttribute('data-frames')) ?? 0)
+
+/** Whether the canvas draws no frame in the next `ms`: nothing runs in a loop. */
+async function still(page: Page, ms = 600) {
+  const before = await framesOf(page)
+  await page.waitForTimeout(ms)
+  return (await framesOf(page)) === before
+}
+
+/** Sweeps the middle of the view with the mouse until it is over a record; returns where. */
+async function findRecord(page: Page) {
+  const canvas = canvasOf(page)
+  const box = (await canvas.boundingBox())!
+  for (let row = 1; row < 16; row++) {
+    for (let col = 1; col < 24; col++) {
+      const point = { x: box.x + (box.width * col) / 24, y: box.y + (box.height * row) / 16 }
+      await page.mouse.move(point.x, point.y)
+      if ((await canvas.evaluate((el) => el.style.cursor)) === 'pointer') return point
+    }
+  }
+  throw new Error('no point over a record shows the pointer cursor')
+}
+
+/** A corner of the view, over no record. */
+async function emptySpace(page: Page) {
+  const box = (await canvasOf(page).boundingBox())!
+  return { x: box.x + 2, y: box.y + 2 }
+}
 
 /** Waits until the scene has drawn its first frame (the page's performance entry). */
 async function drawn(page: Page) {
@@ -73,20 +107,85 @@ test('a record under the pointer is picked', { tag: '@desktop' }, async ({ page 
   await page.goto('/map')
   await drawn(page)
   const canvas = canvasOf(page)
-  const box = (await canvas.boundingBox())!
-  // Sweep the middle of the view until the pointer is over a record's hit proxy.
-  let found = false
-  for (let row = 1; row < 16 && !found; row++) {
-    for (let col = 1; col < 24 && !found; col++) {
-      await page.mouse.move(box.x + (box.width * col) / 24, box.y + (box.height * row) / 16)
-      found = (await canvas.evaluate((el) => el.style.cursor)) === 'pointer'
-    }
-  }
-  expect(found, 'some point over a record shows the pointer cursor').toBe(true)
+  await findRecord(page)
   // Off every record, the cursor goes back.
-  await page.mouse.move(box.x + 2, box.y + 2)
+  const empty = await emptySpace(page)
+  await page.mouse.move(empty.x, empty.y)
   await expect.poll(() => canvas.evaluate((el) => el.style.cursor)).toBe('')
 })
+
+test(
+  'hovering a record lights its connections and dims the rest',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/map')
+    await drawn(page)
+    await expect(statusOf(page)).toHaveText(/^Hover over or select a record/)
+    await expect
+      .poll(() => still(page), { message: 'nothing draws while the view is still' })
+      .toBe(true)
+    const resting = await colouredShare(page, canvasOf(page))
+
+    await findRecord(page)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'hover')
+    await expect(mapOf(page)).not.toHaveAttribute('data-active-id', '')
+    await expect(statusOf(page)).toHaveText(/^Hovering: .+ · \d+ direct connections?$/)
+    const dimmed = await colouredShare(page, canvasOf(page))
+    expect(dimmed, 'the records not connected to it are dimmer').toBeLessThan(resting)
+    // A hover draws once; nothing loops after it.
+    await expect.poll(() => still(page)).toBe(true)
+
+    const empty = await emptySpace(page)
+    await page.mouse.move(empty.x, empty.y)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+  },
+)
+
+test(
+  'clicking selects a record; empty space and Escape clear it',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.goto('/map')
+    await drawn(page)
+    const point = await findRecord(page)
+    const hovered = await mapOf(page).getAttribute('data-active-id')
+    await page.mouse.click(point.x, point.y)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+    await expect(mapOf(page)).toHaveAttribute('data-active-id', hovered!)
+    await expect(statusOf(page)).toHaveText(/^Selected: .+ · \d+ direct connections?$/)
+    // The beacon pulses, so frames keep coming while it is selected.
+    expect(await still(page), 'the beacon pulses').toBe(false)
+
+    // Hovering elsewhere does not move the highlight off the selection.
+    const empty = await emptySpace(page)
+    await page.mouse.move(empty.x, empty.y)
+    await expect(mapOf(page)).toHaveAttribute('data-active-id', hovered!)
+
+    await page.mouse.click(empty.x, empty.y)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+    await expect.poll(() => still(page)).toBe(true)
+
+    await page.mouse.click(point.x, point.y)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+    await page.keyboard.press('Escape')
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'none')
+    await expect(statusOf(page)).toHaveText(/^Hover over or select a record/)
+  },
+)
+
+test(
+  'with reduced motion the beacon holds still and nothing loops',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/map')
+    await drawn(page)
+    const point = await findRecord(page)
+    await page.mouse.click(point.x, point.y)
+    await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+    await expect.poll(() => still(page)).toBe(true)
+  },
+)
 
 test('with no records the map says so', { tag: '@desktop' }, async ({ page }) => {
   await page.route('**/api/graph', (route) => route.fulfill({ json: { nodes: [], links: [] } }))
@@ -172,4 +271,15 @@ test('the map fits a phone and turns with a finger', { tag: '@phone' }, async ({
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false)
+})
+
+test('a tap selects a record on a phone', { tag: '@phone' }, async ({ page }) => {
+  await page.goto('/map')
+  await drawn(page)
+  const point = await findRecord(page)
+  await page.touchscreen.tap(point.x, point.y)
+  await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+  await expect(statusOf(page)).toBeVisible()
+  const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+  expect(fits, 'the status line fits without sideways scroll').toBe(true)
 })

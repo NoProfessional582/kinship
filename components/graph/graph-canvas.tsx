@@ -5,15 +5,19 @@
  * graph-canvas-loader.tsx (next/dynamic, no server rendering) and three never reaches the
  * server's bundle.
  *
- * It draws on demand: once for each camera move, resize or change of labels, and while
- * the controls' damping settles after a drag; never in a loop while the view is still.
+ * It draws on demand: once for each camera move, resize, change of labels or highlight,
+ * while the controls' damping settles after a drag or the orbit glides to a selected
+ * record, and while the selected record's beacon pulses; never in a loop while the view is
+ * still and nothing is selected. With reduced motion the beacon is a still ring and the
+ * orbit moves to a selection at once.
  * Leaving the page frees everything it made: the scene's geometries, materials and
  * textures, the controls, the observer, the listeners and the WebGL context.
  */
 import * as React from 'react'
-import { PerspectiveCamera, Raycaster, Scene, Vector2, WebGLRenderer } from 'three'
+import { PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import type { GraphLink } from '@/lib/graph/constants'
+import { highlightState, neighbourSets } from '@/lib/graph/highlight'
 import type { GraphLayout } from '@/lib/graph/layout3d'
 import {
   SCENE_STYLE,
@@ -31,6 +35,11 @@ export interface GraphCanvasHandle {
 export interface GraphCanvasProps {
   layout: GraphLayout
   links: readonly GraphLink[]
+  /** The record to preview: it and its direct connections light up, the rest dim. */
+  hoveredId?: string | null
+  /** The record in focus: lit like a hover, but it wins over one, gets the beacon, and the
+   * orbit centres on it. */
+  selectedId?: string | null
   /** The record under the pointer, or null when it leaves them all. */
   onHover?: (nodeId: string | null) => void
   /** A click (not a drag) on a record, or null for a click on empty space. */
@@ -50,6 +59,9 @@ const MAX_FRAME_GAP = 250
 const MAX_PIXEL_RATIO = 2
 /** A press that moves further than this, in CSS pixels, is a drag and selects nothing. */
 const CLICK_SLOP = 5
+/** The orbit centre's glide to a selected record ends this close to it, in scene units. */
+const GLIDE_DONE = 0.01
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
 
 /** Whether this browser can make a WebGL context at all, asked before making the renderer. */
 export function webglAvailable(doc: Document = document): boolean {
@@ -76,6 +88,11 @@ interface View {
   graph: GraphScene | null
   /** When the scene being shown began to build, until its first frame is drawn. */
   building: number | null
+  /** The record with the beacon. */
+  selectedId: string | null
+  /** Where the orbit centre is gliding to, until it gets there. */
+  glide: Vector3 | null
+  reducedMotion: boolean
 }
 
 /** The performance entry timing a scene's build and first frame, read by the benchmark. */
@@ -84,6 +101,8 @@ export const FIRST_DRAW_MEASURE = 'graph:first-draw'
 export default function GraphCanvas({
   layout,
   links,
+  hoveredId = null,
+  selectedId = null,
   onHover,
   onSelect,
   onUnavailable,
@@ -125,35 +144,50 @@ export default function GraphCanvas({
     const camera = new PerspectiveCamera(fov, 1, near, far)
     const world = new Scene()
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const motion = window.matchMedia(REDUCED_MOTION)
     const controls = new OrbitControls(camera, canvas)
-    controls.enableDamping = !reducedMotion
+    controls.enableDamping = !motion.matches
     controls.dampingFactor = CONTROLS.dampingFactor
     controls.minDistance = CONTROLS.minDistance
     controls.maxDistance = CONTROLS.maxDistance
     controls.autoRotate = false
 
     let frame = 0
+    let frames = 0
     let disposed = false
     let lastMoving = 0
     const draw = (now: number) => {
       frame = 0
       if (disposed) return
+      // Counted for the browser tests, which check that nothing draws while the view is still.
+      host.dataset.frames = String(++frames)
       // Damping eases the view by a share of what is left on each frame. Scaled by the time
       // since the last frame, a slow device glides as long as a fast one, in fewer frames,
       // instead of drawing hundreds of slow frames after every drag.
       const elapsed = lastMoving ? Math.min(now - lastMoving, MAX_FRAME_GAP) : FRAME
       controls.dampingFactor = 1 - (1 - CONTROLS.dampingFactor) ** (elapsed / FRAME)
+      // The orbit centre eases to a selected record by the same share as the damping.
+      let gliding = false
+      if (current.glide) {
+        controls.target.lerp(current.glide, controls.dampingFactor)
+        if (controls.target.distanceTo(current.glide) <= GLIDE_DONE) {
+          controls.target.copy(current.glide)
+          current.glide = null
+        } else gliding = true
+      }
       // update() moves the camera on while damping settles, and says whether it did.
-      const moving = controls.update()
+      const moving = controls.update() || gliding
       lastMoving = moving ? now : 0
       current.graph?.updateView(camera.position)
+      const pulsing =
+        current.graph?.placeBeacon(current.selectedId, camera, now / 1000, current.reducedMotion) ??
+        false
       renderer.render(world, camera)
       if (current.building !== null && current.graph) {
         performance.measure(FIRST_DRAW_MEASURE, { start: current.building })
         current.building = null
       }
-      if (moving) invalidate()
+      if (moving || pulsing) invalidate()
     }
     const invalidate = () => {
       if (!frame && !disposed) frame = requestAnimationFrame(draw)
@@ -166,9 +200,25 @@ export default function GraphCanvas({
       invalidate,
       graph: null,
       building: null,
+      selectedId: null,
+      glide: null,
+      reducedMotion: motion.matches,
     }
     view.current = current
     controls.addEventListener('change', invalidate)
+
+    // Followed live: turning reduced motion on stops the pulse and the glide at once.
+    const motionChanged = () => {
+      current.reducedMotion = motion.matches
+      controls.enableDamping = !motion.matches
+      if (motion.matches && current.glide) {
+        controls.target.copy(current.glide)
+        current.glide = null
+        controls.update()
+      }
+      invalidate()
+    }
+    motion.addEventListener('change', motionChanged)
 
     const resize = () => {
       const width = host.clientWidth
@@ -238,6 +288,7 @@ export default function GraphCanvas({
       disposed = true
       if (frame) cancelAnimationFrame(frame)
       view.current = null
+      motion.removeEventListener('change', motionChanged)
       observer.disconnect()
       canvas.removeEventListener('webglcontextlost', lost)
       canvas.removeEventListener('pointerdown', down)
@@ -270,6 +321,35 @@ export default function GraphCanvas({
     }
   }, [layout, links])
 
+  const neighbours = React.useMemo(() => neighbourSets(links), [links])
+
+  // The highlight: after the scene effect, so a rebuilt scene is lit as the old one was.
+  React.useEffect(() => {
+    const current = view.current
+    const graph = current?.graph
+    if (!current || !graph) return
+    graph.applyHighlight(highlightState({ hoveredId, selectedId, neighbours }))
+    current.invalidate()
+  }, [hoveredId, selectedId, neighbours, layout])
+
+  // A new selection: the beacon moves to it and the orbit centres on it.
+  React.useEffect(() => {
+    const current = view.current
+    if (!current) return
+    current.selectedId = selectedId
+    const objects = selectedId === null ? undefined : current.graph?.nodes.get(selectedId)
+    if (objects) {
+      const { x, y, z } = objects.node
+      current.glide = new Vector3(x, y, z)
+      if (current.reducedMotion) {
+        current.controls.target.copy(current.glide)
+        current.glide = null
+        current.controls.update()
+      }
+    }
+    current.invalidate()
+  }, [selectedId, layout])
+
   React.useImperativeHandle(
     ref,
     () => ({
@@ -291,6 +371,7 @@ function fit(current: View, graph: GraphScene) {
   const distance = camera.position.distanceTo(center)
   // A big graph fits further out than the prototype's limit; leave room to zoom out past it.
   controls.maxDistance = Math.max(CONTROLS.maxDistance, distance * 1.5)
+  current.glide = null
   controls.target.copy(center)
   controls.update()
   graph.updateView(camera.position)

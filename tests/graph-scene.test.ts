@@ -1,5 +1,6 @@
 import {
   AdditiveBlending,
+  BufferAttribute,
   BufferGeometry,
   Color,
   Material,
@@ -18,6 +19,7 @@ import {
 } from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import { GRAPH_COLORS, type GraphLink, type GraphNode } from '@/lib/graph/constants'
+import { highlightState, neighbourSets } from '@/lib/graph/highlight'
 import { NODE_RADIUS, compute3DLayout, type GraphLayout } from '@/lib/graph/layout3d'
 import {
   SCENE_DEFAULTS,
@@ -360,6 +362,200 @@ describe('buildGraphScene', () => {
     expect(scene.nodes.size).toBe(0)
     expect(scene.hitTargets).toHaveLength(0)
     expect(scene.updateView(new Vector3())).toBe(false)
+  })
+})
+
+describe('applyHighlight', () => {
+  /** The sample's scene, and its state for a hovered and a selected record. */
+  function lit() {
+    const { nodes, links, layout } = sample()
+    const scene = buildGraphScene(layout, links, fakeTextures().textures)
+    const neighbours = neighbourSets(links)
+    const state = (hoveredId: string | null, selectedId: string | null = null) =>
+      highlightState({ hoveredId, selectedId, neighbours })
+    const [c, p, e, t, g, lone] = nodes.map((n) => scene.nodes.get(n.id)!)
+    const colors = () => Array.from(scene.conduits!.geometry.getAttribute('color').array)
+    return { scene, links, state, c, p, e, t, g, lone, colors }
+  }
+  const perLink = SCENE_STYLE.conduit.sides * 2
+  /** A link's colour and opacity, read from its first vertex. */
+  const linkRgba = (colors: number[], index: number) =>
+    colors.slice(index * perLink * 4, index * perLink * 4 + 4)
+  const rgba = (hex: string, opacity: number) => {
+    const { r, g, b } = new Color(hex)
+    return [r, g, b, opacity].map((n) => Math.fround(n))
+  }
+
+  it('changes nothing at rest: the scene stays exactly as built', () => {
+    const { scene, state, c, colors } = lit()
+    const before = colors()
+    const material = c.orb.material
+    expect(scene.applyHighlight(state(null))).toBe(false)
+    expect(c.orb.material).toBe(material)
+    expect(colors()).toEqual(before)
+  })
+
+  it('lights a hovered record and its connections and dims the rest', () => {
+    const { scene, state, c, p, e, t, g, lone, colors } = lit()
+    expect(scene.applyHighlight(state(e.node.id))).toBe(true)
+
+    expect(e.orb.material.opacity).toBe(1)
+    expect(e.orb.material.emissiveIntensity).toBe(0.7)
+    expect(e.label.material.opacity).toBe(1)
+    expect(e.aura.material.opacity).toBe(0.9)
+    for (const near of [c, p]) {
+      expect(near.orb.material.opacity).toBe(0.95)
+      expect(near.orb.material.emissiveIntensity).toBe(0.45)
+      expect(near.label.material.opacity).toBe(0.95)
+      expect(near.aura.material.opacity).toBe(0.7)
+    }
+    for (const far of [t, g, lone]) {
+      expect(far.orb.material.opacity).toBe(0.35)
+      expect(far.orb.material.emissiveIntensity).toBe(0.08)
+      expect(far.label.material.opacity).toBe(0.3)
+      expect(far.aura.material.opacity).toBe(0.15)
+    }
+    // Each kept its type's colour; only the look changed.
+    expect(e.orb.material.color.getHexString()).toBe(GRAPH_COLORS.entry.slice(1))
+
+    // Links e-c and e-p touch the hovered record; t-c and c-g do not.
+    const now = colors()
+    expect(linkRgba(now, 0)).toEqual(rgba('#a5b4fc', 1))
+    expect(linkRgba(now, 1)).toEqual(rgba('#a5b4fc', 1))
+    expect(linkRgba(now, 2)).toEqual(rgba('#404854', 0.2))
+    expect(linkRgba(now, 3)).toEqual(rgba('#404854', 0.2))
+  })
+
+  it('dims harder for a selection, rewriting only the links whose look changed', () => {
+    const { scene, state, e, t, colors } = lit()
+    scene.applyHighlight(state(e.node.id))
+    const attribute = scene.conduits!.geometry.getAttribute('color') as BufferAttribute
+    const version = attribute.version
+    expect(scene.applyHighlight(state(t.node.id, e.node.id))).toBe(true)
+
+    expect(t.orb.material.opacity).toBe(0.12)
+    expect(t.label.material.opacity).toBe(0.1)
+    expect(t.aura.material.opacity).toBe(0.05)
+    expect(e.orb.material.opacity).toBe(1)
+    expect(linkRgba(colors(), 2)).toEqual(rgba('#404854', 0.04))
+    // The two lit links stayed lit, so only links 2 and 3 were sent to the GPU again.
+    expect(attribute.version).toBeGreaterThan(version)
+    expect(attribute.updateRanges).toEqual([{ start: 2 * perLink * 4, count: 2 * perLink * 4 }])
+
+    // Nothing changed, nothing to draw.
+    expect(scene.applyHighlight(state(null, e.node.id))).toBe(false)
+  })
+
+  it('goes back to the built materials and colours at rest, and reuses its looks', () => {
+    const { scene, state, c, e, colors } = lit()
+    const before = colors()
+    const resting = c.orb.material
+    const restingAura = c.aura.material
+    scene.applyHighlight(state(e.node.id))
+    const neighbourLook = c.orb.material
+    expect(neighbourLook).not.toBe(resting)
+
+    scene.applyHighlight(state(null))
+    expect(c.orb.material).toBe(resting)
+    expect(c.aura.material).toBe(restingAura)
+    expect(c.label.material.opacity).toBe(0.9)
+    expect(colors()).toEqual(before)
+
+    scene.applyHighlight(state(e.node.id))
+    expect(c.orb.material).toBe(neighbourLook)
+  })
+
+  it('shares each look by type, so a big graph makes a handful of materials', () => {
+    const nodes = Array.from({ length: 30 }, (_, i) => node(`${i}`, 'contact'))
+    const links = nodes.slice(1).map((n) => link(nodes[0], n))
+    const scene = buildGraphScene(compute3DLayout(nodes, links), links, fakeTextures().textures)
+    scene.applyHighlight(
+      highlightState({
+        hoveredId: nodes[1].id,
+        selectedId: null,
+        neighbours: neighbourSets(links),
+      }),
+    )
+    const looks = new Set([...scene.nodes.values()].map((o) => o.orb.material))
+    // The hovered record, its one connection (the hub), and everyone else.
+    expect(looks.size).toBe(3)
+  })
+
+  it('scales the lit looks with glow', () => {
+    const { scene, state, c, e } = lit()
+    scene.applyHighlight(state(e.node.id), { ...SCENE_DEFAULTS, glowIntensity: 2 })
+    expect(e.orb.material.emissiveIntensity).toBe(1.4)
+    expect(e.aura.material.opacity).toBe(1)
+    expect(c.orb.material.emissiveIntensity).toBe(0.9)
+    scene.applyHighlight(state(null), { ...SCENE_DEFAULTS, glowIntensity: 0.5 })
+    expect(c.orb.material.emissiveIntensity).toBe(0.225)
+    expect(c.aura.material.opacity).toBe(0.35)
+  })
+
+  it('dispose frees the look materials too, but not the textures they share', () => {
+    const { scene, state, e } = lit()
+    scene.applyHighlight(state(e.node.id))
+    const inUse = resources(scene.root)
+    const spies = [...inUse.materials, ...inUse.textures].map((m) => vi.spyOn(m, 'dispose'))
+    scene.applyHighlight(state(null))
+    scene.dispose()
+    for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1)
+    expect(scene.applyHighlight(state(e.node.id))).toBe(false)
+  })
+})
+
+describe('placeBeacon', () => {
+  function withBeacon() {
+    const { links, layout } = sample()
+    const scene = buildGraphScene(layout, links, fakeTextures().textures)
+    const beacon = scene.root.getObjectByName('beacon') as Mesh
+    const camera = new PerspectiveCamera()
+    camera.position.set(10, 20, 30)
+    camera.lookAt(0, 0, 0)
+    return { scene, beacon, camera, id: layout.nodes[0].id, node: layout.nodes[0] }
+  }
+
+  it('is a hidden white ring until a record is selected', () => {
+    const { beacon } = withBeacon()
+    expect(beacon.visible).toBe(false)
+    const ring = beacon.geometry as BufferGeometry & {
+      parameters: { innerRadius: number; outerRadius: number; thetaSegments: number }
+    }
+    expect(ring.parameters).toMatchObject({ innerRadius: 1.6, outerRadius: 2, thetaSegments: 32 })
+    const look = beacon.material as Material & { color: Color; opacity: number }
+    expect(look.color.getHexString()).toBe('ffffff')
+    expect(look.opacity).toBe(0.85)
+    expect(look.side).toBe(2)
+  })
+
+  it('sits on the record, faces the camera, and pulses', () => {
+    const { scene, beacon, camera, id, node } = withBeacon()
+    const time = Math.PI / 8
+    expect(scene.placeBeacon(id, camera, time, false)).toBe(true)
+    expect(beacon.visible).toBe(true)
+    expect(beacon.position.toArray()).toEqual([node.x, node.y, node.z])
+    expect(beacon.quaternion.equals(camera.quaternion)).toBe(true)
+    const side = 0.8 * (1 + 0.12 * Math.sin(4 * time))
+    expect(beacon.scale.x).toBeCloseTo(side)
+    expect(beacon.scale.y).toBeCloseTo(side)
+    expect(beacon.scale.z).toBe(1)
+  })
+
+  it('holds still with reduced motion, and asks for no more frames', () => {
+    const { scene, beacon, camera, id } = withBeacon()
+    expect(scene.placeBeacon(id, camera, 1.234, true)).toBe(false)
+    expect(beacon.visible).toBe(true)
+    expect(beacon.scale.toArray()).toEqual([0.8, 0.8, 1])
+  })
+
+  it('hides for no selection or a record the scene does not have', () => {
+    const { scene, beacon, camera, id } = withBeacon()
+    scene.placeBeacon(id, camera, 0, false)
+    expect(scene.placeBeacon(null, camera, 0, false)).toBe(false)
+    expect(beacon.visible).toBe(false)
+    scene.placeBeacon(id, camera, 0, false)
+    expect(scene.placeBeacon('contact:gone', camera, 0, false)).toBe(false)
+    expect(beacon.visible).toBe(false)
   })
 })
 

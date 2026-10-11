@@ -23,6 +23,7 @@ import {
   CanvasTexture,
   Color,
   DirectionalLight,
+  DoubleSide,
   Group,
   MathUtils,
   Mesh,
@@ -31,15 +32,26 @@ import {
   PerspectiveCamera,
   Points,
   PointsMaterial,
+  RingGeometry,
   SRGBColorSpace,
   SphereGeometry,
   Sprite,
   SpriteMaterial,
   Vector3,
+  type Camera,
   type Object3D,
   type Texture,
 } from 'three'
 import { GRAPH_COLORS, MAP_BACKGROUND, type GraphLink, type GraphNodeType } from './constants'
+import {
+  LINK_LOOKS,
+  linkLook,
+  nodeLook,
+  nodeLookValues,
+  type HighlightState,
+  type LinkLook,
+  type NodeLook,
+} from './highlight'
 import type { GraphLayout, PositionedNode } from './layout3d'
 
 export type StarDensity = 'dense' | 'sparse' | 'off'
@@ -62,7 +74,7 @@ export const SCENE_DEFAULTS: Readonly<SceneSettings> = Object.freeze({
   starDensity: 'dense',
 })
 
-/** The approved look. Phase 03's highlighting adds the active and dimmed values. */
+/** The approved look. The highlighted and dimmed values are in highlight.ts. */
 export const SCENE_STYLE = {
   background: MAP_BACKGROUND,
   camera: { fov: 46, near: 0.1, far: 1000 },
@@ -107,6 +119,8 @@ export const SCENE_STYLE = {
     allUpTo: 150,
   },
   conduit: { color: '#5a6372', opacity: 0.55, sides: 6 },
+  /** The ring round the selected record, which faces the camera and pulses. */
+  beacon: { inner: 1.6, outer: 2, segments: 32, opacity: 0.85, pulse: 0.12, speed: 4 },
   stars: {
     /** The side of the cube the stars are scattered in, centred on the graph. */
     spread: 500,
@@ -156,6 +170,18 @@ export interface GraphScene {
    * the camera moves; true when anything changed, so an on-demand renderer knows to draw.
    */
   updateView(cameraPosition: Vector3): boolean
+  /**
+   * Lights the active record and its direct connections and dims the rest (highlight.ts),
+   * by swapping materials and rewriting the touched links' vertex colours; the geometry is
+   * never changed. True when anything changed, so an on-demand renderer knows to draw.
+   */
+  applyHighlight(state: HighlightState, settings?: SceneSettings): boolean
+  /**
+   * Puts the beacon ring round a record, facing the camera, at its size for `time` (in
+   * seconds), or hides it for null. True while it pulses, so the caller keeps drawing; with
+   * reduced motion it is a still ring.
+   */
+  placeBeacon(nodeId: string | null, camera: Camera, time: number, reducedMotion: boolean): boolean
   /** Removes the scene and frees every geometry, material and texture it made. */
   dispose(): void
 }
@@ -275,8 +301,60 @@ export function buildGraphScene(
   }
   root.add(records)
 
-  const { mesh: conduits, linkVertices } = conduitMesh(layout, links, settings, own)
+  const { mesh: conduits, linkVertices, drawn } = conduitMesh(layout, links, settings, own)
   if (conduits) root.add(conduits)
+
+  const beaconStyle = SCENE_STYLE.beacon
+  const beacon = new Mesh(
+    own(new RingGeometry(beaconStyle.inner, beaconStyle.outer, beaconStyle.segments)),
+    own(
+      new MeshBasicMaterial({
+        color: 0xffffff,
+        side: DoubleSide,
+        transparent: true,
+        opacity: beaconStyle.opacity,
+      }),
+    ),
+  )
+  beacon.name = 'beacon'
+  beacon.visible = false
+  root.add(beacon)
+
+  // Highlighting swaps each orb and aura to its type's material for the look, made the
+  // first time it is needed; resting is the material built above.
+  let current = settings
+  let tunedGlow = glow
+  const orbLooks = new Map<GraphNodeType, Map<NodeLook, MeshStandardMaterial>>()
+  const auraLooks = new Map<GraphNodeType, Map<NodeLook, SpriteMaterial>>()
+  for (const [type, material] of orbMaterial) orbLooks.set(type, new Map([['resting', material]]))
+  for (const [type, material] of auraMaterial) auraLooks.set(type, new Map([['resting', material]]))
+  const tune = (look: NodeLook, orb?: MeshStandardMaterial, aura?: SpriteMaterial) => {
+    const values = nodeLookValues(look, tunedGlow)
+    if (orb) {
+      orb.opacity = values.orbOpacity
+      orb.emissiveIntensity = values.orbEmissive
+    }
+    if (aura) aura.opacity = values.auraOpacity
+  }
+  const variant = <M extends MeshStandardMaterial | SpriteMaterial>(
+    looks: Map<GraphNodeType, Map<NodeLook, M>>,
+    type: GraphNodeType,
+    look: NodeLook,
+  ): M => {
+    const byLook = looks.get(type)!
+    let material = byLook.get(look)
+    if (!material) {
+      // A clone shares the resting material's texture, which stays owned once.
+      material = own(byLook.get('resting')!.clone() as M)
+      byLook.set(look, material)
+      if (material instanceof MeshStandardMaterial) tune(look, material)
+      else tune(look, undefined, material as SpriteMaterial)
+    }
+    return material
+  }
+  const nodeLooks = new Map<string, NodeLook>()
+  const linkLooks: LinkLook[] = drawn.map(() => 'resting')
+  const linkColor = new Color()
 
   let disposed = false
   const position = new Vector3()
@@ -316,6 +394,69 @@ export function buildGraphScene(
         }
       }
       return changed
+    },
+    applyHighlight(state, settings = current) {
+      if (disposed) return false
+      let changed = false
+      current = settings
+      if (settings.glowIntensity !== tunedGlow) {
+        tunedGlow = settings.glowIntensity
+        for (const byLook of orbLooks.values()) for (const [l, m] of byLook) tune(l, m)
+        for (const byLook of auraLooks.values()) for (const [l, m] of byLook) tune(l, undefined, m)
+        changed = true
+      }
+
+      for (const { node, orb, aura, label } of nodes.values()) {
+        const look = nodeLook(state, node.id)
+        if ((nodeLooks.get(node.id) ?? 'resting') === look) continue
+        nodeLooks.set(node.id, look)
+        orb.material = variant(orbLooks, node.type, look)
+        aura.material = variant(auraLooks, node.type, look)
+        label.material.opacity = nodeLookValues(look, tunedGlow).labelOpacity
+        changed = true
+      }
+
+      if (conduits) {
+        const colors = conduits.geometry.getAttribute('color') as BufferAttribute
+        let first = Infinity
+        let last = -1
+        drawn.forEach((link, i) => {
+          const look = linkLook(state, link)
+          if (linkLooks[i] === look) return
+          linkLooks[i] = look
+          const { color, opacity } = LINK_LOOKS[look]
+          linkColor.set(color)
+          const { start, count } = linkVertices.get(link.id)!
+          for (let k = start; k < start + count; k++) {
+            colors.setXYZW(k, linkColor.r, linkColor.g, linkColor.b, opacity)
+          }
+          first = Math.min(first, start)
+          last = Math.max(last, start + count)
+        })
+        if (last >= 0) {
+          // Upload only the span that changed.
+          colors.clearUpdateRanges()
+          colors.addUpdateRange(first * 4, (last - first) * 4)
+          colors.needsUpdate = true
+          changed = true
+        }
+      }
+      return changed
+    },
+    placeBeacon(nodeId, camera, time, reducedMotion) {
+      const objects = nodeId === null || disposed ? undefined : nodes.get(nodeId)
+      if (!objects) {
+        beacon.visible = false
+        return false
+      }
+      const { node } = objects
+      beacon.visible = true
+      beacon.position.set(node.x, node.y, node.z)
+      beacon.quaternion.copy(camera.quaternion)
+      const pulse = reducedMotion ? 1 : 1 + beaconStyle.pulse * Math.sin(beaconStyle.speed * time)
+      const side = pulse * current.nodeScale
+      beacon.scale.set(side, side, 1)
+      return !reducedMotion
     },
     dispose() {
       if (disposed) return
@@ -453,7 +594,7 @@ function starfield(
 
 /**
  * Every link as a thin open tube, centre to centre, in one geometry. Colour and opacity
- * are per vertex (RGBA), so phase 03 can light up one link by rewriting its range.
+ * are per vertex (RGBA), so highlighting can light up one link by rewriting its range.
  */
 function conduitMesh(
   layout: GraphLayout,
@@ -464,7 +605,7 @@ function conduitMesh(
   const linkVertices = new Map<string, { start: number; count: number }>()
   const byId = new Map(layout.nodes.map((node) => [node.id, node]))
   const drawn = links.filter((link) => byId.has(link.source) && byId.has(link.target))
-  if (drawn.length === 0) return { mesh: null, linkVertices }
+  if (drawn.length === 0) return { mesh: null, linkVertices, drawn }
 
   const { sides, opacity } = SCENE_STYLE.conduit
   const color = new Color(SCENE_STYLE.conduit.color)
@@ -522,7 +663,7 @@ function conduitMesh(
   const material = own(new MeshBasicMaterial({ vertexColors: true, transparent: true }))
   const mesh = new Mesh(geometry, material)
   mesh.name = 'conduits'
-  return { mesh, linkVertices }
+  return { mesh, linkVertices, drawn }
 }
 
 /** A small seeded random number generator: the same seed, the same numbers. */
