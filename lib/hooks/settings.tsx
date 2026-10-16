@@ -16,6 +16,7 @@ export interface Settings {
   calendarWeekStart: 'sunday' | 'monday'
   fontScale: number
   defaultCadence: string
+  agentAccess: 'write' | 'read'
 }
 
 const FALLBACK: Settings = {
@@ -29,6 +30,7 @@ const FALLBACK: Settings = {
   calendarWeekStart: 'monday',
   fontScale: 1,
   defaultCadence: 'MONTHLY',
+  agentAccess: 'write',
 }
 
 export function useSettings() {

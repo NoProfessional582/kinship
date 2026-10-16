@@ -17,6 +17,7 @@ interface Settings {
   calendarWeekStart: string
   fontScale: number
   defaultCadence: string
+  agentAccess: 'write' | 'read'
 }
 
 const read = async (request: APIRequestContext) =>
@@ -65,6 +66,18 @@ test('a null time zone means "follow the browser"', async ({ request }) => {
   expect((await read(request)).timezone).toBeNull()
 })
 
+test('agent access switches to read only and back, keeping the rest', async ({ request }) => {
+  await json(await save(request, { agentAccess: 'write' }))
+  const before = await read(request)
+  expect(before.agentAccess).toBe('write')
+  expect(await json<Settings>(await save(request, { agentAccess: 'read' }))).toEqual({
+    ...before,
+    agentAccess: 'read',
+  })
+  expect((await read(request)).agentAccess).toBe('read')
+  expect(await json<Settings>(await save(request, { agentAccess: 'write' }))).toEqual(before)
+})
+
 test.describe('refusals', () => {
   test('unknown zones, sizes, days, units and cadences are refused', async ({ request }) => {
     await invalid(
@@ -77,5 +90,6 @@ test.describe('refusals', () => {
     await invalid(await save(request, { weatherUnit: 'kelvin' }), 'weatherUnit')
     await invalid(await save(request, { defaultCadence: 'HOURLY' }), 'defaultCadence')
     await invalid(await save(request, { userName: 'x'.repeat(81) }), 'userName')
+    await invalid(await save(request, { agentAccess: 'off' as never }), 'agentAccess')
   })
 })

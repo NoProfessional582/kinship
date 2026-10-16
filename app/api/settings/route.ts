@@ -16,6 +16,7 @@ const FIELDS = {
   calendarWeekStart: true,
   fontScale: true,
   defaultCadence: true,
+  agentAccess: true,
 } as const
 
 export async function GET(req: Request) {

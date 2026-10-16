@@ -17,6 +17,7 @@ import {
   Download,
   Upload,
   AlertTriangle,
+  Bot,
   type LucideIcon,
 } from 'lucide-react'
 import { Card } from '@/components/ui/misc'
@@ -72,6 +73,7 @@ export default function SettingsPage() {
         <DisplayPanel settings={settings} commit={commit} />
         <TimezonePanel settings={settings} commit={commit} />
         <WeatherPanel key={settings.weatherLocation} settings={settings} commit={commit} />
+        <AgentsPanel settings={settings} commit={commit} />
         <ColumnsPanel />
         <DataPanel />
       </div>
@@ -343,6 +345,59 @@ function WeatherPanel({ settings, commit }: PanelProps) {
           </Button>
         </div>
       )}
+    </Panel>
+  )
+}
+
+/** What AI agents connected over MCP (/api/mcp) may do. */
+function AgentsPanel({ settings, commit }: PanelProps) {
+  const choices = [
+    {
+      v: 'write' as const,
+      label: 'Can read and write',
+      detail:
+        'Find, read, add and change records. Nothing is deleted for good: removed records go to Trash.',
+      message: 'Agents can read and write',
+    },
+    {
+      v: 'read' as const,
+      label: 'Read only',
+      detail: 'Find and read records. Agents cannot add, change or remove anything.',
+      message: 'Agents can only read',
+    },
+  ]
+  return (
+    <Panel
+      icon={Bot}
+      title="Agents"
+      hue="var(--hue-5)"
+      hint="What an AI agent connected to Kinship may do. Agents must run on this computer; Kinship never answers anyone else."
+    >
+      <div role="radiogroup" aria-label="Agent access" className="grid gap-2 sm:grid-cols-2">
+        {choices.map((c) => {
+          const on = settings.agentAccess === c.v
+          return (
+            <button
+              key={c.v}
+              role="radio"
+              aria-checked={on}
+              onClick={() => !on && commit({ agentAccess: c.v }, c.message)}
+              className={cn(
+                'flex items-start gap-2 rounded-[var(--radius-sm)] border p-2.5 text-left text-sm transition-colors',
+                on
+                  ? 'border-[var(--primary)] bg-[var(--accent)]'
+                  : 'border-[var(--border)] hover:bg-[var(--muted)]',
+              )}
+            >
+              <span className="flex-1">
+                <span className="block font-medium">{c.label}</span>
+                <span className="block text-xs text-[var(--muted-foreground)]">{c.detail}</span>
+              </span>
+              {on && <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" />}
+            </button>
+          )
+        })}
+      </div>
     </Panel>
   )
 }

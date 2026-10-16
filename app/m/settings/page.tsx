@@ -132,6 +132,23 @@ export default function MobileSettings() {
         </div>
       </Section>
 
+      <Section title="Agents">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="agent-access">What AI agents may do</Label>
+          <Select
+            id="agent-access"
+            value={v.agentAccess}
+            onChange={(e) => set({ agentAccess: e.target.value === 'read' ? 'read' : 'write' })}
+          >
+            <option value="write">Read and write</option>
+            <option value="read">Read only</option>
+          </Select>
+          <p className="text-[12px] text-[var(--muted-foreground)]">
+            Agents must run on this computer. Nothing they do is deleted for good.
+          </p>
+        </div>
+      </Section>
+
       {/* Sticky, because a save button below four sections is a button you have
           to go looking for after every edit. */}
       {dirty && (

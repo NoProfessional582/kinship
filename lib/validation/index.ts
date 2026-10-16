@@ -371,6 +371,10 @@ export type UpsertContactInput = z.infer<typeof upsertContactSchema>
 export type UpsertTaskInput = z.infer<typeof upsertTaskSchema>
 export type UpsertProjectInput = z.infer<typeof upsertProjectSchema>
 
+/** What MCP agents may do; `read` hides and refuses every write tool. */
+export const AGENT_ACCESS = ['write', 'read'] as const
+export type AgentAccess = (typeof AGENT_ACCESS)[number]
+
 /** Null timezone means "follow the browser". */
 export const settingsSchema = z.object({
   userName: trimmed(80).optional(),
@@ -382,6 +386,7 @@ export const settingsSchema = z.object({
   calendarWeekStart: z.enum(['sunday', 'monday']).optional(),
   fontScale: z.number().min(0.85).max(1.35).optional(),
   defaultCadence: cadenceSchema.optional(),
+  agentAccess: z.enum(AGENT_ACCESS).optional(),
   timezone: z
     .string()
     .trim()
