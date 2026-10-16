@@ -82,6 +82,16 @@ part_quick() {
   fi
   echo "up to date"
 
+  step "API spec: docs/api/kinship.openapi.json is generated from lib/openapi/routes.ts"
+  # Same pattern: a route or schema change without `npm run api:spec` fails here.
+  scripts/node.sh sh -c 'npx tsx scripts/api-spec.ts |
+    npx prettier --stdin-filepath docs/api/kinship.openapi.json' >"$tmp/kinship.openapi.json"
+  if ! diff -u docs/api/kinship.openapi.json "$tmp/kinship.openapi.json" | head -n 60; then
+    echo "docs/api/kinship.openapi.json is out of date: run scripts/node.sh npm run api:spec." >&2
+    return 1
+  fi
+  echo "up to date"
+
   step "Format (Prettier)"
   scripts/node.sh npm run --silent format:check
 
