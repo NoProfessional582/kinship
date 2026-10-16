@@ -43,6 +43,7 @@
     "@fullcalendar/luxon3": "6.1.21",
     "@fullcalendar/react": "6.1.21",
     "@fullcalendar/timegrid": "6.1.21",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@radix-ui/react-avatar": "^1.1.0",

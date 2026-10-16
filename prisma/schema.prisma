@@ -505,5 +505,9 @@ model Settings {
   /// when travelling, or when the server does date maths on the user's behalf.
   timezone String?
 
+  /// What MCP agents may do: "write" (read and change, no permanent deletes) or
+  /// "read". Text, not an enum, so a release that predates it ignores the column.
+  agentAccess String @default("write")
+
   updatedAt DateTime @updatedAt
 }

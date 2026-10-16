@@ -49,3 +49,46 @@ for (const phone of [false, true]) {
     },
   )
 }
+
+for (const phone of [false, true]) {
+  test(
+    `agent access switches to read only and back (${phone ? 'phone' : 'desktop'})`,
+    { tag: phone ? '@phone' : '@desktop' },
+    async ({ page, request, cleanup }) => {
+      cleanup.add('agents back to read and write', () =>
+        request.patch('/api/settings', { data: { agentAccess: 'write' } }),
+      )
+      await json(await request.patch('/api/settings', { data: { agentAccess: 'write' } }))
+      const stored = async () =>
+        (await json<{ agentAccess: string }>(await request.get('/api/settings'))).agentAccess
+
+      const choose = async (value: 'read' | 'write') => {
+        if (phone) {
+          await page.getByLabel('What AI agents may do').selectOption(value)
+          await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+        } else {
+          const name = value === 'read' ? /^Read only/ : /^Can read and write/
+          await page.getByRole('radio', { name }).click()
+        }
+        await expect.poll(stored).toBe(value)
+      }
+      const shows = async (value: 'read' | 'write') => {
+        if (phone) await expect(page.getByLabel('What AI agents may do')).toHaveValue(value)
+        else {
+          const name = value === 'read' ? /^Read only/ : /^Can read and write/
+          await expect(page.getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true')
+        }
+      }
+
+      await page.goto(phone ? '/m/settings' : '/settings')
+      await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible()
+      await shows('write')
+      await choose('read')
+      await page.reload()
+      await shows('read')
+      await choose('write')
+      await page.reload()
+      await shows('write')
+    },
+  )
+}

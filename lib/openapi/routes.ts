@@ -37,7 +37,7 @@ export type Method = 'get' | 'post' | 'put' | 'patch' | 'delete'
  * Statuses a route can give besides 200. 403 and 500 apply to every route; 400 (the body
  * is not JSON) and 415 to every JSON body.
  */
-export type ErrorStatus = 400 | 404 | 409 | 413 | 415 | 500 | 503
+export type ErrorStatus = 400 | 404 | 405 | 409 | 413 | 415 | 500 | 503
 
 /** Raw OpenAPI content, for answers and bodies that are not JSON. */
 export type Content = Record<string, { schema: Record<string, unknown> }>
@@ -57,7 +57,7 @@ export interface ApiRoute {
   body?: z.ZodType
   /** A body that is not JSON. */
   bodyContent?: Content
-  /** The 200 answer, as JSON. */
+  /** The 200 answer, as JSON. A route with neither this nor `responseContent` never answers 200. */
   response?: z.ZodType
   /** The 200 answer when it is not plain JSON. */
   responseContent?: Content
@@ -102,6 +102,16 @@ const NOT_FOUND = 'No such record for this owner, or it is in the trash.'
 const BAD_BODY = 'The body failed validation.'
 
 const binary = { type: 'string', format: 'binary' }
+
+/** An MCP message: JSON-RPC 2.0, described by the protocol rather than here. */
+const mcpContent = (description: string): Content => ({
+  'application/json': {
+    schema: {
+      description,
+      oneOf: [{ type: 'object' }, { type: 'array', items: { type: 'object' } }],
+    },
+  },
+})
 
 export const routes: ApiRoute[] = [
   // ---------------------------------------------------------------- Health
@@ -709,6 +719,43 @@ export const routes: ApiRoute[] = [
       413: 'The archive is too large.',
     },
   },
+
+  // ------------------------------------------------------------------ Agents
+  {
+    method: 'post',
+    path: '/api/mcp',
+    operationId: 'mcp',
+    tag: 'Agents',
+    summary: 'The MCP endpoint for AI agents (Streamable HTTP, stateless, JSON answers)',
+    description:
+      'Speaks the Model Context Protocol: point an MCP client at this address. Each request ' +
+      'is one JSON-RPC message (or a batch) and is answered as JSON; there are no sessions. ' +
+      'The body is at most 1 MB. Refusals by the protocol itself (JSON that is not ' +
+      'JSON-RPC, a missing `Accept: application/json, text/event-stream`) answer a ' +
+      'JSON-RPC error object. Tools: `tools/list`.',
+    bodyContent: mcpContent('A JSON-RPC 2.0 request or notification, or an array of them.'),
+    responseContent: mcpContent('The JSON-RPC 2.0 response, or an array of them.'),
+    errors: {
+      400: 'The body is not valid JSON.',
+      404: 'Agent access is turned off (`KINSHIP_AGENT_ACCESS=off`).',
+      413: 'The body is over 1 MB.',
+      415: 'Content-Type is not `application/json`.',
+    },
+  },
+  ...(['get', 'delete'] as const).map((method): ApiRoute => ({
+    method,
+    path: '/api/mcp',
+    operationId: method === 'get' ? 'mcpStream' : 'mcpEndSession',
+    tag: 'Agents',
+    summary:
+      method === 'get'
+        ? 'Not offered: the endpoint opens no event stream'
+        : 'Not offered: the endpoint keeps no sessions',
+    errors: {
+      404: 'Agent access is turned off (`KINSHIP_AGENT_ACCESS=off`).',
+      405: 'Always, while the endpoint is on: send MCP requests by POST.',
+    },
+  })),
 
   // ----------------------------------------------------------------- Graph
   {

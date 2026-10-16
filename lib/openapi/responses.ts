@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  AGENT_ACCESS,
   cadenceSchema,
   channelTypeSchema,
   directionSchema,
@@ -523,6 +524,9 @@ export const Settings = z.object({
   calendarWeekStart: z.string(),
   fontScale: z.number(),
   defaultCadence: cadenceSchema,
+  agentAccess: z.enum(AGENT_ACCESS).meta({
+    description: 'What MCP agents may do: `write` (read and change) or `read` (read only).',
+  }),
 })
 
 export const Weather = z.union([

@@ -161,9 +161,11 @@ function operation(route: ApiRoute): Json {
     : route.bodyContent
       ? { required: true, content: route.bodyContent }
       : undefined
+  const answers = route.response !== undefined || route.responseContent !== undefined
   const ok: Json = {
     description: 'OK',
-    content: route.responseContent ?? jsonContent(schemaFor(route.response!, false)),
+    content:
+      route.responseContent ?? (answers ? jsonContent(schemaFor(route.response!, false)) : {}),
   }
   if (route.responseHeaders) {
     ok.headers = Object.fromEntries(
@@ -181,7 +183,7 @@ function operation(route: ApiRoute): Json {
     ...(route.description ? { description: route.description } : {}),
     ...(params.length ? { parameters: params } : {}),
     ...(body ? { requestBody: body } : {}),
-    responses: { 200: ok, ...errorResponses(route) },
+    responses: { ...(answers ? { 200: ok } : {}), ...errorResponses(route) },
   }
 }
 

@@ -59,6 +59,26 @@ describe('local request policy', () => {
     },
   )
 
+  it("lets Node's fetch reach /api/mcp, and only there, with nothing else browser-like", () => {
+    const node = { 'Sec-Fetch-Mode': 'cors' }
+    expect(requestRefusal(request('POST', node, '/api/mcp'))).toBeNull()
+    expect(requestRefusal(request('POST', node))?.status).toBe(403)
+    for (const extra of <Record<string, string>[]>[
+      { 'Sec-Fetch-Mode': 'navigate' },
+      { 'Sec-Fetch-Dest': 'empty' },
+      { 'Sec-Fetch-User': '?1' },
+      { 'Sec-Fetch-Site': 'cross-site' },
+      { Origin: 'http://127.0.0.1:4444' },
+      { Referer: 'http://127.0.0.1:4444/page' },
+    ]) {
+      expect(requestRefusal(request('POST', { ...node, ...extra }, '/api/mcp'))?.status).toBe(403)
+    }
+    expect(
+      requestRefusal(request('POST', { ...node, 'Content-Type': 'text/plain' }, '/api/mcp'))
+        ?.status,
+    ).toBe(415)
+  })
+
   it('rejects foreign and malformed Referers, even with a matching Origin', () => {
     for (const Referer of [
       'https://attacker.example/page',

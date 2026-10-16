@@ -49,6 +49,9 @@
       "name": "Files"
     },
     {
+      "name": "Agents"
+    },
+    {
       "name": "Graph"
     }
   ],
@@ -3325,6 +3328,212 @@
         }
       }
     },
+    "/api/mcp": {
+      "post": {
+        "operationId": "mcp",
+        "tags": ["Agents"],
+        "summary": "The MCP endpoint for AI agents (Streamable HTTP, stateless, JSON answers)",
+        "description": "Speaks the Model Context Protocol: point an MCP client at this address. Each request is one JSON-RPC message (or a batch) and is answered as JSON; there are no sessions. The body is at most 1 MB. Refusals by the protocol itself (JSON that is not JSON-RPC, a missing `Accept: application/json, text/event-stream`) answer a JSON-RPC error object. Tools: `tools/list`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "A JSON-RPC 2.0 request or notification, or an array of them.",
+                "oneOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "The JSON-RPC 2.0 response, or an array of them.",
+                  "oneOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The Host, Origin or Referer is not allowed. Call from this machine, at an allowed address, without browser headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent access is turned off (`KINSHIP_AGENT_ACCESS=off`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The body is over 1 MB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Type is not `application/json`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A server fault, or the server is missing a setting (`KINSHIP_OWNER`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "mcpStream",
+        "tags": ["Agents"],
+        "summary": "Not offered: the endpoint opens no event stream",
+        "responses": {
+          "403": {
+            "description": "The Host, Origin or Referer is not allowed. Call from this machine, at an allowed address, without browser headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent access is turned off (`KINSHIP_AGENT_ACCESS=off`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Always, while the endpoint is on: send MCP requests by POST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A server fault, or the server is missing a setting (`KINSHIP_OWNER`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "mcpEndSession",
+        "tags": ["Agents"],
+        "summary": "Not offered: the endpoint keeps no sessions",
+        "responses": {
+          "403": {
+            "description": "The Host, Origin or Referer is not allowed. Call from this machine, at an allowed address, without browser headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent access is turned off (`KINSHIP_AGENT_ACCESS=off`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Always, while the endpoint is on: send MCP requests by POST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A server fault, or the server is missing a setting (`KINSHIP_OWNER`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/graph": {
       "get": {
         "operationId": "getGraph",
@@ -6117,6 +6326,11 @@
           "defaultCadence": {
             "type": "string",
             "enum": ["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "BIANNUAL", "ANNUAL", "NONE"]
+          },
+          "agentAccess": {
+            "type": "string",
+            "enum": ["write", "read"],
+            "description": "What MCP agents may do: `write` (read and change) or `read` (read only)."
           }
         },
         "required": [
@@ -6129,7 +6343,8 @@
           "weatherUnit",
           "calendarWeekStart",
           "fontScale",
-          "defaultCadence"
+          "defaultCadence",
+          "agentAccess"
         ]
       },
       "Tag": {
@@ -7992,6 +8207,10 @@
           "defaultCadence": {
             "type": "string",
             "enum": ["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "BIANNUAL", "ANNUAL", "NONE"]
+          },
+          "agentAccess": {
+            "type": "string",
+            "enum": ["write", "read"]
           },
           "timezone": {
             "anyOf": [
