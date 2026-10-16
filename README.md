@@ -102,6 +102,7 @@ All settings live in `.env`, next to `compose.yaml`.
 | `POSTGRES_PASSWORD` | yes | Password for Kinship's own database. Use letters and digits only: it goes into a connection string as-is. The database keeps the password it was created with, so set it before the first start (to change it later, see below). |
 | `KINSHIP_OWNER` | yes | The single owner's name, for example `me`. Every record is stored under it, so changing it later hides your existing data rather than moving it. Kinship refuses to start without it. |
 | `KINSHIP_PORT` | no | The port Kinship answers on, on this computer only. Default `3000`. It is always bound to `127.0.0.1`. |
+| `KINSHIP_AGENT_ACCESS` | no | Set to `off` to turn the AI agent connection (`/api/mcp`) off entirely. Empty or unset leaves it on; what agents may do is chosen in Settings (see [Agents](#agents)). |
 
 Kinship validates the request's Host and public port before serving owner data.
 Browser writes must come from the same origin (including the port); foreign or
@@ -110,8 +111,9 @@ application/json` (415 otherwise), and photo uploads require multipart form
 data. Originless command-line requests still work on an allowed local host;
 the archive `curl` examples below already send the required JSON type.
 
-Scripts and AI agents on this computer can use the same API: see
-[docs/api/agents.md](docs/api/agents.md) for the rules and worked `curl` calls, and
+Scripts on this computer can use the same API: see
+[Using the API directly](docs/api/agents.md#using-the-api-directly) for the rules and
+worked `curl` calls, and
 `GET /api/openapi.json` (or [docs/api/kinship.openapi.json](docs/api/kinship.openapi.json))
 for every route.
 
@@ -134,6 +136,21 @@ docker compose exec db psql -U kinship -d kinship -c "ALTER USER kinship PASSWOR
 # put the same value in .env as POSTGRES_PASSWORD, then:
 docker compose up -d
 ```
+
+## Agents
+
+An AI agent on this computer, such as Claude Code, Claude Desktop, Codex or Hermes Agent,
+can connect to Kinship over MCP at `http://127.0.0.1:3000/api/mcp` (your `KINSHIP_PORT`,
+if set) to find people, read their history, log notes and manage tasks and projects. There
+is nothing to sign in with, and it works only from this computer.
+
+- **Read and write** is the default. Agents can't delete anything for good: what they
+  remove goes to Trash, where you can bring it back.
+- **Read only:** Settings → Agents → Read only. Agents can then only look things up.
+- **Off:** `KINSHIP_AGENT_ACCESS=off` in `.env`, then `docker compose up -d`.
+
+[docs/api/agents.md](docs/api/agents.md) has the setup for each agent, what agents can and
+can't do, safety notes and troubleshooting.
 
 ## Where your data lives
 
