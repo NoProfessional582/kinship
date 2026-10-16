@@ -6,6 +6,8 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-16
+
 ### Added
 
 - A description of the whole API (OpenAPI 3.1), served at `GET /api/openapi.json` and kept in `docs/api/kinship.openapi.json`. It is generated from the code, the checks fail when it is out of date or misses a route, and tests check real answers against it.
