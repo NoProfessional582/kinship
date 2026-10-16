@@ -1,4 +1,4 @@
-import { handle } from '@/lib/api'
+import { handle, readJson } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { settingsSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const owner = requireIdentity(req).subject
   return handle(async () => {
-    const body = settingsSchema.parse(await req.json())
+    const body = settingsSchema.parse(await readJson(req))
     // Only the keys actually sent are written, so a partial save from one panel
     // never clears a field owned by another: zod leaves absent keys out, and
     // Prisma leaves a field it is given as undefined untouched.

@@ -6,6 +6,15 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A description of the whole API (OpenAPI 3.1), served at `GET /api/openapi.json` and kept in `docs/api/kinship.openapi.json`. It is generated from the code, the checks fail when it is out of date or misses a route, and tests check real answers against it.
+- `docs/api/agents.md`: how a script or AI agent on the same computer uses the API, with worked `curl` calls.
+
+### Fixed
+
+- A request body that is not valid JSON is refused with 400 ("The body is not valid JSON.") instead of a 500 server fault.
+
 ## [0.4.0] - 2026-10-11
 
 ### Added

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
-import { found, handle } from '@/lib/api'
+import { found, handle, readJson } from '@/lib/api'
 import { NotFoundError } from '@/lib/errors'
 import { ApiError, isNotFound, isRetryable, refreshAfterDelete } from '@/lib/hooks/api'
 import { edgeListSchema } from '@/lib/validation'
@@ -23,6 +23,22 @@ describe('a missing record', () => {
     const response = await handle(async () => found({ id: 'a' }))
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ id: 'a' })
+  })
+})
+
+describe('a body that is not JSON', () => {
+  const post = (body: string) => new Request('http://x/api', { method: 'POST', body })
+
+  it('reads a JSON body', async () => {
+    expect(await readJson(post('{"a":1}'))).toEqual({ a: 1 })
+  })
+
+  it('answers 400, not a server fault, for broken or empty JSON', async () => {
+    for (const body of ['{"a":', 'not json', '']) {
+      const response = await handle(async () => readJson(post(body)))
+      expect(response.status).toBe(400)
+      expect(await response.json()).toEqual({ error: 'The body is not valid JSON.' })
+    }
   })
 })
 

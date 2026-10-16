@@ -1,4 +1,4 @@
-import { handle } from '@/lib/api'
+import { handle, readJson } from '@/lib/api'
 import { getCalendarEvents, rescheduleEvent } from '@/lib/services/calendar'
 import { calendarQuerySchema, rescheduleSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const owner = requireIdentity(req).subject
   return handle(async () => {
-    const { source, entityId, start, end } = rescheduleSchema.parse(await req.json())
+    const { source, entityId, start, end } = rescheduleSchema.parse(await readJson(req))
     return rescheduleEvent(owner, source, entityId, start, end ?? null)
   })
 }

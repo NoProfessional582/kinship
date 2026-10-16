@@ -110,6 +110,11 @@ application/json` (415 otherwise), and photo uploads require multipart form
 data. Originless command-line requests still work on an allowed local host;
 the archive `curl` examples below already send the required JSON type.
 
+Scripts and AI agents on this computer can use the same API: see
+[docs/api/agents.md](docs/api/agents.md) for the rules and worked `curl` calls, and
+`GET /api/openapi.json` (or [docs/api/kinship.openapi.json](docs/api/kinship.openapi.json))
+for every route.
+
 The default allowed origins are `http://127.0.0.1:3000` and
 `http://localhost:3000`, using `KINSHIP_PORT` when it is set. Compose passes
 that public port into the app even though its internal port stays 3000.

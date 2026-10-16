@@ -1,4 +1,4 @@
-import { found, handle, type RouteCtx } from '@/lib/api'
+import { found, handle, readJson, type RouteCtx } from '@/lib/api'
 import { deleteContact, getContactDossier, updateContact } from '@/lib/services/contacts'
 import { upsertContactSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -13,7 +13,9 @@ export async function GET(req: Request, { params }: RouteCtx) {
 export async function PATCH(req: Request, { params }: RouteCtx) {
   const owner = requireIdentity(req).subject
   const { id } = await params
-  return handle(async () => updateContact(owner, id, upsertContactSchema.parse(await req.json())))
+  return handle(async () =>
+    updateContact(owner, id, upsertContactSchema.parse(await readJson(req))),
+  )
 }
 
 export async function DELETE(req: Request, { params }: RouteCtx) {

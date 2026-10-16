@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { test, expect } from '../support/fixtures'
 import { json, newContact } from '../support/api'
+import { conforms } from '../support/contract'
 
 interface Archive {
   format: string
@@ -51,7 +52,10 @@ test('download and restore an archive without changing its records', async ({
   })
   const importing = page.waitForResponse((r) => r.url().includes('/api/import?confirm=replace'))
   await page.getByRole('button', { name: 'Replace everything', exact: true }).click()
-  expect((await importing).status()).toBe(200)
+  const imported = await importing
+  expect(imported.status()).toBe(200)
+  // The one success tests/integration/openapi.spec.ts cannot check: it replaces everything.
+  await conforms(imported, 'post', '/api/import')
   const after = await json<Archive>(await request.get('/api/export'))
   expect(after.counts).toEqual(before.counts)
   // Settings is recreated with a new internal id on import; nothing references that id.

@@ -41,6 +41,19 @@ export async function handle<T>(fn: () => Promise<T>): Promise<NextResponse> {
   }
 }
 
+/**
+ * A request's JSON body. A body that is not JSON (or is empty) is the caller's mistake, so
+ * it answers 400 through `handle` instead of the 500 `req.json()`'s SyntaxError became.
+ */
+export async function readJson(req: Request): Promise<unknown> {
+  const raw = await req.text()
+  try {
+    return JSON.parse(raw)
+  } catch {
+    throw new ValidationError('The body is not valid JSON.')
+  }
+}
+
 /** A looked-up record, or a 404 when the lookup found nothing. */
 export function found<T>(row: T | null | undefined): T {
   if (row === null || row === undefined) throw new NotFoundError()
