@@ -11,6 +11,14 @@ The spec is generated from the code (`npm run api:spec`), and the checks fail wh
 out of date or a route is missing from it; tests check real answers against it. Trust it
 over this page if they ever disagree.
 
+## MCP
+
+An MCP client (Claude Code, Codex and others) can connect to
+`http://127.0.0.1:3000/api/mcp` instead of calling the routes below: it gets Kinship's
+read and write tools, each with the same checks as its route. The owner can limit agents
+to reading in Settings ("Agents"), and `KINSHIP_AGENT_ACCESS=off` in `.env` turns the
+endpoint off. A full connection guide will follow.
+
 ## The rules
 
 **This computer only, no sign-in.** Kinship listens on `127.0.0.1` (port 3000 unless

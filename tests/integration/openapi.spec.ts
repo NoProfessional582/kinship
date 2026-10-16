@@ -351,6 +351,7 @@ test('Settings: read, change and change back; weather stays off', async ({ reque
   await ok(request, 'patch', '/api/settings', { data: { tagline: unique('Contract tagline') } })
   expect(await ok(request, 'get', '/api/weather')).toEqual({ enabled: false })
   await refusedWith(400, request, 'patch', '/api/settings', { data: { fontScale: 9 } })
+  await refusedWith(400, request, 'patch', '/api/settings', { data: { agentAccess: 'admin' } })
 })
 
 test('Files: upload a photo, read it back, export', async ({ request, cleanup }) => {
@@ -393,6 +394,39 @@ test('Agents: the MCP endpoint answers POST, and only POST', async ({ request })
   expect(init.result.serverInfo.name).toBe('kinship')
   await refusedWith(405, request, 'get', '/api/mcp', { headers })
   await refusedWith(405, request, 'delete', '/api/mcp', { headers })
+})
+
+test('Agents: read-only access hides the write tools, and switching back restores them', async ({
+  request,
+  cleanup,
+}) => {
+  const headers = { Accept: 'application/json, text/event-stream' }
+  const toolNames = async () => {
+    const listed = await ok<{ result: { tools: { name: string }[] } }>(
+      request,
+      'post',
+      '/api/mcp',
+      { headers, data: { jsonrpc: '2.0', id: 2, method: 'tools/list' } },
+    )
+    return listed.result.tools.map((t) => t.name)
+  }
+  const settings = await ok<{ agentAccess: string }>(request, 'get', '/api/settings')
+  expect(settings.agentAccess).toBe('write')
+  cleanup.add('restore agent access', async () =>
+    json(await request.patch('/api/settings', { data: { agentAccess: settings.agentAccess } })),
+  )
+  expect(await toolNames()).toEqual(expect.arrayContaining(['search', 'log_entry']))
+
+  const read = await ok<{ agentAccess: string }>(request, 'patch', '/api/settings', {
+    data: { agentAccess: 'read' },
+  })
+  expect(read.agentAccess).toBe('read')
+  const readOnly = await toolNames()
+  expect(readOnly).toContain('search')
+  expect(readOnly).not.toContain('log_entry')
+
+  await ok(request, 'patch', '/api/settings', { data: { agentAccess: 'write' } })
+  expect(await toolNames()).toContain('log_entry')
 })
 
 test('Graph: the whole map', async ({ request }) => {
