@@ -5,6 +5,7 @@ import {
   collectDocRefs,
   rewriteDocIds,
   docToText,
+  EMPTY_DOC,
   type PendingEntity,
   type ProseNode,
 } from '../tiptap/doc'
@@ -20,8 +21,6 @@ export interface CreatedEntity {
   id: string
   label: string
 }
-
-const EMPTY_DOC: ProseNode = { type: 'doc', content: [{ type: 'paragraph' }] }
 
 /**
  * One end of a follow-up link, flattened for the client.
