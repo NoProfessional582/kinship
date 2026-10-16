@@ -375,6 +375,26 @@ test('Files: upload a photo, read it back, export', async ({ request, cleanup })
   await refusedWith(400, request, 'post', '/api/import', { data: archive })
 })
 
+test('Agents: the MCP endpoint answers POST, and only POST', async ({ request }) => {
+  const headers = { Accept: 'application/json, text/event-stream' }
+  const init = await ok<{ result: { serverInfo: { name: string } } }>(request, 'post', '/api/mcp', {
+    headers,
+    data: {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'contract', version: '1' },
+      },
+    },
+  })
+  expect(init.result.serverInfo.name).toBe('kinship')
+  await refusedWith(405, request, 'get', '/api/mcp', { headers })
+  await refusedWith(405, request, 'delete', '/api/mcp', { headers })
+})
+
 test('Graph: the whole map', async ({ request }) => {
   await ok(request, 'get', '/api/graph')
 })
@@ -414,7 +434,7 @@ test('a foreign Origin is refused (403), as the spec says of every route', async
 
 test('every operation in the spec was seen answering 200', () => {
   const never = operations
-    .filter(({ op }) => op.operationId !== 'importArchive')
+    .filter(({ op }) => op.operationId !== 'importArchive' && '200' in op.responses)
     .map(({ method, path }) => `${method.toUpperCase()} ${path}`)
     .filter((op) => !seen.has(`${op} 200`))
   expect(never).toEqual([])

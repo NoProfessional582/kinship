@@ -4,6 +4,7 @@ export type RequestRefusal = { status: 403 | 415; error: string }
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const JSON_METHODS = new Set(['POST', 'PUT', 'PATCH'])
 const INTERNAL_HEALTH_ORIGIN = 'http://127.0.0.1:3000'
+const MCP_PATH = '/api/mcp'
 
 /** Exact origins, not hostname suffixes. Docker preserves the browser's Host/port. */
 export function allowedOrigins(): Set<string> {
@@ -103,10 +104,19 @@ export function requestRefusal(req: Request): RequestRefusal | null {
     return denied('Request origin is not allowed.')
   }
   const browserHeaders = ['sec-fetch-mode', 'sec-fetch-dest', 'sec-fetch-user']
+  // Node's fetch (undici) sends `Sec-Fetch-Mode: cors` and nothing else of the kind, and
+  // MCP clients (Claude Code, the MCP SDK) run on it. On /api/mcp that one header alone is
+  // not a browser: a browser's POST always carries an Origin, checked above.
+  const nodeFetch =
+    pathname === MCP_PATH &&
+    req.headers.get('sec-fetch-mode') === 'cors' &&
+    !req.headers.has('sec-fetch-dest') &&
+    !req.headers.has('sec-fetch-user')
   if (
     origin === null &&
     referer === null &&
     site === null &&
+    !nodeFetch &&
     browserHeaders.some((header) => req.headers.has(header))
   ) {
     return denied('Request origin is not allowed.')
