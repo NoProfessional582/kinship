@@ -130,7 +130,8 @@ codex -c 'mcp_servers.kinship.url="http://127.0.0.1:3000/api/mcp"'
 
 ## Hermes Agent with an OpenAI model
 
-_Written from Hermes Agent's documentation; not tried here._
+_Tried here (Hermes Agent 0.22.2, signed in with a ChatGPT account, model `gpt-6.1-sol`):
+read, write and read only all worked._
 
 Hermes Agent ([Nous Research](https://hermes-agent.nousresearch.com/)) keeps its servers
 in `~/.hermes/config.yaml`, under `mcp_servers`
@@ -144,9 +145,27 @@ mcp_servers:
 ```
 
 Then run `/reload-mcp` inside Hermes (or start it again). `hermes mcp test kinship` checks
-the connection. To use an OpenAI model, run `hermes model` and choose the OpenAI option;
-"ChatGPT or Codex Subscription" signs in with your ChatGPT account, no API key needed. To
-take Kinship away again, delete its entry or add `enabled: false` under it, then
+the connection and lists Kinship's tools.
+
+To use an OpenAI model with your ChatGPT account (no API key), sign in once:
+
+```bash
+hermes auth add openai-codex --type oauth --no-browser
+```
+
+It prints a web address and a code: open the address, sign in and enter the code. Then
+choose the model with `hermes model` (OpenAI Codex → ChatGPT or Codex Subscription), or for
+one run, for example:
+
+```bash
+hermes --provider openai-codex -m gpt-6.1-sol -z "Find Maya Okafor in Kinship"
+```
+
+Not every OpenAI model works with a ChatGPT sign-in: `gpt-5.5`, for one, was refused
+("not supported when using Codex with a ChatGPT account"). If that happens, pick another
+model in `hermes model`.
+
+To take Kinship away again, delete its entry or add `enabled: false` under it, then
 `/reload-mcp`.
 
 ## Any other MCP client
