@@ -1,4 +1,4 @@
-import { handle } from '@/lib/api'
+import { handle, readJson } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { ensureColumns } from '@/lib/services/board'
 import { upsertColumnSchema } from '@/lib/validation'
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const owner = requireIdentity(req).subject
   return handle(async () => {
-    const body = upsertColumnSchema.parse(await req.json())
+    const body = upsertColumnSchema.parse(await readJson(req))
     const last = await prisma.boardColumn.findFirst({
       where: { owner, projectId: null },
       orderBy: { position: 'desc' },

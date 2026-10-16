@@ -1,4 +1,4 @@
-import { handle, type RouteCtx } from '@/lib/api'
+import { handle, readJson, type RouteCtx } from '@/lib/api'
 import { deleteColumn, updateColumn } from '@/lib/services/board'
 import { upsertColumnSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -9,7 +9,7 @@ export async function PATCH(req: Request, { params }: RouteCtx) {
   const owner = requireIdentity(req).subject
   const { id } = await params
   return handle(async () => {
-    const body = upsertColumnSchema.partial().parse(await req.json())
+    const body = upsertColumnSchema.partial().parse(await readJson(req))
     return updateColumn(owner, id, {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.color !== undefined ? { color: body.color ?? null } : {}),

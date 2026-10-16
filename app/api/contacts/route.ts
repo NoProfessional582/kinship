@@ -1,4 +1,4 @@
-import { handle } from '@/lib/api'
+import { handle, readJson } from '@/lib/api'
 import { createContact, listContacts } from '@/lib/services/contacts'
 import { upsertContactSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -19,5 +19,5 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const owner = requireIdentity(req).subject
-  return handle(async () => createContact(owner, upsertContactSchema.parse(await req.json())))
+  return handle(async () => createContact(owner, upsertContactSchema.parse(await readJson(req))))
 }

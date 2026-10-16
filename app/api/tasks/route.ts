@@ -1,4 +1,4 @@
-import { handle } from '@/lib/api'
+import { handle, readJson } from '@/lib/api'
 import { createTask, getBoard } from '@/lib/services/tasks'
 import { upsertTaskSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -13,5 +13,5 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const owner = requireIdentity(req).subject
-  return handle(async () => createTask(owner, upsertTaskSchema.parse(await req.json())))
+  return handle(async () => createTask(owner, upsertTaskSchema.parse(await readJson(req))))
 }

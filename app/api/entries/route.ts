@@ -1,4 +1,4 @@
-import { handle } from '@/lib/api'
+import { handle, readJson } from '@/lib/api'
 import { createEntry, listEntries } from '@/lib/services/entries'
 import { createEntrySchema, entryListSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -26,5 +26,5 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const owner = requireIdentity(req).subject
-  return handle(async () => createEntry(owner, createEntrySchema.parse(await req.json())))
+  return handle(async () => createEntry(owner, createEntrySchema.parse(await readJson(req))))
 }

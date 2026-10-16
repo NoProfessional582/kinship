@@ -1,4 +1,4 @@
-import { found, handle, type RouteCtx } from '@/lib/api'
+import { found, handle, readJson, type RouteCtx } from '@/lib/api'
 import { deleteTask, getTask, updateTask } from '@/lib/services/tasks'
 import { upsertTaskSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -13,7 +13,7 @@ export async function GET(req: Request, { params }: RouteCtx) {
 export async function PATCH(req: Request, { params }: RouteCtx) {
   const owner = requireIdentity(req).subject
   const { id } = await params
-  return handle(async () => updateTask(owner, id, upsertTaskSchema.parse(await req.json())))
+  return handle(async () => updateTask(owner, id, upsertTaskSchema.parse(await readJson(req))))
 }
 
 export async function DELETE(req: Request, { params }: RouteCtx) {

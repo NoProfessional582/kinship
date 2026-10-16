@@ -1,4 +1,4 @@
-import { handle, type RouteCtx } from '@/lib/api'
+import { handle, readJson, type RouteCtx } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { attributesSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -22,7 +22,7 @@ export async function PUT(req: Request, { params }: RouteCtx) {
   const { id } = await params
   const owner = requireIdentity(req).subject
   return handle(async () => {
-    const body = attributesSchema.parse(await req.json())
+    const body = attributesSchema.parse(await readJson(req))
     return prisma.$transaction(async (tx) => {
       await tx.contact.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
       await tx.contactAttribute.deleteMany({ where: { contactId: id } })

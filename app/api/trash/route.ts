@@ -1,4 +1,4 @@
-import { handle } from '@/lib/api'
+import { handle, readJson } from '@/lib/api'
 import { ValidationError } from '@/lib/errors'
 import { restoreEntry } from '@/lib/services/entries'
 import { emptyTrash, listTrash, purge, restore, type TrashKind } from '@/lib/services/trash'
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const owner = requireIdentity(req).subject
   return handle(async () => {
-    const body = trashActionSchema.parse(await req.json())
+    const body = trashActionSchema.parse(await readJson(req))
     if (body.action === 'empty') return emptyTrash(owner)
     if (!body.kind || !body.id) throw new ValidationError('kind and id are required')
     if (body.action === 'restore') {
