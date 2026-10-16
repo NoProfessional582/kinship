@@ -32,7 +32,7 @@ const EMPTY_DOC: ProseNode = { type: 'doc', content: [{ type: 'paragraph' }] }
  */
 export interface FollowUpLink {
   id: string
-  kind: string
+  kind: EntryKind
   title: string | null
   occurredAt: Date
   written: boolean
