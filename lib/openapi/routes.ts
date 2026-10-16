@@ -33,7 +33,10 @@ import * as R from './responses'
 
 export type Method = 'get' | 'post' | 'put' | 'patch' | 'delete'
 
-/** Statuses a route can give besides 200. 403 and 500 apply to every route, 415 to every JSON body. */
+/**
+ * Statuses a route can give besides 200. 403 and 500 apply to every route; 400 (the body
+ * is not JSON) and 415 to every JSON body.
+ */
 export type ErrorStatus = 400 | 404 | 409 | 413 | 415 | 500 | 503
 
 /** Raw OpenAPI content, for answers and bodies that are not JSON. */
@@ -110,6 +113,15 @@ export const routes: ApiRoute[] = [
     summary: 'Whether the server and its database answer',
     response: R.Health,
     errors: { 503: 'The database is unreachable; the body is `{ "ok": false }`.' },
+  },
+  {
+    method: 'get',
+    path: '/api/openapi.json',
+    operationId: 'getApiSpec',
+    tag: 'System',
+    summary: 'This description of the API (OpenAPI 3.1)',
+    description: 'The same document as docs/api/kinship.openapi.json in the repo.',
+    response: z.record(z.string(), z.unknown()).meta({ description: 'An OpenAPI 3.1 document.' }),
   },
 
   // -------------------------------------------------------------- Contacts

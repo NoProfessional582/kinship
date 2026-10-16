@@ -100,8 +100,14 @@ const ALWAYS: Partial<Record<ErrorStatus | 403, string>> = {
 
 function errorResponses(route: ApiRoute): Record<string, Json> {
   const statuses: Partial<Record<ErrorStatus | 403, string>> = { ...ALWAYS }
-  if (route.body) statuses[415] = 'Content-Type is not `application/json`.'
   Object.assign(statuses, route.errors)
+  if (route.body) {
+    const bad = statuses[400]
+    if (!bad?.includes('not JSON')) {
+      statuses[400] = [bad, 'the body is not valid JSON.'].filter(Boolean).join(' Or: ')
+    }
+    statuses[415] = 'Content-Type is not `application/json`.'
+  }
   return Object.fromEntries(
     Object.entries(statuses)
       .sort(([a], [b]) => Number(a) - Number(b))

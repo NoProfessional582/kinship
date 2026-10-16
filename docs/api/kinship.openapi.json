@@ -102,6 +102,51 @@
         }
       }
     },
+    "/api/openapi.json": {
+      "get": {
+        "operationId": "getApiSpec",
+        "tags": ["System"],
+        "summary": "This description of the API (OpenAPI 3.1)",
+        "description": "The same document as docs/api/kinship.openapi.json in the repo.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {},
+                  "description": "An OpenAPI 3.1 document."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The Host, Origin or Referer is not allowed. Call from this machine, at an allowed address, without browser headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A server fault, or the server is missing a setting (`KINSHIP_OWNER`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/contacts": {
       "get": {
         "operationId": "listContacts",
@@ -199,7 +244,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation. Also: `avatarUrl` is not a photo uploaded to this app.",
+            "description": "The body failed validation. Also: `avatarUrl` is not a photo uploaded to this app. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -338,7 +383,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -551,7 +596,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -800,7 +845,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -939,7 +984,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1135,7 +1180,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation. Also: the parent would form a cycle.",
+            "description": "The body failed validation. Also: the parent would form a cycle. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1284,7 +1329,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation. Also: the parent would form a cycle.",
+            "description": "The body failed validation. Also: the parent would form a cycle. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1433,7 +1478,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1593,7 +1638,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1674,7 +1719,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1825,7 +1870,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1934,7 +1979,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2073,7 +2118,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2292,7 +2337,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation. Also: a record cannot relate to itself.",
+            "description": "The body failed validation. Also: a record cannot relate to itself. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2512,7 +2557,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2755,7 +2800,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation. Also: `kind` and `id` are missing.",
+            "description": "The body failed validation. Also: `kind` and `id` are missing. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2882,7 +2927,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation.",
+            "description": "The body failed validation. Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
