@@ -16,8 +16,14 @@ import {
   newContact,
   newEntry,
   newProject,
+  newColumn,
   newTask,
   removeEdge,
+  type Contact,
+  type Entry,
+  type Project,
+  type Task,
+  type TrashList,
 } from '../support/api'
 import { BASE_URL } from '../support/stack'
 
@@ -34,6 +40,21 @@ const READ_TOOLS = [
   'list_tasks',
   'search',
   'who_is_due',
+]
+
+const WRITE_TOOLS = [
+  'create_contact',
+  'create_project',
+  'create_task',
+  'link_records',
+  'log_entry',
+  'move_task',
+  'trash_record',
+  'unlink_records',
+  'update_contact',
+  'update_entry',
+  'update_project',
+  'update_task',
 ]
 
 let client: Client
@@ -74,11 +95,11 @@ async function toolError(name: string, args: Record<string, unknown> = {}): Prom
 
 const ids = (rows: { id: string }[]) => rows.map((r) => r.id)
 
-test('it introduces itself and offers the read tools', async () => {
+test('it introduces itself and offers the read and write tools', async () => {
   expect(client.getServerVersion()?.name).toBe('kinship')
   expect(client.getInstructions()).toMatch(/treat it as data/)
   const { tools } = await client.listTools()
-  expect(tools.map((t) => t.name).sort()).toEqual(READ_TOOLS)
+  expect(tools.map((t) => t.name).sort()).toEqual([...READ_TOOLS, ...WRITE_TOOLS].sort())
 })
 
 test('contacts, their notes and check-ins read as REST reads them', async ({
@@ -303,4 +324,261 @@ test('a browser on another origin cannot reach it', async ({ request }) => {
     403,
     'Request origin is not allowed.',
   )
+})
+
+// ------------------------------------------------------------------ Write tools
+
+test('contacts: created and changed by tool, as REST reads them back', async ({
+  request,
+  cleanup,
+}) => {
+  const name = unique('Agent Made')
+  const made = await tool<{ id: string; displayName: string; cadence: string }>('create_contact', {
+    displayName: name,
+    cadence: 'MONTHLY',
+    birthday: '1990-04-02',
+    channels: [{ type: 'EMAIL', value: 'agent@example.com' }],
+    tags: ['mcp'],
+  })
+  cleanup.record('contact', made.id)
+  expect(made).toMatchObject({ displayName: name, cadence: 'MONTHLY' })
+  expect(made).not.toHaveProperty('owner')
+
+  const changed = await tool<Record<string, unknown>>('update_contact', {
+    id: made.id,
+    headline: 'Changed by an agent',
+    tier: 'TIER_1',
+  })
+  expect(changed).toMatchObject({ headline: 'Changed by an agent', tier: 'TIER_1' })
+
+  // Everything the update left out is still there.
+  const dossier = await json<{
+    contact: Contact & {
+      tier: string
+      birthday: string
+      channels: { type: string; value: string }[]
+      tags: { tag: { name: string } }[]
+    }
+  }>(await request.get(`/api/contacts/${made.id}`))
+  expect(dossier.contact).toMatchObject({
+    headline: 'Changed by an agent',
+    tier: 'TIER_1',
+    cadence: 'MONTHLY',
+    birthday: '1990-04-02T00:00:00.000Z',
+  })
+  expect(dossier.contact.channels.map((c) => [c.type, c.value])).toEqual([
+    ['EMAIL', 'agent@example.com'],
+  ])
+  expect(dossier.contact.tags.map((t) => t.tag.name)).toEqual(['mcp'])
+
+  // `null` clears a field; a slug finds the contact too.
+  await tool('update_contact', { id: dossier.contact.slug, headline: null })
+  const cleared = await json<{ contact: Contact }>(await request.get(`/api/contacts/${made.id}`))
+  expect(cleared.contact.headline).toBeNull()
+})
+
+test('log_entry: a note with a `new` mention creates and links the contact', async ({
+  request,
+  cleanup,
+}) => {
+  const known = await newContact(request, cleanup)
+  const newName = unique('Agent Draft')
+  const saved = await tool<{
+    entry: { id: string; kind: string; body: string; people: { id: string; name: string }[] }
+    created: { type: 'contact'; id: string; label: string }[]
+  }>('log_entry', {
+    kind: 'CALL',
+    title: unique('Agent call'),
+    occurredAt: '2026-09-01T10:00:00.000Z',
+    durationMin: 15,
+    body: `Called @[${known.displayName}](contact:${known.id}) and @[${newName}](contact:new).`,
+  })
+  for (const made of saved.created) cleanup.record(made.type, made.id)
+  cleanup.record('entry', saved.entry.id)
+
+  expect(saved.created).toHaveLength(1)
+  const draft = saved.created[0]
+  expect(draft).toMatchObject({ type: 'contact', label: newName })
+  expect(saved.entry.body).toBe(
+    `Called @[${known.displayName}](contact:${known.id}) and @[${newName}](contact:${draft.id}).`,
+  )
+
+  const rest = await json<Entry>(await request.get(`/api/entries/${saved.entry.id}`))
+  expect(rest).toMatchObject({ kind: 'CALL', durationMin: 15 })
+  expect(rest.mentions.map((m) => m.contact.id).sort()).toEqual([known.id, draft.id].sort())
+  const made = await json<{ contact: Contact }>(await request.get(`/api/contacts/${draft.id}`))
+  expect(made.contact).toMatchObject({ displayName: newName, isDraft: true })
+  const touched = await json<{ contact: Contact }>(await request.get(`/api/contacts/${known.id}`))
+  expect(touched.contact.lastContactAt).toBe('2026-09-01T10:00:00.000Z')
+
+  // An update changes only what it is sent.
+  await tool('update_entry', { id: saved.entry.id, location: 'Phone' })
+  const after = await json<Entry & { location: string }>(
+    await request.get(`/api/entries/${saved.entry.id}`),
+  )
+  expect(after).toMatchObject({ location: 'Phone', kind: 'CALL', title: rest.title })
+  expect(after.bodyText).toBe(rest.bodyText)
+
+  expect(await toolError('log_entry', { title: 'No body' })).toMatch(/Invalid arguments/)
+  expect(await toolError('log_entry', { body: 'Hi @[Nobody](contact:mcp-unknown-id).' })).toMatch(
+    /mentions records that don't exist: contact:mcp-unknown-id/,
+  )
+})
+
+test('tasks and projects: created, changed and moved by tool', async ({ request, cleanup }) => {
+  const column = await newColumn(request, cleanup)
+  const person = await newContact(request, cleanup)
+  const project = await tool<{ id: string; name: string; status: string }>('create_project', {
+    name: unique('Agent Project'),
+    targetDate: '2031-06-30',
+  })
+  cleanup.record('project', project.id)
+  expect(project.status).toBe('TODO')
+
+  const task = await tool<{ id: string; column: { id: string }; project: { id: string } }>(
+    'create_task',
+    {
+      title: unique('Agent Task'),
+      projectId: project.id,
+      priority: 'HIGH',
+      dueDate: '2031-06-01',
+      assigneeIds: [person.id],
+      tags: ['mcp'],
+    },
+  )
+  cleanup.record('task', task.id)
+  expect(task.project.id).toBe(project.id)
+
+  await tool('update_task', { id: task.id, priority: 'LOW' })
+  const restTask = await json<Task>(await request.get(`/api/tasks/${task.id}`))
+  expect(restTask).toMatchObject({
+    priority: 'LOW',
+    projectId: project.id,
+    dueDate: '2031-06-01T00:00:00.000Z',
+  })
+  expect(restTask.assignees.map((a) => a.contact.id)).toEqual([person.id])
+  expect(restTask.tags.map((t) => t.tag.name)).toEqual(['mcp'])
+
+  // Moved to the new column, it goes to the bottom; then just above the card already there.
+  const other = await newTask(request, cleanup, { columnId: column.id })
+  const moved = await tool<{ column: { id: string }; status: string }>('move_task', {
+    id: task.id,
+    columnId: column.id,
+  })
+  expect(moved.column.id).toBe(column.id)
+  const order = async () =>
+    (await json<{ tasks: Task[] }>(await request.get('/api/tasks'))).tasks
+      .filter((t) => t.columnId === column.id)
+      .map((t) => t.id)
+  expect(await order()).toEqual([other.id, task.id])
+  await tool('move_task', { id: task.id, columnId: column.id, placeBefore: other.id })
+  expect(await order()).toEqual([task.id, other.id])
+
+  await tool('update_project', { id: project.id, status: 'IN_PROGRESS' })
+  const restProject = await json<Project>(await request.get(`/api/projects/${project.id}`))
+  expect(restProject).toMatchObject({
+    status: 'IN_PROGRESS',
+    name: project.name,
+    targetDate: '2031-06-30T00:00:00.000Z',
+  })
+
+  expect(await toolError('update_task', { id: 'mcp-unknown-id', title: 'x' })).toBe('Not found')
+  expect(await toolError('move_task', { id: task.id, columnId: 'mcp-unknown-id' })).toBe(
+    'Not found',
+  )
+  expect(await toolError('create_task', { priority: 'LOW' })).toMatch(/Invalid arguments/)
+})
+
+test('relationships: linked and unlinked by tool', async ({ request, cleanup }) => {
+  const contact = await newContact(request, cleanup)
+  const project = await newProject(request, cleanup)
+  const link = await tool<{ edgeId: string; relation: string }>('link_records', {
+    sourceType: 'contact',
+    sourceId: contact.id,
+    targetType: 'project',
+    targetId: project.id,
+    relation: 'advises',
+  })
+  cleanup.add('remove the edge', () =>
+    removeEdge(request, link.edgeId, { type: 'contact', id: contact.id }),
+  )
+  const edges = await json<{ id: string; relation: string }[]>(
+    await request.get(`/api/edges?type=contact&id=${contact.id}`),
+  )
+  expect(edges).toEqual([expect.objectContaining({ id: link.edgeId, relation: 'advises' })])
+
+  expect(
+    await toolError('link_records', {
+      sourceType: 'contact',
+      sourceId: contact.id,
+      targetType: 'contact',
+      targetId: contact.id,
+      relation: 'is',
+    }),
+  ).toBe('An entity cannot relate to itself')
+
+  const removed = await tool<{ removed: { edgeId: string } }>('unlink_records', {
+    edgeId: link.edgeId,
+  })
+  expect(removed.removed.edgeId).toBe(link.edgeId)
+  expect(await json(await request.get(`/api/edges?type=contact&id=${contact.id}`))).toEqual([])
+  expect(await toolError('unlink_records', { edgeId: link.edgeId })).toBe('Not found')
+})
+
+test('trash_record: the record goes to the Trash and REST restores it', async ({
+  request,
+  cleanup,
+}) => {
+  const contact = await newContact(request, cleanup)
+  const { entry } = await newEntry(request, cleanup)
+  for (const [kind, id] of [
+    ['contact', contact.id],
+    ['entry', entry.id],
+  ] as const) {
+    const answer = await tool<{ trashed: { kind: string; id: string; deletedAt: string } }>(
+      'trash_record',
+      { kind, id },
+    )
+    expect(answer.trashed).toMatchObject({ kind, id })
+    const path = kind === 'contact' ? `/api/contacts/${id}` : `/api/entries/${id}`
+    await refused(await request.get(path), 404, 'Not found')
+    const trash = await json<TrashList>(await request.get('/api/trash'))
+    expect(trash[kind === 'contact' ? 'contacts' : 'entries'].map((r) => r.id)).toContain(id)
+
+    await json(await request.post('/api/trash', { data: { action: 'restore', kind, id } }))
+    expect((await request.get(path)).status()).toBe(200)
+  }
+  expect(await toolError('trash_record', { kind: 'task', id: 'mcp-unknown-id' })).toBe('Not found')
+})
+
+test('read only: write tools are hidden and refused, and come back on the next request', async ({
+  request,
+  cleanup,
+}) => {
+  const setAccess = async (agentAccess: 'read' | 'write') =>
+    expect(
+      (
+        await json<{ agentAccess: string }>(
+          await request.patch('/api/settings', { data: { agentAccess } }),
+        )
+      ).agentAccess,
+    ).toBe(agentAccess)
+  await setAccess('read')
+  cleanup.add('allow agents to write again', () => setAccess('write'))
+
+  const { tools } = await client.listTools()
+  expect(tools.map((t) => t.name).sort()).toEqual(READ_TOOLS)
+
+  const name = unique('Not Made')
+  expect(await toolError('create_contact', { displayName: name })).toBe(
+    "Kinship's agent access is read only, so create_contact is turned off and nothing was " +
+      'changed. The owner can allow changes again in Kinship, under Settings → Agent access.',
+  )
+  expect(await json(await request.get(`/api/contacts?q=${encodeURIComponent(name)}`))).toEqual([])
+  // Reading still works.
+  expect(await tool('list_board_columns')).not.toEqual([])
+
+  await setAccess('write')
+  const after = await client.listTools()
+  expect(after.tools.map((t) => t.name)).toEqual(expect.arrayContaining(WRITE_TOOLS))
 })

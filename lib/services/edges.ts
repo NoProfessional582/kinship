@@ -1,5 +1,5 @@
 import { prisma } from '../db'
-import { NotFoundError } from '../errors'
+import { NotFoundError, ValidationError } from '../errors'
 import { FOLLOWS_UP } from '../relations'
 
 export { FOLLOWS_UP }
@@ -35,6 +35,9 @@ async function requireOwnedEntity(owner: string, type: EntityType, id: string) {
 }
 
 export async function upsertEdge(owner: string, input: EdgeInput) {
+  if (input.sourceType === input.targetType && input.sourceId === input.targetId) {
+    throw new ValidationError('An entity cannot relate to itself')
+  }
   await Promise.all([
     requireOwnedEntity(owner, input.sourceType, input.sourceId),
     requireOwnedEntity(owner, input.targetType, input.targetId),

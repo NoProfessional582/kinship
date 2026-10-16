@@ -5,7 +5,7 @@ import { handle } from '@/lib/api'
 import { readTextCapped } from '@/lib/body-limit'
 import { ValidationError } from '@/lib/errors'
 import { requireIdentity } from '@/lib/identity'
-import { buildMcpServer } from '@/lib/mcp/server'
+import { connectMcpServer } from '@/lib/mcp/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,12 +54,11 @@ export async function POST(req: Request) {
   } catch (err) {
     return handle(() => Promise.reject(err))
   }
-  const server = buildMcpServer(requireIdentity(req).subject)
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   })
-  await server.connect(transport)
+  const server = await connectMcpServer(requireIdentity(req).subject, transport)
   try {
     const response = await transport.handleRequest(req, { parsedBody })
     // One owner's records: no shared cache may keep them.

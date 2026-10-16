@@ -57,6 +57,11 @@ const followUp = (f: FollowUp) =>
     ? { id: f.id, kind: f.kind, title: f.title, occurredAt: f.occurredAt, written: f.written }
     : null
 
+/** A saved note, and the draft records its `new` mentions created. */
+export function savedEntry(s: Out<typeof R.EntrySaved>) {
+  return compact({ entry: entry(s.entry), created: s.createdEntities })
+}
+
 export function entry(e: EntryLike) {
   return compact({
     id: e.id,
@@ -101,51 +106,55 @@ export function contactSummary(c: Out<typeof R.ContactSummary>) {
 /** How many of a contact's entries `get_contact` shows; `get_entries` pages the rest. */
 export const DOSSIER_ENTRIES = 20
 
-export function contactDossier(d: Out<typeof R.ContactDossier>) {
-  const c = d.contact
+/** A contact's whole record, as get_contact and the contact write tools answer it. */
+export function contact(c: Out<typeof R.ContactDetail>) {
   return compact({
-    contact: {
-      id: c.id,
-      displayName: c.displayName,
-      firstName: c.firstName,
-      lastName: c.lastName,
-      nickname: c.nickname,
-      pronouns: c.pronouns,
-      headline: c.headline,
-      company: c.company,
-      jobTitle: c.jobTitle,
-      location: c.location,
-      birthday: c.birthday,
-      howWeMet: c.howWeMet,
-      bio: c.bio,
-      personalContext: c.personalContext,
-      notes: c.notes,
-      interests: c.interests,
-      customFields: c.customFields,
-      tier: c.tier,
-      cadence: c.cadence,
-      lastContactAt: c.lastContactAt,
-      isDraft: c.isDraft || null,
-      interactions: c._count.mentions,
-      tags: c.tags.map((t) => t.tag.name),
-      channels: c.channels.map((ch) => ({
-        type: ch.type,
-        value: ch.value,
-        label: ch.label,
-        preferred: ch.isPreferred || null,
-      })),
-      positions: c.positions.map((p) => ({
-        role: p.role,
-        organization: p.organization,
-        team: p.team,
-        startDate: p.startDate,
-        endDate: p.endDate,
-        current: p.isCurrent || null,
-      })),
-      milestones: c.milestones.map((m) => ({ title: m.title, date: m.date, note: m.note })),
-      links: c.links.map((l) => ({ label: l.label, url: l.url })),
-      attributes: c.attributes.map((a) => ({ category: a.category, key: a.key, value: a.value })),
-    },
+    id: c.id,
+    displayName: c.displayName,
+    firstName: c.firstName,
+    lastName: c.lastName,
+    nickname: c.nickname,
+    pronouns: c.pronouns,
+    headline: c.headline,
+    company: c.company,
+    jobTitle: c.jobTitle,
+    location: c.location,
+    birthday: c.birthday,
+    howWeMet: c.howWeMet,
+    bio: c.bio,
+    personalContext: c.personalContext,
+    notes: c.notes,
+    interests: c.interests,
+    customFields: c.customFields,
+    tier: c.tier,
+    cadence: c.cadence,
+    lastContactAt: c.lastContactAt,
+    isDraft: c.isDraft || null,
+    interactions: c._count.mentions,
+    tags: c.tags.map((t) => t.tag.name),
+    channels: c.channels.map((ch) => ({
+      type: ch.type,
+      value: ch.value,
+      label: ch.label,
+      isPreferred: ch.isPreferred || null,
+    })),
+    positions: c.positions.map((p) => ({
+      role: p.role,
+      organization: p.organization,
+      team: p.team,
+      startDate: p.startDate,
+      endDate: p.endDate,
+      isCurrent: p.isCurrent || null,
+    })),
+    milestones: c.milestones.map((m) => ({ title: m.title, date: m.date, note: m.note })),
+    links: c.links.map((l) => ({ label: l.label, url: l.url })),
+    attributes: c.attributes.map((a) => ({ category: a.category, key: a.key, value: a.value })),
+  })
+}
+
+export function contactDossier(d: Out<typeof R.ContactDossier>) {
+  return compact({
+    contact: contact(d.contact),
     entries: d.entries.slice(0, DOSSIER_ENTRIES).map(entry),
     moreEntries: d.entries.length > DOSSIER_ENTRIES || null,
     upcoming: d.upcoming.map((u) => ({
@@ -237,6 +246,20 @@ export function projectSummary(p: Out<typeof R.ProjectSummary>) {
   })
 }
 
+/** A project as a write answers it: the project alone, no tasks. */
+export function projectRow(p: Out<typeof R.ProjectRow>) {
+  return compact({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    status: p.status,
+    startDate: p.startDate,
+    targetDate: p.targetDate,
+    allDay: p.allDay,
+    isDraft: p.isDraft || null,
+  })
+}
+
 export function projectDetail(p: Out<typeof R.ProjectDetail>) {
   return compact({
     id: p.id,
@@ -276,6 +299,17 @@ export function calendarEvent(e: Out<typeof R.CalendarEvent>) {
     source: e.source,
     category: e.category,
     id: e.entityId,
+  })
+}
+
+export function edge(e: Out<typeof R.EntityEdge>) {
+  return compact({
+    edgeId: e.id,
+    source: { type: e.sourceType, id: e.sourceId },
+    target: { type: e.targetType, id: e.targetId },
+    relation: e.relation,
+    note: e.note,
+    weight: e.weight,
   })
 }
 

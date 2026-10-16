@@ -1,5 +1,4 @@
 import { handle, readJson } from '@/lib/api'
-import { ValidationError } from '@/lib/errors'
 import { edgesFor, upsertEdge } from '@/lib/services/edges'
 import { edgeListSchema, edgeSchema } from '@/lib/validation'
 import { requireIdentity } from '@/lib/identity'
@@ -20,11 +19,5 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const owner = requireIdentity(req).subject
-  return handle(async () => {
-    const body = edgeSchema.parse(await readJson(req))
-    if (body.sourceType === body.targetType && body.sourceId === body.targetId) {
-      throw new ValidationError('An entity cannot relate to itself')
-    }
-    return upsertEdge(owner, body)
-  })
+  return handle(async () => upsertEdge(owner, edgeSchema.parse(await readJson(req))))
 }
