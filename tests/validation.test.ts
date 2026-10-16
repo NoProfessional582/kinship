@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createEntrySchema, updateEntrySchema } from '@/lib/validation'
+import { BODY_MAX, createEntrySchema, updateEntrySchema } from '@/lib/validation'
 
 const doc = { type: 'doc', content: [] }
 
@@ -55,5 +55,41 @@ describe('updateEntrySchema', () => {
 
   it('validates what it does receive', () => {
     expect(() => updateEntrySchema.parse({ kind: 'BRUNCH' })).toThrow()
+  })
+})
+
+describe('entry body', () => {
+  const body = 'Lunch with @[Jane Doe](contact:new)'
+
+  it('takes `body` alone, on create and update', () => {
+    expect(createEntrySchema.parse({ body }).body).toBe(body)
+    expect(updateEntrySchema.parse({ body }).body).toBe(body)
+  })
+
+  it('takes `bodyJson` alone and leaves `body` absent', () => {
+    expect(createEntrySchema.parse({ bodyJson: doc }).body).toBeUndefined()
+    expect(updateEntrySchema.parse({ bodyJson: doc }).body).toBeUndefined()
+  })
+
+  it('takes neither, so an update can leave the body alone', () => {
+    const out = updateEntrySchema.parse({ title: 'Renamed' })
+    expect(out.body).toBeUndefined()
+    expect(out.bodyJson).toBeUndefined()
+  })
+
+  it('needs one of the two on a first save', () => {
+    expect(() => createEntrySchema.parse({ title: 'Sent the flowers' })).toThrow(/`body`/)
+    expect(createEntrySchema.parse({ title: 'Sent the flowers', body: '' }).body).toBe('')
+  })
+
+  it('refuses both at once', () => {
+    expect(() => createEntrySchema.parse({ body, bodyJson: doc })).toThrow(/not both/)
+    expect(() => updateEntrySchema.parse({ body, bodyJson: doc })).toThrow(/not both/)
+  })
+
+  it('refuses a body that is not text or is over the cap', () => {
+    expect(() => createEntrySchema.parse({ body: 42 })).toThrow()
+    expect(() => createEntrySchema.parse({ body: 'x'.repeat(BODY_MAX + 1) })).toThrow()
+    expect(createEntrySchema.parse({ body: 'x'.repeat(BODY_MAX) }).body).toHaveLength(BODY_MAX)
   })
 })

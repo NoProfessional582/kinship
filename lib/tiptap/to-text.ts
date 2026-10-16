@@ -147,3 +147,13 @@ export function docToBody(doc: ProseNode): string {
     })
     .join('\n\n')
 }
+
+/**
+ * A stored entry with `body`, its note as plain text, added beside `bodyJson`.
+ * Every answer that carries an entry goes through this, so `body` is always there.
+ */
+export function withBody<T extends { bodyJson: unknown }>(entry: T): T & { body: string } {
+  const doc = entry.bodyJson
+  const body = doc && typeof doc === 'object' ? docToBody(doc as ProseNode) : ''
+  return { ...entry, body }
+}

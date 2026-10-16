@@ -1,6 +1,7 @@
 import { prisma, type Tx } from '../db'
 import { uniqueSlug } from '../slug'
 import type { UpsertContactInput } from '../validation'
+import { withBody } from '../tiptap/to-text'
 import { followUpEdges } from './edges'
 import { resolveTagIds } from './tags'
 import { softDelete } from './trash'
@@ -365,5 +366,5 @@ export async function getContactDossier(owner: string, idOrSlug: string) {
       openLoop: e.occurredAt <= now,
     }))
 
-  return { contact, entries, tasks, projects, upcoming }
+  return { contact, entries: entries.map(withBody), tasks, projects, upcoming }
 }

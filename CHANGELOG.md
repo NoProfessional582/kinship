@@ -10,6 +10,7 @@ All notable changes to Kinship are recorded here. The format follows
 
 - A description of the whole API (OpenAPI 3.1), served at `GET /api/openapi.json` and kept in `docs/api/kinship.openapi.json`. It is generated from the code, the checks fail when it is out of date or misses a route, and tests check real answers against it.
 - `docs/api/agents.md`: how a script or AI agent on the same computer uses the API, with worked `curl` calls.
+- Notes can be written as plain text: `POST /api/entries` and `PATCH /api/entries/{id}` take `body`, text with mentions such as `@[Maya Okafor](contact:<id>)`, `[[Ship v2]](task:<id>)` and `[[Launch]](project:<id>)` (an id of `new` creates the record), instead of the editor's `bodyJson`. Every answer that carries an entry includes `body`, which can be sent back unchanged. A `body` that mentions an id Kinship doesn't have is refused with 400.
 
 ### Fixed
 

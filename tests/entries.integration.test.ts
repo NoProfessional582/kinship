@@ -4,10 +4,12 @@ import {
   createEntry as createEntryOwned,
   updateEntry as updateEntryOwned,
   getEntry as getEntryOwned,
+  listEntries as listEntriesOwned,
 } from '@/lib/services/entries'
 import { FOLLOWS_UP } from '@/lib/relations'
 import { deleteEdgesFor as deleteOwnedEdges, type TrashKind } from '@/lib/services/trash'
-import { createEntrySchema, type CreateEntryInput } from '@/lib/validation'
+import { createEntrySchema, updateEntrySchema, type CreateEntryInput } from '@/lib/validation'
+import { ValidationError } from '@/lib/errors'
 import { CONTACT_MENTION, ENTITY_REF } from '@/lib/tiptap/nodes'
 
 /**
@@ -315,5 +317,112 @@ describe('follow-ups', () => {
     const still = await getEntry(kept.id)
     expect(still?.followUp?.id).toBe(followUpId)
     expect(still?.followUp?.written).toBe(true)
+  })
+})
+
+describe('plain-text body', () => {
+  const save = (fields: Record<string, unknown>) => createEntry(createEntrySchema.parse(fields))
+  const edit = (id: string, fields: Record<string, unknown>) =>
+    updateEntry(id, updateEntrySchema.parse(fields))
+
+  it('links an existing contact, task and project, and answers with the same body', async () => {
+    const { entry: seed } = await save({ body: `${MARK} seed with @[${MARK}Ana](contact:new)` })
+    const ana = seed.mentions[0].contact
+    const { entry: withRecords } = await save({
+      body: `${MARK} seed [[${MARK}Ship]](task:new) [[${MARK}Launch]](project:new)`,
+    })
+    const task = withRecords.refs.find((r) => r.targetType === 'TASK')!.task!
+    const project = withRecords.refs.find((r) => r.targetType === 'PROJECT')!.project!
+
+    const body =
+      `${MARK} lunch with @[${MARK}Ana](contact:${ana.id})\n\n` +
+      `- [[${MARK}Ship]](task:${task.id})\n- [[${MARK}Launch]](project:${project.id})`
+    const { entry, createdEntities } = await save({ body })
+
+    expect(createdEntities).toEqual([])
+    expect(entry.body).toBe(body)
+    expect(entry.mentions.map((m) => m.contactId)).toEqual([ana.id])
+    expect(entry.refs.map((r) => r.taskId ?? r.projectId).sort()).toEqual(
+      [task.id, project.id].sort(),
+    )
+    expect(entry.bodyText).toContain(`@${MARK}Ana`)
+    expect((await getEntry(entry.id))!.body).toBe(body)
+  })
+
+  it('creates a `new` contact, links it and puts the note on their timeline', async () => {
+    const { entry, createdEntities } = await save({
+      kind: 'CALL',
+      body: `${MARK} called @[${MARK}Bo](contact:new), then @[${MARK}Bo](contact:new) again`,
+    })
+
+    expect(createdEntities).toHaveLength(1)
+    const bo = createdEntities[0]
+    expect(bo).toMatchObject({ type: 'contact', label: `${MARK}Bo` })
+    expect(entry.body).toBe(
+      `${MARK} called @[${MARK}Bo](contact:${bo.id}), then @[${MARK}Bo](contact:${bo.id}) again`,
+    )
+    const timeline = await listEntriesOwned(OWNER, { contactId: bo.id })
+    expect(timeline.map((e) => e.id)).toEqual([entry.id])
+    expect(timeline[0].body).toBe(entry.body)
+    expect(
+      (await prisma.contact.findUniqueOrThrow({ where: { id: bo.id } })).lastContactAt,
+    ).not.toBeNull()
+  })
+
+  it('creates a `new` task and project', async () => {
+    const { entry, createdEntities } = await save({
+      body: `${MARK} plan [[${MARK}Draft]](task:new) for [[${MARK}Fair]](project:new)`,
+    })
+    expect(createdEntities.map((c) => c.type).sort()).toEqual(['project', 'task'])
+    expect(entry.refs).toHaveLength(2)
+    expect(entry.body).not.toContain(':new)')
+  })
+
+  it('refuses a mention of an id the owner does not have, and saves nothing', async () => {
+    const before = await prisma.contact.count({ where: { owner: OWNER } })
+    await expect(
+      save({
+        body: `${MARK} @[${MARK}Ghost](contact:nosuchid) and @[${MARK}Cy](contact:new)`,
+      }),
+    ).rejects.toThrow(ValidationError)
+    await expect(save({ body: `${MARK} [[${MARK}X]](task:nosuchid)` })).rejects.toThrow(
+      /task:nosuchid/,
+    )
+    expect(await prisma.contact.count({ where: { owner: OWNER } })).toBe(before)
+  })
+
+  it('replaces the note on PATCH and rewrites its mentions', async () => {
+    const { entry } = await save({ body: `${MARK} first @[${MARK}Di](contact:new)` })
+    const di = entry.mentions[0].contactId
+
+    const { entry: edited, createdEntities } = await edit(entry.id, {
+      body: `${MARK} second @[${MARK}Ed](contact:new)`,
+    })
+    expect(createdEntities).toHaveLength(1)
+    expect(edited.body).toBe(`${MARK} second @[${MARK}Ed](contact:${createdEntities[0].id})`)
+    expect(edited.mentions.map((m) => m.contactId)).toEqual([createdEntities[0].id])
+    expect(edited.mentions.map((m) => m.contactId)).not.toContain(di)
+
+    await expect(edit(entry.id, { body: `${MARK} @[x](contact:nosuchid)` })).rejects.toThrow(
+      ValidationError,
+    )
+    expect((await getEntry(entry.id))!.body).toBe(edited.body)
+
+    const { entry: titled } = await edit(entry.id, { title: `${MARK} renamed` })
+    expect(titled.body).toBe(edited.body)
+  })
+
+  it('reads a bodyJson note back as body', async () => {
+    const label = `${MARK}Fay`
+    const { entry, createdEntities } = await save({
+      bodyJson: bodyWith(label, `${MARK}P2`, `${MARK}T2`),
+      pendingEntities: pending(label, `${MARK}P2`, `${MARK}T2`),
+    })
+    const id = (type: string) => createdEntities.find((c) => c.type === type)!.id
+    expect(entry.body).toBe(
+      `${MARK} call with @[${label}](contact:${id('contact')}) about ` +
+        `[[${MARK}P2]](project:${id('project')}) owning [[${MARK}T2]](task:${id('task')}) ` +
+        `and again @[${label}](contact:${id('contact')})`,
+    )
   })
 })

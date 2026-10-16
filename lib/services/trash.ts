@@ -3,6 +3,7 @@ import { prisma } from '../db'
 import { ConflictError } from '../errors'
 import { ownerTransaction } from '../owner-lock'
 import { photoTransaction } from '../photo-lifecycle'
+import { withBody } from '../tiptap/to-text'
 import { contactsMentionedBy, recomputeLastContact } from './recency'
 
 export type TrashKind = 'contact' | 'entry' | 'task' | 'project'
@@ -209,7 +210,7 @@ export async function purge(
 
     const deleted = await model(tx, kind).delete({ where: { id } })
     await deleteEdgesFor(owner, kind, ids, tx)
-    return deleted
+    return kind === 'entry' ? withBody(deleted as unknown as { bodyJson: unknown }) : deleted
   })
 }
 

@@ -9,6 +9,9 @@ import {
   type PendingEntity,
   type ProseNode,
 } from '../tiptap/doc'
+import { textToDoc } from '../tiptap/from-text'
+import { withBody } from '../tiptap/to-text'
+import { ValidationError } from '../errors'
 import type { CreateEntryInput } from '../validation'
 import { appendPosition, defaultColumnId } from './board'
 import { FOLLOWS_UP, followUpEdges } from './edges'
@@ -242,7 +245,7 @@ export const entryInclude = {
  * leaves behind no orphan contacts and no body pointing at rolled-back rows.
  */
 export async function createEntry(owner: string, input: CreateEntryInput) {
-  const doc: ProseNode = (input.bodyJson as ProseNode) ?? EMPTY_DOC
+  const doc: ProseNode = inputDoc(input) ?? EMPTY_DOC
   const refs = collectDocRefs(doc)
 
   // Labels supplied by the client win when present; the document is still the
@@ -250,6 +253,7 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
   const labelHints = new Map(input.pendingEntities.map((p) => [p.tempId, p.label]))
 
   return ownerTransaction(owner, async (tx) => {
+    if (input.body !== undefined) await refuseUnknownMentions(tx, owner, refs)
     const { idMap, createdEntities, newContactIds, newTaskIds, newProjectIds } =
       await materializePending(tx, owner, refs.pending, labelHints)
 
@@ -301,8 +305,46 @@ export async function createEntry(owner: string, input: CreateEntryInput) {
     }
 
     await recomputeLastContact(tx, owner, contactIds)
-    return { entry, createdEntities }
+    return { entry: withBody(entry), createdEntities }
   })
+}
+
+/**
+ * The note a save was sent: `body` text turned into a document, else `bodyJson`
+ * as given, else null when the save leaves the body alone.
+ */
+function inputDoc(input: Partial<CreateEntryInput>): ProseNode | null {
+  if (input.body !== undefined) return textToDoc(input.body)
+  return (input.bodyJson as ProseNode) ?? null
+}
+
+/**
+ * Refuses a `body` that mentions a record the owner doesn't have. A `body` is
+ * typed by an agent or a script, where a wrong id is a mistake worth a 400; the
+ * editor's `bodyJson` keeps its tolerance for chips whose record was deleted
+ * while the note was open (see `existingIds` in `createEntry`).
+ */
+async function refuseUnknownMentions(
+  tx: Tx,
+  owner: string,
+  refs: { contactIds: string[]; taskIds: string[]; projectIds: string[] },
+) {
+  const lookups = [
+    ['contact', tx.contact, refs.contactIds],
+    ['task', tx.task, refs.taskIds],
+    ['project', tx.project, refs.projectIds],
+  ] as const
+  const unknown: string[] = []
+  for (const [kind, delegate, ids] of lookups) {
+    const known = new Set(await existingIds(delegate, owner, ids))
+    for (const id of ids) if (!known.has(id)) unknown.push(`${kind}:${id}`)
+  }
+  if (unknown.length) {
+    throw new ValidationError(
+      `The body mentions records that don't exist: ${unknown.join(', ')}. ` +
+        'Use an id from Kinship, or `new` to create the record.',
+    )
+  }
 }
 
 /**
@@ -389,7 +431,7 @@ async function existingIds(
 
 export async function updateEntry(owner: string, id: string, input: Partial<CreateEntryInput>) {
   return ownerTransaction(owner, async (tx) => {
-    const doc = (input.bodyJson as ProseNode) ?? null
+    const doc = inputDoc(input)
     const data: Record<string, unknown> = {}
 
     // Captured before anything is rewritten: K14 needs both the entry's date as
@@ -418,6 +460,7 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
 
     if (doc) {
       const refs = collectDocRefs(doc)
+      if (input.body !== undefined) await refuseUnknownMentions(tx, owner, refs)
       // Same job as a first save: create what the edit introduced, then rewrite
       // the body so it points at real rows rather than `new:` placeholders.
       const labelHints = new Map((input.pendingEntities ?? []).map((p) => [p.tempId, p.label]))
@@ -482,7 +525,7 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
       ...new Set([...contactsBefore, ...(contactsAfter ?? contactsBefore)]),
     ])
 
-    return { entry, createdEntities }
+    return { entry: withBody(entry), createdEntities }
   })
 }
 
@@ -522,7 +565,7 @@ export async function listEntries(
     take,
     skip,
   })
-  return withFollowUps(owner, rows)
+  return withFollowUps(owner, rows.map(withBody))
 }
 
 export async function getEntry(owner: string, id: string) {
@@ -531,7 +574,7 @@ export async function getEntry(owner: string, id: string) {
     include: entryInclude,
   })
   if (!entry) return null
-  return (await withFollowUps(owner, [entry]))[0]
+  return (await withFollowUps(owner, [withBody(entry)]))[0]
 }
 
 /**
@@ -562,7 +605,7 @@ export async function deleteEntry(owner: string, id: string) {
       data: { deletedAt: new Date() },
     })
     await recomputeLastContact(tx, owner, contactIds)
-    return row
+    return withBody(row)
   })
 }
 
@@ -581,6 +624,6 @@ export async function restoreEntry(owner: string, id: string) {
     await tx.entry.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     const row = await tx.entry.update({ where: { id }, data: { deletedAt: null } })
     await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, id))
-    return row
+    return withBody(row)
   })
 }
