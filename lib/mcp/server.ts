@@ -28,7 +28,7 @@ export const INSTRUCTIONS = [
 
 const READ_ONLY_NOTE =
   'Agent access is read only: you can look things up but not change anything. The owner ' +
-  'can allow changes in Kinship, under Settings → Agent access.'
+  'can allow changes in Kinship, under Settings → Agents.'
 
 const WRITE_NOTE =
   'You can change records. Nothing you do deletes anything for good: trash_record moves a ' +

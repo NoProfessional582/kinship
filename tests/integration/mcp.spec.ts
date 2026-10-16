@@ -572,7 +572,7 @@ test('read only: write tools are hidden and refused, and come back on the next r
   const name = unique('Not Made')
   expect(await toolError('create_contact', { displayName: name })).toBe(
     "Kinship's agent access is read only, so create_contact is turned off and nothing was " +
-      'changed. The owner can allow changes again in Kinship, under Settings → Agent access.',
+      'changed. The owner can allow changes again in Kinship, under Settings → Agents.',
   )
   expect(await json(await request.get(`/api/contacts?q=${encodeURIComponent(name)}`))).toEqual([])
   // Reading still works.

@@ -53,7 +53,7 @@ export const WRITE_TOOLS = [
 /** What a client is told when it calls a write tool while access is read only. */
 export const readOnlyRefusal = (tool: string) =>
   `Kinship's agent access is read only, so ${tool} is turned off and nothing was changed. ` +
-  'The owner can allow changes again in Kinship, under Settings → Agent access.'
+  'The owner can allow changes again in Kinship, under Settings → Agents.'
 
 const CHANGES = { readOnlyHint: false, destructiveHint: false, openWorldHint: false } as const
 const EDITS = { ...CHANGES, idempotentHint: true } as const

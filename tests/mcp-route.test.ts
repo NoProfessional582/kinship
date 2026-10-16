@@ -197,7 +197,7 @@ describe('/api/mcp', () => {
           text:
             "Kinship's agent access is read only, so trash_record is turned off and nothing " +
             'was changed. The owner can allow changes again in Kinship, under Settings → ' +
-            'Agent access.',
+            'Agents.',
         },
       ],
     })
