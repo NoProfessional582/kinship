@@ -22,6 +22,9 @@ export const prioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
 const optionalDate = z.coerce.date().nullish()
 const trimmed = (max: number) => z.string().trim().max(max)
 
+/** Longest plain-text note body, in characters; far beyond any real note. */
+export const BODY_MAX = 100_000
+
 /**
  * A date that must actually be one.
  *
@@ -56,6 +59,12 @@ const entryFields = {
   kind: entryKindSchema,
   title: trimmed(200).nullish(),
   bodyJson: z.any(),
+  /**
+   * The body as plain text with mentions (syntax in lib/tiptap/from-text.ts),
+   * for agents and scripts. Converted to `bodyJson` by the save; one or the
+   * other, never both.
+   */
+  body: z.string().max(BODY_MAX).optional(),
   occurredAt: strictDate,
   direction: directionSchema.nullish(),
   durationMin: z
@@ -79,12 +88,26 @@ const entryFields = {
   pendingEntities: z.array(pendingEntitySchema),
 }
 
-export const createEntrySchema = z.object(entryFields).extend({
-  kind: entryFields.kind.default('NOTE'),
-  occurredAt: entryFields.occurredAt.default(() => new Date()),
-  tags: entryFields.tags.default([]),
-  pendingEntities: entryFields.pendingEntities.default([]),
-})
+/** A body comes as `body` (text) or `bodyJson` (editor document), not both. */
+const notBoth = (e: { body?: unknown; bodyJson?: unknown }) =>
+  e.body === undefined || e.bodyJson === undefined
+const notBothError = { message: 'Send `body` or `bodyJson`, not both.', path: ['body'] }
+
+export const createEntrySchema = z
+  .object(entryFields)
+  .extend({
+    kind: entryFields.kind.default('NOTE'),
+    occurredAt: entryFields.occurredAt.default(() => new Date()),
+    tags: entryFields.tags.default([]),
+    pendingEntities: entryFields.pendingEntities.default([]),
+    bodyJson: entryFields.bodyJson.optional(),
+  })
+  .refine(notBoth, notBothError)
+  // A first save needs a body in one form or the other, as it needed `bodyJson` before `body`.
+  .refine((e) => e.body !== undefined || e.bodyJson !== undefined, {
+    message: 'Send the note as `body` (text) or `bodyJson`.',
+    path: ['body'],
+  })
 
 /**
  * A real partial: an absent key means "leave this alone", which is what
@@ -95,7 +118,7 @@ export const createEntrySchema = z.object(entryFields).extend({
  * hints for it. Dropping the field meant an edit stored a `new:` placeholder
  * that nothing ever resolved.
  */
-export const updateEntrySchema = z.object(entryFields).partial()
+export const updateEntrySchema = z.object(entryFields).partial().refine(notBoth, notBothError)
 
 // ----------------------------------------------------------------- Contacts
 

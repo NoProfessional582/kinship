@@ -238,11 +238,19 @@ export const routes: ApiRoute[] = [
     tag: 'Entries',
     summary: 'Log an entry',
     description:
-      '`followUpAt` creates a second, empty entry on that date that continues this one. ' +
-      'Mentions in `bodyJson` with a `new:` id create draft records, listed in `createdEntities`.',
+      'Send the note as `body`, plain text with mentions (`@[Jane Doe](contact:<id>)`, ' +
+      '`[[Ship v2]](task:<id>)`, `[[Launch]](project:<id>)`), or as `bodyJson`, never both. ' +
+      'A mention with id `new` (in `bodyJson`, a `new:` id) creates a draft record, listed in ' +
+      '`createdEntities`. `followUpAt` creates a second, empty entry on that date that ' +
+      'continues this one.',
     body: createEntrySchema,
     response: R.EntrySaved,
-    errors: { 400: BAD_BODY },
+    errors: {
+      400:
+        BAD_BODY +
+        ' Also: both `body` and `bodyJson`, or neither, or a mention of an id ' +
+        "the owner doesn't have.",
+    },
   },
   {
     method: 'get',
@@ -261,12 +269,17 @@ export const routes: ApiRoute[] = [
     tag: 'Entries',
     summary: 'Change some of an entry',
     description:
-      'Only the fields sent change. Sending `bodyJson` rewrites its mentions and refs; ' +
-      '`followUpAt: null` withdraws an empty follow-up.',
+      'Only the fields sent change. Sending `body` or `bodyJson` (not both) replaces the note ' +
+      'and rewrites its mentions and refs; `followUpAt: null` withdraws an empty follow-up.',
     params: { id: ID },
     body: updateEntrySchema,
     response: R.EntrySaved,
-    errors: { 400: BAD_BODY, 404: 'No such entry for this owner.' },
+    errors: {
+      400:
+        BAD_BODY +
+        " Also: both `body` and `bodyJson`, or a mention of an id the owner doesn't have.",
+      404: 'No such entry for this owner.',
+    },
   },
   {
     method: 'delete',

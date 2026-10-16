@@ -19,6 +19,9 @@ export type ProseNode = {
   marks?: { type: string; attrs?: Record<string, JsonValue> }[]
 }
 
+/** The body of a note with nothing written in it, as the editor stores one. */
+export const EMPTY_DOC: ProseNode = { type: 'doc', content: [{ type: 'paragraph' }] }
+
 /**
  * A stored or restored body as editor content. Bodies arrive as JSON from the
  * database or from a saved draft; only an object can be a document.

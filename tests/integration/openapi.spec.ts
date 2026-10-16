@@ -172,6 +172,49 @@ test('Entries: create with a mention, read, list, update, delete', async ({ requ
   await refusedWith(400, request, 'get', '/api/entries', { query: 'take=0' })
 })
 
+test('Entries: a plain-text body in, the same body out', async ({ request, cleanup }) => {
+  const person = await contact(request, cleanup)
+  const taskLabel = unique('Contract body task')
+  const body = `Called @[Them](contact:${person.id})\n\n- follow up on [[${taskLabel}]](task:new)`
+  const saved = await ok<{
+    entry: Made & { body: string }
+    createdEntities: { type: string; id: string }[]
+  }>(request, 'post', '/api/entries', { data: { kind: 'CALL', body } })
+  cleanup.record('entry', saved.entry.id)
+  const made = saved.createdEntities.find((c) => c.type === 'task')!
+  cleanup.record('task', made.id)
+  const stored = body.replace('(task:new)', `(task:${made.id})`)
+  expect(saved.entry.body).toBe(stored)
+
+  const params = { id: saved.entry.id }
+  const read = await ok<{ body: string }>(request, 'get', '/api/entries/{id}', { params })
+  expect(read.body).toBe(stored)
+  const edited = await ok<{ entry: { body: string } }>(request, 'patch', '/api/entries/{id}', {
+    params,
+    data: { body: read.body + '\n\nAnd one more line.' },
+  })
+  expect(edited.entry.body).toBe(stored + '\n\nAnd one more line.')
+
+  const both = { body, bodyJson: doc(paragraph(text('x'))) }
+  expect(await refusedWith(400, request, 'post', '/api/entries', { data: both })).toBe(
+    'Validation failed',
+  )
+  await refusedWith(400, request, 'patch', '/api/entries/{id}', { params, data: both })
+  await refusedWith(400, request, 'post', '/api/entries', { data: { title: 'No body' } })
+  const ghost = { body: `Met @[Nobody](contact:${UNKNOWN})` }
+  expect(await refusedWith(400, request, 'post', '/api/entries', { data: ghost })).toContain(
+    `contact:${UNKNOWN}`,
+  )
+  await refusedWith(400, request, 'patch', '/api/entries/{id}', { params, data: ghost })
+
+  // The trash answers with the entry too.
+  await ok(request, 'delete', '/api/entries/{id}', { params })
+  const restored = await ok<{ body: string }>(request, 'post', '/api/trash', {
+    data: { action: 'restore', kind: 'entry', id: saved.entry.id },
+  })
+  expect(restored.body).toBe(edited.entry.body)
+})
+
 test('Tasks: create, read, board, update, move, drafts, delete', async ({ request, cleanup }) => {
   const made = await task(request, cleanup)
   const params = { id: made.id }
