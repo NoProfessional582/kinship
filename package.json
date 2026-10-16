@@ -7,6 +7,7 @@
     "build": "prisma generate && next build",
     "start": "node server.js",
     "graph:benchmark": "node --expose-gc --import tsx scripts/benchmark-graph-layout.ts",
+    "api:spec": "tsx scripts/api-spec.ts --write && prettier --write docs/api/kinship.openapi.json",
     "graph:types": "openapi-typescript docs/api/graph.openapi.json -o lib/graph/api.generated.ts && prettier --write lib/graph/api.generated.ts",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
