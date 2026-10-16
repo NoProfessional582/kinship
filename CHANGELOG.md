@@ -6,6 +6,8 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-16
+
 ### Added
 
 - A description of the whole API (OpenAPI 3.1), served at `GET /api/openapi.json` and kept in `docs/api/kinship.openapi.json`. It is generated from the code, the checks fail when it is out of date or misses a route, and tests check real answers against it.
@@ -14,6 +16,7 @@ All notable changes to Kinship are recorded here. The format follows
 - An MCP endpoint for AI agents on the same computer, at `POST /api/mcp` (Streamable HTTP, stateless, JSON answers; `GET` and `DELETE` answer 405). Read tools search and read contacts, notes, tasks, projects, the board, the calendar, who is due for a catch-up and a record's neighbourhood on the map; write tools create and update contacts, tasks, projects and notes, move tasks, link and unlink records, and move records to the trash. Each tool uses the same checks as the matching API route. No tool can change settings, delete anything for good, import an archive or upload a photo.
 - An "Agents" setting in Settings (desktop and phone): agents may read and change (the default) or only read. With read only, the write tools are hidden from agents and refused if called; the change takes effect at once. `GET` and `PATCH /api/settings` carry it as `agentAccess` (`write` or `read`).
 - `KINSHIP_AGENT_ACCESS=off` in `.env` turns the MCP endpoint off entirely (it answers 404); any other value, or none, leaves it on.
+- A guide to connecting AI agents, in `docs/api/agents.md`: setup for Claude Code, Claude Desktop, Codex (CLI, IDE extension and app), Hermes Agent with an OpenAI model and any other MCP client; what agents can and can't do; the read-only and off switches; safety; why the Gemini app can't connect; troubleshooting. The README has a short "Agents" section pointing to it.
 
 ### Fixed
 

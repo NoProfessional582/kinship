@@ -36,7 +36,7 @@ services:
   # which is also where the seed and archive commands run (README.md). Running as
   # root lets it hand data/uploads to the web server's user below.
   migrate:
-    image: &image ghcr.io/noprofessional582/kinship:0.4.0
+    image: &image ghcr.io/noprofessional582/kinship:0.5.0
     # `docker compose up` downloads the image, or builds it from this checkout if
     # it can't; `docker compose build` and `up --build` always build it here.
     build: &build
