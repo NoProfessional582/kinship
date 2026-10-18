@@ -6,6 +6,8 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-18
+
 ### Fixed
 
 - `npm run db:migrate` works on Windows outside Docker. It stopped with a "spawnSync npx" error because Windows only runs `npx` (a `.cmd` file) through a shell.
