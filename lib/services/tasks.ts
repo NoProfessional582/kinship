@@ -164,8 +164,9 @@ export async function createTask(owner: string, input: UpsertTaskInput) {
 
 export async function updateTask(owner: string, id: string, input: UpsertTaskInput) {
   return ownerTransaction(owner, async (tx) => {
+    // A task in the trash is not found, as `getTask` says; restore it to edit it.
+    await tx.task.findFirstOrThrow({ where: { id, owner, deletedAt: null }, select: { id: true } })
     await validateParent(tx, owner, id, input.parentTaskId)
-    await tx.task.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     await validateLinks(tx, owner, input)
     const tagIds = await resolveTagIds(tx, owner, input.tags)
     await tx.taskAssignee.deleteMany({ where: { taskId: id } })
@@ -225,8 +226,19 @@ export async function moveTask(
   beforeId?: string | null,
   afterId?: string | null,
 ) {
-  const result = await prisma.$transaction(async (tx) => {
-    await tx.task.findFirstOrThrow({ where: { id: taskId, owner }, select: { id: true } })
+  // An owner transaction, like every other path that puts a card in a column:
+  // deleteColumn holds the same lock between its emptiness check and the
+  // cascade, so a card cannot land in a column that is being removed.
+  const result = await ownerTransaction(owner, async (tx) => {
+    // A trashed card is not on the board to be dragged, and a subtask moves
+    // with its parent: neither may be placed in a column of its own here.
+    const task = await tx.task.findFirstOrThrow({
+      where: { id: taskId, owner, deletedAt: null },
+      select: { parentTaskId: true },
+    })
+    if (task.parentTaskId !== null) {
+      throw new ValidationError('A subtask moves with its parent card, not on its own.')
+    }
     await tx.boardColumn.findFirstOrThrow({ where: { id: columnId, owner }, select: { id: true } })
     if (projectId)
       await tx.project.findFirstOrThrow({ where: { id: projectId, owner }, select: { id: true } })
@@ -299,7 +311,7 @@ export async function moveTask(
     })
   })
 
-  await prisma.$transaction(async (tx) => renormalizeColumn(tx, owner, columnId))
+  await ownerTransaction(owner, (tx) => renormalizeColumn(tx, owner, columnId))
   return result
 }
 

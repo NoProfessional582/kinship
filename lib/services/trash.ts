@@ -58,13 +58,21 @@ export async function softDelete(owner: string, kind: TrashKind, id: string) {
   })
 }
 
+/**
+ * Back out of the trash. A restored entry gives back the recency it carried:
+ * `Contact.lastContactAt` is derived from the LIVE entries, so it is recomputed
+ * here exactly as `softDelete` and `deleteEntry` recompute it on the way in.
+ * Recomputing on delete alone would leave those contacts stuck at the earlier
+ * date, with no way back short of editing the entry.
+ */
 export async function restore(owner: string, kind: TrashKind, id: string) {
   return ownerTransaction(owner, async (tx) => {
     await model(tx, kind).findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     const row = await model(tx, kind).update({ where: { id }, data: { deletedAt: null } })
-    if (kind === 'entry')
-      await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, id))
-    return row
+    if (kind !== 'entry') return row
+    await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, id))
+    // An entry answers with `body`, as `purge` and every other entry answer do.
+    return withBody(row as unknown as { bodyJson: unknown })
   })
 }
 

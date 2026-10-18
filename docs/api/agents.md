@@ -222,7 +222,15 @@ phone: Settings → Agents → "What AI agents may do"). It takes effect at once
 connect afterwards see only the look-up tools, and a change tool called by one that was
 already connected is refused with "Kinship's agent access is read only … nothing was
 changed". Choose **Can read and write** to allow changes again. Only you can switch it, in
-the app; no agent tool can.
+the app; no agent tool can, and `PATCH /api/settings` refuses to change it (403, "Agent
+access can only be changed in the Kinship app.") unless the request comes from the app's
+own pages.
+
+Read only limits the **MCP tools** only. It is not a wall around your data: an agent that
+can also run shell commands or make HTTP requests on this computer can still reach
+Kinship's HTTP API directly and change anything there, including replacing everything
+with `POST /api/import`. If an agent must not be able to change Kinship, don't also give
+it shell or HTTP access on this computer.
 
 **Off.** To turn the agent connection off entirely, add this to Kinship's `.env` and start
 Kinship again (`docker compose up -d`):

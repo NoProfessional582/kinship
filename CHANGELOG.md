@@ -6,6 +6,10 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Agent access (read only, or read and write) can only be changed from Kinship's own pages. `PATCH /api/settings` from a script or `curl` that would change `agentAccess` is refused with 403 ("Agent access can only be changed in the Kinship app.") and saves nothing; sending its current value, and every other setting, still works. `docs/api/agents.md` now says plainly that read only limits the MCP tools only: an agent that can also run shell commands or HTTP requests on this computer can still use the HTTP API, including archive import.
+
 ### Removed
 
 - Contact photos. `POST /api/upload`, `GET /uploads/{name}`, the photo button on the contact form, `npm run photos:check` and the `avatarUrl` field are gone; contacts show their initials. A migration drops `Contact.avatarUrl`, and Docker no longer mounts `data/uploads` (any files left there are no longer used and can be deleted). Archives no longer carry an `uploads` list, and an import's answer no longer counts uploads. Older archives that carry photos still import, without them.
@@ -13,6 +17,12 @@ All notable changes to Kinship are recorded here. The format follows
 ### Fixed
 
 - The API route table lists `GET /desktop.webmanifest`, so the route-table checks pass again.
+- Removing a board column can no longer permanently delete a card moved into it at the same moment: the "is it empty?" check and the removal now run as one step, and moving a card waits for it.
+- Opening the board for the first time from two places at once (the app and an agent, say) no longer creates the default columns twice.
+- Making the same link twice at once, or two projects with the same name at once, no longer fails one of them with a 500: both now wait their turn, so the link is made once and each project gets its own address.
+- A contact, note, task or project in the trash can no longer be edited, rescheduled on the calendar or linked to (from the API or an agent): it answers 404, as reading it already did. `GET /api/edges` for a record in the trash answers 404 too. Restoring it from Trash brings all of that back.
+- `POST /api/mcp` answers a database outage (or a missing `KINSHIP_OWNER`) with the API's usual `{ "error": … }` JSON, instead of a bare server error page.
+- `PATCH /api/tasks/{id}/move` (and the `move_task` agent tool) no longer move a task that is in the trash (404) or a subtask (400; a subtask moves with its parent card).
 
 ## [0.5.1] - 2026-10-18
 

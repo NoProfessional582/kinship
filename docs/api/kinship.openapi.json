@@ -1007,7 +1007,7 @@
             }
           },
           "404": {
-            "description": "No such entry for this owner.",
+            "description": "No such entry for this owner, or it is in the trash.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1352,7 +1352,7 @@
             }
           },
           "404": {
-            "description": "The task, project, parent task, column or an assignee does not exist.",
+            "description": "The task, project, parent task, column or an assignee does not exist, or the task is in the trash.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1481,7 +1481,7 @@
             }
           },
           "400": {
-            "description": "The body failed validation. Or: the body is not valid JSON.",
+            "description": "The body failed validation, or the task is a subtask (it moves with its parent). Or: the body is not valid JSON.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1501,7 +1501,7 @@
             }
           },
           "404": {
-            "description": "The task, column or project does not exist.",
+            "description": "The task, column or project does not exist, or the task is in the trash.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2141,7 +2141,7 @@
             }
           },
           "404": {
-            "description": "No such project for this owner.",
+            "description": "No such record for this owner, or it is in the trash.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2292,7 +2292,7 @@
             }
           },
           "404": {
-            "description": "No such record for this owner.",
+            "description": "No such record for this owner, or it is in the trash.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2360,7 +2360,7 @@
             }
           },
           "404": {
-            "description": "The source or target does not exist.",
+            "description": "The source or target does not exist, or is in the trash.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2580,7 +2580,7 @@
             }
           },
           "404": {
-            "description": "No such record for this owner.",
+            "description": "No such record for this owner, or it is in the trash.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2907,7 +2907,7 @@
         "operationId": "updateSettings",
         "tags": ["Settings"],
         "summary": "Change some settings",
-        "description": "Only the fields sent change.",
+        "description": "Only the fields sent change. Changing `agentAccess` needs the headers a browser sends from the app’s own pages (a same-origin `Origin` and `Sec-Fetch-Site: same-origin`); without them it is refused with 403, and nothing is saved. Sending its current value is not a change.",
         "requestBody": {
           "required": true,
           "content": {

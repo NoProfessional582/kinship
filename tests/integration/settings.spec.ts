@@ -3,7 +3,7 @@
  * because the browser tests read these settings too. Weather is never turned on (the
  * stack's network has no way out).
  */
-import { test, expect, json, invalid, unique } from '../support/api'
+import { test, expect, json, invalid, refused, unique, FROM_THE_APP } from '../support/api'
 import type { APIRequestContext } from '@playwright/test'
 
 interface Settings {
@@ -23,13 +23,14 @@ interface Settings {
 const read = async (request: APIRequestContext) =>
   json<Settings>(await request.get('/api/settings'))
 
-const save = (request: APIRequestContext, data: Partial<Settings>) =>
-  request.patch('/api/settings', { data })
+/** `fromTheApp` sends a browser's headers, which changing agent access needs. */
+const save = (request: APIRequestContext, data: Partial<Settings>, fromTheApp = false) =>
+  request.patch('/api/settings', { data, headers: fromTheApp ? FROM_THE_APP : {} })
 
 test.beforeEach(async ({ request, cleanup }) => {
   const before: Partial<Settings> = { ...(await read(request)) }
   delete before.weatherEnabled
-  cleanup.add('put the settings back', async () => json(await save(request, before)))
+  cleanup.add('put the settings back', async () => json(await save(request, before, true)))
 })
 
 test('a save changes what it is sent and keeps the rest', async ({ request }) => {
@@ -67,15 +68,32 @@ test('a null time zone means "follow the browser"', async ({ request }) => {
 })
 
 test('agent access switches to read only and back, keeping the rest', async ({ request }) => {
-  await json(await save(request, { agentAccess: 'write' }))
+  await json(await save(request, { agentAccess: 'write' }, true))
   const before = await read(request)
   expect(before.agentAccess).toBe('write')
-  expect(await json<Settings>(await save(request, { agentAccess: 'read' }))).toEqual({
+  expect(await json<Settings>(await save(request, { agentAccess: 'read' }, true))).toEqual({
     ...before,
     agentAccess: 'read',
   })
   expect((await read(request)).agentAccess).toBe('read')
-  expect(await json<Settings>(await save(request, { agentAccess: 'write' }))).toEqual(before)
+  expect(await json<Settings>(await save(request, { agentAccess: 'write' }, true))).toEqual(before)
+})
+
+test('agent access changes only from the app; resending it does not count', async ({ request }) => {
+  await json(await save(request, { agentAccess: 'write' }, true))
+  const before = await read(request)
+  await refused(
+    await save(request, { agentAccess: 'read', tagline: unique('Not saved') }),
+    403,
+    'Agent access can only be changed in the Kinship app.',
+  )
+  expect(await read(request)).toEqual(before)
+  // The value it already has is no change, so a whole-form save from a script still works.
+  const tagline = unique('Tagline')
+  expect(await json<Settings>(await save(request, { agentAccess: 'write', tagline }))).toEqual({
+    ...before,
+    tagline,
+  })
 })
 
 test.describe('refusals', () => {

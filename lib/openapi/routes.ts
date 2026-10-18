@@ -284,7 +284,7 @@ export const routes: ApiRoute[] = [
       400:
         BAD_BODY +
         " Also: both `body` and `bodyJson`, or a mention of an id the owner doesn't have.",
-      404: 'No such entry for this owner.',
+      404: 'No such entry for this owner, or it is in the trash.',
     },
   },
   {
@@ -353,7 +353,7 @@ export const routes: ApiRoute[] = [
     response: R.TaskDetail,
     errors: {
       400: BAD_BODY + ' Also: the parent would form a cycle.',
-      404: 'The task, project, parent task, column or an assignee does not exist.',
+      404: 'The task, project, parent task, column or an assignee does not exist, or the task is in the trash.',
     },
   },
   {
@@ -378,7 +378,10 @@ export const routes: ApiRoute[] = [
     params: { id: ID },
     body: moveTaskSchema,
     response: R.TaskDetail,
-    errors: { 400: BAD_BODY, 404: 'The task, column or project does not exist.' },
+    errors: {
+      400: 'The body failed validation, or the task is a subtask (it moves with its parent).',
+      404: 'The task, column or project does not exist, or the task is in the trash.',
+    },
   },
   {
     method: 'get',
@@ -488,7 +491,7 @@ export const routes: ApiRoute[] = [
     params: { id: ID },
     body: upsertProjectSchema,
     response: R.ProjectRow,
-    errors: { 400: BAD_BODY, 404: 'No such project for this owner.' },
+    errors: { 400: BAD_BODY, 404: NOT_FOUND },
   },
   {
     method: 'delete',
@@ -510,7 +513,7 @@ export const routes: ApiRoute[] = [
     summary: "A record's relationships, both directions, with the other side named",
     query: edgeListSchema,
     response: z.array(R.EdgeView),
-    errors: { 400: 'A query parameter failed validation.', 404: 'No such record for this owner.' },
+    errors: { 400: 'A query parameter failed validation.', 404: NOT_FOUND },
   },
   {
     method: 'post',
@@ -524,7 +527,7 @@ export const routes: ApiRoute[] = [
     response: R.EntityEdge,
     errors: {
       400: BAD_BODY + ' Also: a record cannot relate to itself.',
-      404: 'The source or target does not exist.',
+      404: 'The source or target does not exist, or is in the trash.',
     },
   },
   {
@@ -560,7 +563,7 @@ export const routes: ApiRoute[] = [
       'span keeps its length unless `end` is sent; an all-day `end` is exclusive.',
     body: rescheduleSchema,
     response: z.union([R.ProjectRow, R.TaskRow, R.Entry]),
-    errors: { 400: BAD_BODY, 404: 'No such record for this owner.' },
+    errors: { 400: BAD_BODY, 404: NOT_FOUND },
   },
 
   // ---------------------------------------------------------------- Search
@@ -628,7 +631,11 @@ export const routes: ApiRoute[] = [
     operationId: 'updateSettings',
     tag: 'Settings',
     summary: 'Change some settings',
-    description: 'Only the fields sent change.',
+    description:
+      'Only the fields sent change. Changing `agentAccess` needs the headers a browser sends ' +
+      'from the app’s own pages (a same-origin `Origin` and `Sec-Fetch-Site: same-origin`); ' +
+      'without them it is refused with 403, and nothing is saved. Sending its current value ' +
+      'is not a change.',
     body: settingsSchema,
     response: R.Settings,
     errors: { 400: BAD_BODY },

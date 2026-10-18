@@ -3,6 +3,7 @@ import { ZodError } from 'zod'
 import {
   ConfigurationError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   PayloadTooLargeError,
   ValidationError,
@@ -21,6 +22,9 @@ export async function handle<T>(fn: () => Promise<T>): Promise<NextResponse> {
     }
     if (err instanceof ValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    if (err instanceof ForbiddenError) {
+      return NextResponse.json({ error: err.message }, { status: 403 })
     }
     if (err instanceof NotFoundError) {
       return NextResponse.json({ error: err.message }, { status: 404 })

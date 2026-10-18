@@ -58,7 +58,15 @@ export async function POST(req: Request) {
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   })
-  const server = await connectMcpServer(requireIdentity(req).subject, transport)
+  // Connecting reads the owner's agent access from the database, so an outage
+  // (or a missing KINSHIP_OWNER) is answered in the API's usual JSON shape, not
+  // Next's bare 500 page.
+  let server: Awaited<ReturnType<typeof connectMcpServer>>
+  try {
+    server = await connectMcpServer(requireIdentity(req).subject, transport)
+  } catch (err) {
+    return handle(() => Promise.reject(err))
+  }
   try {
     const response = await transport.handleRequest(req, { parsedBody })
     // One owner's records: no shared cache may keep them.

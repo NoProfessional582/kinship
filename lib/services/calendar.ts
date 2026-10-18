@@ -317,7 +317,7 @@ export async function rescheduleEvent(
   // Dragged by its slug, the same id the feed handed out.
   if (source === 'project') {
     const project = await prisma.project.findFirst({
-      where: { owner, slug: entityId },
+      where: { owner, slug: entityId, deletedAt: null },
       select: { id: true, startDate: true, targetDate: true, allDay: true },
     })
     if (!project) throw new NotFoundError()
@@ -345,7 +345,7 @@ export async function rescheduleEvent(
 
   if (source === 'task') {
     const task = await prisma.task.findFirst({
-      where: { id: entityId, owner },
+      where: { id: entityId, owner, deletedAt: null },
       select: { startDate: true, dueDate: true, allDay: true },
     })
     // Checked here, not left to the update: that one is keyed by id alone.

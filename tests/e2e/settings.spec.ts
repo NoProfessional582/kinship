@@ -1,5 +1,5 @@
 import { test, expect } from '../support/fixtures'
-import { json } from '../support/api'
+import { json, FROM_THE_APP } from '../support/api'
 
 for (const phone of [false, true]) {
   test(
@@ -56,9 +56,14 @@ for (const phone of [false, true]) {
     { tag: phone ? '@phone' : '@desktop' },
     async ({ page, request, cleanup }) => {
       cleanup.add('agents back to read and write', () =>
-        request.patch('/api/settings', { data: { agentAccess: 'write' } }),
+        request.patch('/api/settings', { data: { agentAccess: 'write' }, headers: FROM_THE_APP }),
       )
-      await json(await request.patch('/api/settings', { data: { agentAccess: 'write' } }))
+      await json(
+        await request.patch('/api/settings', {
+          data: { agentAccess: 'write' },
+          headers: FROM_THE_APP,
+        }),
+      )
       const stored = async () =>
         (await json<{ agentAccess: string }>(await request.get('/api/settings'))).agentAccess
 

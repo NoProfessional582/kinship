@@ -24,6 +24,7 @@ import {
   type Project,
   type Task,
   type TrashList,
+  FROM_THE_APP,
 } from '../support/api'
 import { BASE_URL } from '../support/stack'
 
@@ -559,7 +560,7 @@ test('read only: write tools are hidden and refused, and come back on the next r
     expect(
       (
         await json<{ agentAccess: string }>(
-          await request.patch('/api/settings', { data: { agentAccess } }),
+          await request.patch('/api/settings', { data: { agentAccess }, headers: FROM_THE_APP }),
         )
       ).agentAccess,
     ).toBe(agentAccess)
