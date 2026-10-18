@@ -9,7 +9,6 @@
  * checked in tests/archive/archive.spec.ts, which runs last.
  */
 import { readFileSync } from 'node:fs'
-import { PNG_1PX } from '../support/files'
 import {
   doc,
   json,
@@ -354,22 +353,14 @@ test('Settings: read, change and change back; weather stays off', async ({ reque
   await refusedWith(400, request, 'patch', '/api/settings', { data: { agentAccess: 'admin' } })
 })
 
-test('Files: upload a photo, read it back, export', async ({ request, cleanup }) => {
-  const uploaded = await ok<{ url: string }>(request, 'post', '/api/upload', {
-    multipart: { file: { name: 'contract.png', mimeType: 'image/png', buffer: PNG_1PX } },
-  })
-  // A photo no contact uses is removed later; this one is used, and goes with the contact.
-  await contact(request, cleanup, { avatarUrl: uploaded.url })
-  const name = uploaded.url.replace(/^\/uploads\//, '')
-  const photo = await ok<Buffer>(request, 'get', '/uploads/{name}', { params: { name } })
-  expect(photo.equals(PNG_1PX)).toBe(true)
-  await refusedWith(404, request, 'get', '/uploads/{name}', {
-    params: { name: '00000000-0000-4000-8000-000000000000.png' },
-  })
-  await refusedWith(400, request, 'post', '/api/upload', {
-    multipart: { other: { name: 'x.png', mimeType: 'image/png', buffer: PNG_1PX } },
-  })
+test('System: the desktop app manifest', async ({ request }) => {
+  const manifest = JSON.parse(
+    (await ok<Buffer>(request, 'get', '/desktop.webmanifest')).toString(),
+  ) as { start_url: string }
+  expect(manifest.start_url).toBe('/')
+})
 
+test('Files: export', async ({ request }) => {
   const archive = await ok<{ format: string }>(request, 'get', '/api/export')
   expect(archive.format).toBe('kb-archive')
   // Without confirm=replace nothing is read or changed.

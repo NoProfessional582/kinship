@@ -80,7 +80,7 @@ export function requestRefusal(req: Request): RequestRefusal | null {
   const pathname = new URL(req.url).pathname
   const method = req.method.toUpperCase()
   // The health probe runs inside Docker at 3000, even with another public port.
-  // This exception cannot expose an archive/photo or authorize any write.
+  // This exception cannot expose an archive or authorize any write.
   const internalHealth =
     pathname === '/api/health' &&
     (method === 'GET' || method === 'HEAD') &&
@@ -124,8 +124,8 @@ export function requestRefusal(req: Request): RequestRefusal | null {
 
   if (pathname.startsWith('/api/') && JSON_METHODS.has(method)) {
     const media = req.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase()
-    const expected = pathname === '/api/upload' ? 'multipart/form-data' : 'application/json'
-    if (media !== expected) return { status: 415, error: 'Content-Type must be ' + expected + '.' }
+    if (media !== 'application/json')
+      return { status: 415, error: 'Content-Type must be application/json.' }
   }
   return null
 }

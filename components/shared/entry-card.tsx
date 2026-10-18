@@ -200,7 +200,7 @@ export function EntryCard({
               href={`/contacts/${m.contact.slug}`}
               className="inline-flex items-center gap-1 rounded-full bg-[var(--muted)] px-1.5 py-0.5 text-[11px] transition-colors hover:bg-[var(--accent)]"
             >
-              <Avatar src={m.contact.avatarUrl} name={m.contact.displayName} size={14} />
+              <Avatar name={m.contact.displayName} size={14} />
               {m.contact.displayName}
             </Link>
           ))}

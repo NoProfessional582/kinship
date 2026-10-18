@@ -1,11 +1,7 @@
 import { test, expect, json, refused, newContact } from '../support/api'
 import { BASE_URL } from '../support/stack'
-import { PNG_1PX } from '../support/files'
 
-test('foreign origins cannot mutate any write route or upload files', async ({
-  request,
-  cleanup,
-}) => {
+test('foreign origins cannot mutate any write route', async ({ request, cleanup }) => {
   const contact = await newContact(request, cleanup)
   const archive = async () => {
     const body = await json<Record<string, unknown>>(await request.get('/api/export'))
@@ -51,14 +47,6 @@ test('foreign origins cannot mutate any write route or upload files', async ({
     )
   }
   await refused(
-    await request.post('/api/upload', {
-      headers: { Origin: 'http://127.0.0.1:4444' },
-      multipart: { file: { name: 'refused.png', mimeType: 'image/png', buffer: PNG_1PX } },
-    }),
-    403,
-    'Request origin is not allowed.',
-  )
-  await refused(
     await request.post('/api/import?confirm=replace', {
       headers: { Origin: 'http://127.0.0.1:4444', 'Content-Type': 'text/plain' },
       data: JSON.stringify({ format: 'kb-archive', version: 1, data: {} }),
@@ -92,20 +80,14 @@ test('JSON routes refuse simple media types without changing data', async ({
   expect(row.contact.displayName).toBe(contact.displayName)
 })
 
-test('host validation protects exports/photos and custom public ports work', async ({
+test('host validation protects exports and custom public ports work', async ({
   request,
   cleanup,
 }) => {
-  const { url } = await json<{ url: string }>(
-    await request.post('/api/upload', {
-      multipart: { file: { name: 'photo.png', mimeType: 'image/png', buffer: PNG_1PX } },
-    }),
-  )
   for (const path of [
     '/api/export',
-    url,
     '/contacts',
-    '/_next/image?url=' + encodeURIComponent(url) + '&w=64&q=75',
+    '/_next/image?url=' + encodeURIComponent('/icons/192') + '&w=64&q=75',
   ]) {
     await refused(
       await request.get(path, {

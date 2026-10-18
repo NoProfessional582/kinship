@@ -126,28 +126,14 @@ export function archiveFilename(at = new Date()): string {
 // -------------------------------------------------------------- Reading one
 
 /**
- * Filenames are written straight to disk on import, so this is the one place in
- * the app where a hostile archive could reach outside its directory. Bare names
- * only; `writeUploads` checks the resolved path again before writing.
- */
-const uploadSchema = z.object({
-  name: z
-    .string()
-    .min(1)
-    .max(255)
-    .refine((n) => !n.includes('/') && !n.includes('\\') && !n.startsWith('.'), {
-      message: 'Upload names must be bare filenames',
-    }),
-  data: z.string().refine((s) => s.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(s), {
-    message: 'Upload data must be base64',
-  }),
-})
-
-/**
  * Loose about the rows themselves on purpose: the columns are the schema's
  * business, and Prisma gives a better error about a bad one than a second
  * transcription of the schema would. This only checks that the file is an
- * archive at all, and that its filenames are safe to write.
+ * archive at all.
+ *
+ * Archives from before photos were removed also carry `uploads` (base64
+ * avatars); unknown keys are stripped here, so those still import, without
+ * their photos.
  */
 export const archiveSchema = z.object({
   format: z.literal(ARCHIVE_FORMAT, {
@@ -157,7 +143,6 @@ export const archiveSchema = z.object({
   exportedAt: z.string().optional(),
   migrations: z.array(z.string()).default([]),
   data: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))),
-  uploads: z.array(uploadSchema).default([]),
 })
 
 /**

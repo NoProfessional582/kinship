@@ -200,7 +200,6 @@ async function main() {
       lastName: last || null,
       nickname: null,
       pronouns: null,
-      avatarUrl: null,
       headline: null,
       company: company ? cap(company, 160) : null,
       jobTitle: role ? cap(role, 160) : null,

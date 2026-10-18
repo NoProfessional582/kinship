@@ -47,7 +47,7 @@ function compare(table: ApiRoute[]) {
 describe('API route table', () => {
   it('finds the route handlers', () => {
     expect(handled()).toContain('GET /api/contacts/{id}')
-    expect(handled()).toContain('GET /uploads/{name}')
+    expect(handled()).toContain('GET /desktop.webmanifest')
     expect(handled().length).toBeGreaterThanOrEqual(48)
   })
 

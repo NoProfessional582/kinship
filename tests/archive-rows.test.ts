@@ -165,7 +165,6 @@ describe('archiveSchema', () => {
 
   it('accepts a minimal archive and defaults the optional parts', () => {
     const parsed = archiveSchema.parse(valid)
-    expect(parsed.uploads).toEqual([])
     expect(parsed.migrations).toEqual([])
   })
 
@@ -186,33 +185,9 @@ describe('archiveSchema', () => {
     expect(archiveSchema.safeParse({ ...valid, format: 'kb-archive' }).success).toBe(true)
   })
 
-  it.each(['../escape.png', 'nested/escape.png', '..\\escape.png', '.hidden'])(
-    'refuses the upload name %s',
-    (name) => {
-      const result = archiveSchema.safeParse({
-        ...valid,
-        uploads: [{ name, data: 'AAAA' }],
-      })
-      expect(result.success).toBe(false)
-    },
-  )
-
-  it('accepts a plain filename', () => {
-    expect(
-      archiveSchema.safeParse({
-        ...valid,
-        uploads: [{ name: 'a1b2.png', data: 'AAAA' }],
-      }).success,
-    ).toBe(true)
-  })
-
-  it('refuses upload data that is not base64', () => {
-    expect(
-      archiveSchema.safeParse({
-        ...valid,
-        uploads: [{ name: 'a.png', data: 'not base64!' }],
-      }).success,
-    ).toBe(false)
+  it('accepts an older archive that still carries photos, and drops them', () => {
+    const parsed = archiveSchema.parse({ ...valid, uploads: [{ name: '../a.png', data: '!' }] })
+    expect(parsed).not.toHaveProperty('uploads')
   })
 })
 

@@ -19,7 +19,7 @@ export const taskDetail = {
   project: { select: { id: true, slug: true, name: true, color: true } },
   column: true,
   assignees: {
-    include: { contact: { select: { id: true, slug: true, displayName: true, avatarUrl: true } } },
+    include: { contact: { select: { id: true, slug: true, displayName: true } } },
   },
   tags: { include: { tag: true } },
   subtasks: {

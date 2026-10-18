@@ -63,7 +63,6 @@ test('a relationship reads from both ends, and saving it again updates it', asyn
       otherId: b.id,
       label: b.displayName,
       href: `/contacts/${b.slug}`,
-      avatarUrl: null,
     },
   ])
   const fromB = await json<Linked[]>(await request.get(`/api/edges?type=contact&id=${b.id}`))

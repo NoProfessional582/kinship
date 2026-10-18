@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { ALLOWED_IMAGE_TYPES } from '../image-types'
 import {
   attributesSchema,
   calendarQuerySchema,
@@ -91,7 +90,6 @@ export const requestSchemas = {
       exportedAt: z.string().optional(),
       migrations: z.array(z.string()).default([]),
       data: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))),
-      uploads: z.array(z.object({ name: z.string(), data: z.string() })).default([]),
     })
     .meta({ description: 'An archive from `GET /api/export`, sent back unchanged.' }),
 } as const
@@ -100,8 +98,6 @@ const ID = 'The record id.'
 const ID_OR_SLUG = 'The record id or its slug.'
 const NOT_FOUND = 'No such record for this owner, or it is in the trash.'
 const BAD_BODY = 'The body failed validation.'
-
-const binary = { type: 'string', format: 'binary' }
 
 /** An MCP message: JSON-RPC 2.0, described by the protocol rather than here. */
 const mcpContent = (description: string): Content => ({
@@ -159,7 +155,7 @@ export const routes: ApiRoute[] = [
     summary: 'Create a contact',
     body: upsertContactSchema,
     response: R.ContactDetail,
-    errors: { 400: BAD_BODY + ' Also: `avatarUrl` is not a photo uploaded to this app.' },
+    errors: { 400: BAD_BODY },
   },
   {
     method: 'get',
@@ -647,43 +643,17 @@ export const routes: ApiRoute[] = [
     response: R.Weather,
   },
 
-  // ------------------------------------------------------- Files & archive
-  {
-    method: 'post',
-    path: '/api/upload',
-    operationId: 'uploadPhoto',
-    tag: 'Files',
-    summary: 'Upload a contact photo',
-    description:
-      'Multipart, with the image in `file` (at most 5 MB). Then save the answered `url` as ' +
-      'a contact `avatarUrl`; a photo no contact uses is removed later.',
-    bodyContent: {
-      'multipart/form-data': {
-        schema: {
-          type: 'object',
-          required: ['file'],
-          properties: { file: { ...binary, description: ALLOWED_IMAGE_TYPES.join(', ') } },
-        },
-      },
-    },
-    response: R.Uploaded,
-    errors: {
-      400: 'No `file` part, or the body could not be read.',
-      413: 'The file or the request is too large.',
-      415:
-        'Not `multipart/form-data`, or the file is not one of: ' + ALLOWED_IMAGE_TYPES.join(', '),
-      500: 'The file could not be saved.',
-    },
-  },
+  // ------------------------------------------------------------- Archive
   {
     method: 'get',
-    path: '/uploads/{name}',
-    operationId: 'getPhoto',
-    tag: 'Files',
-    summary: 'An uploaded photo',
-    params: { name: 'The file name from an upload `url`: a UUID and an image extension.' },
-    responseContent: Object.fromEntries(ALLOWED_IMAGE_TYPES.map((t) => [t, { schema: binary }])),
-    errors: { 404: 'No such photo for this owner.' },
+    path: '/desktop.webmanifest',
+    operationId: 'getDesktopManifest',
+    tag: 'System',
+    summary: 'The web app manifest for installing the desktop GUI',
+    description: 'The phone GUI uses `/manifest.webmanifest`; this one opens `/` instead of `/m`.',
+    responseContent: {
+      'application/manifest+json': { schema: { type: 'object', additionalProperties: true } },
+    },
   },
   {
     method: 'get',

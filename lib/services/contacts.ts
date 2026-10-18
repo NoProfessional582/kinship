@@ -5,7 +5,7 @@ import { withBody } from '../tiptap/to-text'
 import { followUpEdges } from './edges'
 import { resolveTagIds } from './tags'
 import { softDelete } from './trash'
-import { photoTransaction, validatePhotoSave } from '../photo-lifecycle'
+import { ownerTransaction } from '../owner-lock'
 
 /**
  * How many times you have actually spoken to someone. Forward-dated entries are
@@ -60,7 +60,6 @@ export async function listContacts(
       id: true,
       slug: true,
       displayName: true,
-      avatarUrl: true,
       company: true,
       jobTitle: true,
       headline: true,
@@ -147,7 +146,6 @@ function scalarFields(input: UpsertContactInput) {
     lastName: input.lastName ?? null,
     nickname: input.nickname ?? null,
     pronouns: input.pronouns ?? null,
-    avatarUrl: input.avatarUrl ?? null,
     headline: input.headline ?? null,
     company,
     jobTitle,
@@ -189,8 +187,7 @@ async function replaceAttributes(
 }
 
 export async function createContact(owner: string, input: UpsertContactInput) {
-  return photoTransaction(owner, async (tx) => {
-    await validatePhotoSave(tx, owner, input.avatarUrl)
+  return ownerTransaction(owner, async (tx) => {
     const slug = await uniqueSlug('contact', owner, input.displayName, tx)
     const tagIds = await resolveTagIds(tx, owner, input.tags)
     const contact = await tx.contact.create({
@@ -211,8 +208,7 @@ export async function createContact(owner: string, input: UpsertContactInput) {
 
 /** Saving from the enrichment modal or the dossier editor clears `isDraft`. */
 export async function updateContact(owner: string, id: string, input: UpsertContactInput) {
-  return photoTransaction(owner, async (tx) => {
-    await validatePhotoSave(tx, owner, input.avatarUrl)
+  return ownerTransaction(owner, async (tx) => {
     await tx.contact.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     const tagIds = await resolveTagIds(tx, owner, input.tags)
 

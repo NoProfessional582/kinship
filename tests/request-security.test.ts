@@ -99,7 +99,7 @@ describe('local request policy', () => {
     '127.0.0.1:3000/path',
     '127.0.0.1:3000,attacker.example',
   ])('rejects private reads through Host %s', (Host) => {
-    for (const path of ['/api/export', '/uploads/avatar.png', '/contacts']) {
+    for (const path of ['/api/export', '/contacts']) {
       expect(requestRefusal(request('GET', { Host }, path))?.status).toBe(403)
     }
   })
@@ -134,28 +134,10 @@ describe('local request policy', () => {
     },
   )
 
-  it('accepts JSON charset and applies provenance to multipart uploads', () => {
+  it('accepts JSON with a charset', () => {
     expect(
       requestRefusal(request('PATCH', { 'Content-Type': 'application/json; charset=utf-8' })),
     ).toBeNull()
-    expect(
-      requestRefusal(
-        request('POST', { 'Content-Type': 'multipart/form-data; boundary=test' }, '/api/upload'),
-      ),
-    ).toBeNull()
-    expect(
-      requestRefusal(
-        request(
-          'POST',
-          {
-            'Content-Type': 'multipart/form-data; boundary=test',
-            Origin: 'http://localhost:4444',
-          },
-          '/api/upload',
-        ),
-      )?.status,
-    ).toBe(403)
-    expect(requestRefusal(request('POST', {}, '/api/upload'))?.status).toBe(415)
   })
 
   it('handles non-default public ports, local aliases and internal health narrowly', () => {

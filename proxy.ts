@@ -7,8 +7,7 @@
  *
  * The request policy rejects foreign origins, unexpected hosts and unsafe
  * media types. It also refuses every page and API call, saying what
- * to fix, when `KINSHIP_OWNER` is missing. That covers `/uploads/*` too, which
- * is served by a route handler and returns real user data.
+ * to fix, when `KINSHIP_OWNER` is missing.
  *
  * `proxy` is Next.js 16's name for middleware; it runs in the Node.js runtime.
  */

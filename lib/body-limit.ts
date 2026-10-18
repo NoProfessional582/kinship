@@ -3,10 +3,9 @@
  *
  * ⚠️ THE BOUND THAT EXISTS TODAY IS ACCIDENTAL, SILENT, AND NOT OURS.
  * Measured on the dev stack (Next 16.3.3): a 200MB archive POSTed to
- * /api/import comes back "That file is not JSON." and a 300MB upload comes back
- * "Could not read the upload" — because Next TRUNCATES the body at 10MB and
- * logs `Request body exceeded 10MB for /api/upload. Only the first 10MB will be
- * available unless configured.` That is `proxyClientMaxBodySize` (formerly
+ * /api/import comes back "That file is not JSON." — because Next TRUNCATES the
+ * body at 10MB and logs `Request body exceeded 10MB for /api/import. Only the
+ * first 10MB will be available unless configured.` That is `proxyClientMaxBodySize` (formerly
  * `middlewareClientMaxBodySize`), which applies because this app has a proxy.ts
  * (formerly middleware.ts). So the app was never actually
  * exposed to a 2GB body — but it was relying on a framework default it never
@@ -23,12 +22,6 @@
 
 import { PayloadTooLargeError } from './errors'
 
-/** The product rule for a single avatar. */
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
-
-/** The avatar plus its multipart envelope (boundary, part headers, filename). */
-export const MAX_UPLOAD_REQUEST_BYTES = MAX_UPLOAD_BYTES + 1024 * 1024
-
 /**
  * A whole archive. ~20x the real one (0.45 MiB for 205 contacts, 1,275 rows).
  *
@@ -43,9 +36,7 @@ export const MAX_UPLOAD_REQUEST_BYTES = MAX_UPLOAD_BYTES + 1024 * 1024
  * ⚠️ KNOWN LIMITATION, PRE-EXISTING AND NOW EXPLICIT: an archive carrying more
  * than this cannot be imported. That was ALREADY true — Next truncated it and
  * the app called it corrupt JSON — so this does not narrow what works, it makes
- * the refusal honest. It does mean the archive format cannot round-trip a large
- * set of avatars through this deployment. Worth fixing properly (multipart
- * import, or uploads out of band) rather than by raising this number.
+ * the refusal honest.
  */
 export const MAX_ARCHIVE_BYTES = 9 * 1024 * 1024
 
@@ -88,9 +79,6 @@ export async function readBodyCapped(req: Request, maxBytes: number): Promise<Ar
     reader.cancel().catch(() => {})
   }
 
-  // An ArrayBuffer rather than a typed array, because `BodyInit` accepts one
-  // directly -- the upload route re-wraps this as a Response to parse it as
-  // multipart, and a Uint8Array<ArrayBufferLike> is not assignable there.
   const out = new ArrayBuffer(total)
   const view = new Uint8Array(out)
   let at = 0

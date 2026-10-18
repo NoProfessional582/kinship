@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 /**
- * The whole database plus the avatar files, as one JSON file to download.
+ * The whole database, as one JSON file to download.
  *
  * Not routed through `handle()` like the rest of the API: that helper always
  * answers `application/json` with no disposition, and the point of this route is

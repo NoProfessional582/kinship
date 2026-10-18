@@ -107,8 +107,7 @@ All settings live in `.env`, next to `compose.yaml`.
 Kinship validates the request's Host and public port before serving owner data.
 Browser writes must come from the same origin (including the port); foreign or
 null origins are refused with 403. JSON routes require `Content-Type:
-application/json` (415 otherwise), and photo uploads require multipart form
-data. Originless command-line requests still work on an allowed local host;
+application/json` (415 otherwise). Originless command-line requests still work on an allowed local host;
 the archive `curl` examples below already send the required JSON type.
 
 Scripts on this computer can use the same API: see
@@ -157,10 +156,9 @@ can't do, safety notes and troubleshooting.
 | Folder | Holds |
 |---|---|
 | `data/postgres` | the database |
-| `data/uploads` | contact photos |
 
-Both belong to the containers' users, not to you, so reading or deleting them
-directly needs `sudo`. `docker compose down` never touches them. Deleting
+It belongs to the containers' users, not to you, so reading or deleting it
+directly needs `sudo`. `docker compose down` never touches it. Deleting
 `data/` (with Kinship stopped) deletes everything.
 
 **Your data is never in git.** `data/` and archives are in `.gitignore`. Pushing
@@ -168,9 +166,7 @@ code and backing up data are two separate habits.
 
 ## Backups and restores
 
-The simplest backup is an **archive**: one JSON file holding every record and
-every contact photo. Photos sit on disk rather than in the database, so a
-database-only backup would leave them behind.
+The simplest backup is an **archive**: one JSON file holding every record.
 
 ### Make an archive
 
@@ -194,9 +190,6 @@ docker compose run --rm -T migrate npm run --silent import < kinship-archive-202
 
 # does it
 docker compose run --rm -T migrate npm run --silent import -- --replace < kinship-archive-2026-10-09.json
-
-# hands the restored photos to the web server, which cannot save new ones until then
-docker compose up -d
 ```
 
 Or use **Settings → Data → Choose archive** in the browser, type `replace`, and
@@ -232,7 +225,7 @@ what it was asking for. Add `&force=1` to waive the migration check.
    across however you like.
 3. On the new computer, [restore it](#restore-an-archive). Everything is stored
    under the new computer's `KINSHIP_OWNER`.
-4. Check a contact with a photo and a search, and only then retire the old
+4. Check a contact and a search, and only then retire the old
    computer.
 
 Do the restore on the **new** computer: nothing can tell which end of the move
@@ -326,8 +319,9 @@ scripts/check.sh quick privacy   # only those parts
   flows on a desktop and on a phone, and importing archives, old ones included.
 - `upgrade` (`scripts/test-upgrade.sh`): the previous version (the newest `vX.Y.Z` tag,
   or `origin/main` until there is one) makes a database and uploads a photo; this
-  version then migrates it and runs on it. Shared/trashed photo references and an untracked legacy orphan are included; repeated restores must preserve physical image names and hashes while excluding the orphan from exports. Every table must keep its rows and the photo
-  its bytes, and every page must load. `scripts/test-upgrade.sh REF` starts from another
+  version then migrates it and runs on it. Every table must keep its rows, the photo's
+  contact must survive the dropped `avatarUrl` column, an archive must round trip, and
+  every page must load. `scripts/test-upgrade.sh REF` starts from another
   version.
 
 The computer running them needs bash 4 or later, git, Docker with Compose and Buildx,
@@ -534,10 +528,8 @@ the day it lands, and it asserts that every model is accounted for. It is covere
 by the unit suite (`tests/archive-rows.test.ts`).
 
 `lib/services/archive.ts` knows the machine: it queries, deletes the owner's rows
-and rebuilds them inside one transaction, and reads and writes the uploads
-folder. Uploads are written under fresh names before the transaction opens, and
-the restored contacts are pointed at them, so a failure part-way leaves the old
-data and the old photos exactly as they were. The `searchVector` columns, the
+and rebuilds them inside one transaction, so a failure part-way leaves the old
+data exactly as it was. The `searchVector` columns, the
 indexes and the `_prisma_migrations` ledger are not in the archive: they belong
 to the migrations, and Postgres rebuilds `searchVector` from the restored rows.
 
@@ -562,14 +554,4 @@ itself, which is why that file imports `dotenv/config`.
 
 Calendar queries use an exclusive timed window end. All-day date ranges retain timezone widening and inclusive stored deadlines. Task/project spans are included throughout their duration. A legacy reversed span is not rewritten: its start remains selectable within the window.
 
-Contact “last contacted” is derived from the latest live, already-happened entry mentioning that contact. Editing a date into the past or future, calendar rescheduling and changing follow-ups recompute it. The 0.1.2 migration repairs old cached values without altering source entries. Back up the database and uploads before upgrading an existing installation. Earlier code can still read the corrected dates; reverting code does not restore the original incorrect cache.
-
-### Photo lifetime and read-only inventory
-
-New uploads remain pending for seven days so an open editor can save them. Unassigned expired uploads are rejected on save; upload the photo again. A photo still referenced by any live or trashed contact stays valid. Clearing/replacing an avatar, permanent contact deletion and archive replacement record only the local references they actually remove, with one day of grace after the latest removal. Pending protection takes precedence over that grace.
-
-Collection runs opportunistically after upload, contact save, purge/empty trash and archive replacement. It uses persistent owner-local pending/candidate journals and the same PostgreSQL owner lock as reference writes, imports and exports. It rechecks all live and trashed references before removing verified regular image files. No timer or legacy orphan sweep runs. Pending records persist whether the upload has ever been assigned; once assigned, expiry alone cannot authorize deletion. A later removal requires its own valid candidate record. Reuse cancels old candidate records before commit, so a later record failure cannot reuse an old deletion deadline. Assignment is journaled before commit, so a failed commit may conservatively retain an assigned orphan. A filesystem failure retains journals for retry and does not undo a committed database change. Invalid journals, symlinks and unknown files are conservatively retained. If journaling fails, an untracked file may be retained indefinitely.
-
-`npm run photos:check` (in the packaged CLI: `cd /app/cli && npm run photos:check`) prints a **read-only**, configured-owner inventory: scan timestamp, safe filenames, bytes, age in milliseconds, live/trashed references, pending deadline and assignment state, candidate grace deadline, eligibility and totals. Unsafe files/journals, invalid row references and missing photos are reported separately. It never deletes or writes files or rows. Eligibility describes the new-operation policy; it is not a deletion command. This scan is a snapshot; files and references can change afterward. Do not run it against real data as part of tests.
-
-Legacy orphan cleanup is a separate action: first verify a recoverable full database **and uploads** backup (an app export omits orphans), review a concrete file list and obtain approval, then revalidate all references, pending/grace state, confinement and regular-file identity immediately before each deletion. There is no legacy delete mode.
+Contact “last contacted” is derived from the latest live, already-happened entry mentioning that contact. Editing a date into the past or future, calendar rescheduling and changing follow-ups recompute it. The 0.1.2 migration repairs old cached values without altering source entries. Back up the database before upgrading an existing installation. Earlier code can still read the corrected dates; reverting code does not restore the original incorrect cache.

@@ -29,9 +29,6 @@ export const ARCHIVE_VERSION = 1
  */
 export const SCHEMA_MISMATCH = 'This database is on a different schema than the archive.'
 
-/** An avatar, base64-encoded. They live in a Docker volume, not the database. */
-export type ArchiveUpload = { name: string; data: string }
-
 export type Archive = {
   format: typeof ARCHIVE_FORMAT
   version: number
@@ -40,14 +37,11 @@ export type Archive = {
   migrations: string[]
   counts: Record<string, number>
   data: Record<string, Record<string, unknown>[]>
-  uploads: ArchiveUpload[]
 }
 
 export type ImportSummary = {
   /** Rows written, per table. */
   counts: Record<string, number>
-  /** Referenced archive names resolved, including reused files; excludes legacy orphans. */
-  uploads: number
   /** Set only when a mismatch was forced past, naming what differed. */
   schemaDrift: { missing: string[]; extra: string[] } | null
 }

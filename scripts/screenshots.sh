@@ -28,7 +28,7 @@ step() { printf '\n==> %s\n' "$*"; }
 password=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
 printf 'POSTGRES_PASSWORD=%s\nKINSHIP_OWNER=demo\n' "$password" >"$STACK_RUNTIME/settings.env"
 chmod 600 "$STACK_RUNTIME/settings.env"
-mkdir -p "$STACK_RUNTIME/data/postgres" "$STACK_RUNTIME/data/uploads"
+mkdir -p "$STACK_RUNTIME/data/postgres"
 
 if [ -n "$(docker ps -aq --filter "label=com.docker.compose.project=$project")" ]; then
   echo "A $project stack already exists; whoever started it has to remove it first." >&2

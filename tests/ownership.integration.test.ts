@@ -1,6 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import { CheckInCadence } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { ValidationError } from '@/lib/errors'
@@ -21,7 +19,6 @@ import {
   importArchive,
 } from '@/lib/services/archive'
 import { CONTACT_MENTION } from '@/lib/tiptap/nodes'
-import { ownerUploadDir } from '@/lib/uploads'
 import {
   createEntrySchema,
   upsertContactSchema,
@@ -124,7 +121,6 @@ afterAll(async () => {
     await prisma.contact.deleteMany({ where: { owner } })
     await prisma.tag.deleteMany({ where: { owner } })
     await prisma.settings.deleteMany({ where: { owner } })
-    await rm(ownerUploadDir(owner), { recursive: true, force: true })
   }
   await prisma.$disconnect()
 })
@@ -275,17 +271,7 @@ describe('trash is per owner', () => {
 })
 
 describe('archives carry and restore one owner only', () => {
-  const PNG = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-    'base64',
-  )
-
-  it("exports none of another owner's rows or uploads", async () => {
-    await mkdir(ownerUploadDir(A), { recursive: true })
-    await writeFile(path.join(ownerUploadDir(A), `${MARK}a.png`), PNG)
-    expect(ownerUploadDir(A)).not.toBe(ownerUploadDir(B))
-    expect(ownerUploadDir(A)).not.toContain(A)
-
+  it("exports none of another owner's rows", async () => {
     const archive = await exportArchive(B)
     // Structural: no archived row IS, or links to, one of A's rows. Free text is
     // not scanned — B's own entry body quotes an A id that B itself typed in the
@@ -300,7 +286,6 @@ describe('archives carry and restore one owner only', () => {
         }
       }
     }
-    expect(archive.uploads.map((u) => u.name)).not.toContain(`${MARK}a.png`)
     for (const model of [
       'Contact',
       'Project',
@@ -317,7 +302,7 @@ describe('archives carry and restore one owner only', () => {
 
   it('rejects an archive whose rows link to anything it does not carry', async () => {
     const own = { id: `${MARK}own-contact`, slug: `${MARK}own`, displayName: `${MARK} Own` }
-    const base = { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, migrations: [], uploads: [] }
+    const base = { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, migrations: [] }
     const aTag = await prisma.tag.findFirstOrThrow({ where: { owner: A, name: TAG } })
 
     const hostile = [

@@ -1,16 +1,8 @@
 import {
-  recordRemovedPhotos,
-  collectPhotosAfterCommit,
-  protectReferencedPhotos,
-  removeAttemptPhotos,
-} from '../photo-lifecycle'
-import { randomUUID, createHash } from 'node:crypto'
-import {
   ARCHIVE_FORMAT,
   ARCHIVE_VERSION,
   SCHEMA_MISMATCH,
   type Archive,
-  type ArchiveUpload,
   type ImportSummary,
 } from '../archive-format'
 import {
@@ -26,18 +18,14 @@ import { prisma } from '../db'
 import { ValidationError } from '../errors'
 import { lockOwnerGraph, ownerSnapshot } from '../owner-lock'
 import { recomputeLastContact } from './recency'
-import { uploadUrl, localPhotoName, readPhoto, writePhoto, listPhotos } from '../uploads'
-import { allowedImageLabel, extensionFor, sniffImageType } from '../image-types'
 
 /**
  * Whole-database export and import, for moving this app from one machine to
  * another.
  *
  * The archive is a single JSON document rather than a `pg_dump`, because a dump
- * is only restorable into the same Postgres major version and carries none of
- * the avatar files — and those live in a Docker volume, so a database-only move
- * silently leaves every dossier photo behind. One file that holds both is the
- * thing you can actually hand to another machine.
+ * is only restorable into the same Postgres major version, and one JSON file is
+ * the thing you can actually hand to another machine.
  *
  * Rows keep their original ids, so every foreign key, every `[[ref]]` and every
  * `EntityEdge` endpoint — a bare (type, id) pair with no foreign key to rewrite
@@ -45,7 +33,7 @@ import { allowedImageLabel, extensionFor, sniffImageType } from '../image-types'
  */
 
 export { ARCHIVE_FORMAT, ARCHIVE_VERSION } from '../archive-format'
-export type { Archive, ArchiveUpload, ImportSummary } from '../archive-format'
+export type { Archive, ImportSummary } from '../archive-format'
 export { archiveFilename } from '../archive-rows'
 
 type Client = typeof prisma
@@ -162,7 +150,6 @@ export async function exportArchive(owner: string): Promise<Archive> {
       migrations: await appliedMigrations(tx),
       counts,
       data,
-      uploads: await readUploads(owner, data.Contact ?? []),
     }
   })
 }
@@ -198,20 +185,6 @@ async function appliedMigrations(db: Tx | Client = prisma): Promise<string[]> {
   }
 }
 
-async function readUploads(owner: string, contacts: Row[]): Promise<ArchiveUpload[]> {
-  const names = new Set<string>()
-  for (const row of contacts) {
-    const name = localPhotoName(row.avatarUrl)
-    if (name) names.add(name)
-  }
-  const uploads: ArchiveUpload[] = []
-  for (const name of [...names].sort()) {
-    const bytes = await readPhoto(owner, name)
-    uploads.push({ name, data: bytes.toString('base64') })
-  }
-  return uploads
-}
-
 // ------------------------------------------------------------------- Import
 
 export type ImportOptions = {
@@ -228,33 +201,18 @@ const CHUNK = 250
  * it was rather than half-migrated.
  */
 /**
- * Independent ceilings on what one archive may declare.
- *
- * The 10MB body cap in lib/body-limit.ts bounds the bytes on the wire, but not
- * what they expand into: JSON amplifies, and ten megabytes of `{"id":1},...`
+ * A ceiling on what one archive may declare, checked separately from the body
+ * size. The 10MB body cap in lib/body-limit.ts bounds the bytes on the wire, but
+ * not what they expand into: JSON amplifies, and ten megabytes of `{"id":1},...`
  * becomes far more than ten megabytes of JavaScript objects once every row is
- * revived and held in `prepared` at the same time. base64 amplifies in the
- * other direction — 10MB of it decodes to ~7.5MB of image bytes, all of which
- * `stageUploads` holds in memory together before writing any of them.
- *
- * So these are checked separately from the body size, which is what "cap total
- * archive bytes, row count, upload count and decoded payload size
- * independently" means.
+ * revived and held in `prepared` at the same time.
  *
  * Sized against the real thing rather than guessed: a full export of this
- * database is 1,275 rows across 19 tables, 0 uploads, 0.45 MiB total. Every
- * ceiling below is at least two orders of magnitude above that, so it bounds a
- * hostile archive without ever being reachable by an honest one.
+ * database is 1,275 rows across 19 tables, 0.45 MiB total. The ceiling is two
+ * orders of magnitude above that, so it bounds a hostile archive without ever
+ * being reachable by an honest one.
  */
 const MAX_ARCHIVE_ROWS = 200_000
-const MAX_ARCHIVE_UPLOADS = 2_000
-const MAX_ARCHIVE_UPLOAD_BYTES = 5 * 1024 * 1024
-// ⚠️ Must be REACHABLE from within MAX_ARCHIVE_BYTES or it is decoration. A
-// 9 MiB body of base64 decodes to at most ~6.75 MiB, so a 10 MiB total could
-// never have fired — a cap that cannot trip is worse than none, because it
-// reads as protection. Six is under that ceiling and still 6 MiB more of
-// avatars than any archive this app has produced.
-const MAX_ARCHIVE_UPLOAD_TOTAL_BYTES = 6 * 1024 * 1024
 
 export async function importArchive(
   owner: string,
@@ -296,12 +254,6 @@ export async function importArchive(
         `${MAX_ARCHIVE_ROWS.toLocaleString()}. Nothing was changed.`,
     )
   }
-  if (archive.uploads.length > MAX_ARCHIVE_UPLOADS) {
-    throw new ValidationError(
-      `Archive declares ${archive.uploads.length.toLocaleString()} uploads; the maximum ` +
-        `is ${MAX_ARCHIVE_UPLOADS.toLocaleString()}. Nothing was changed.`,
-    )
-  }
 
   const schemaDrift = await checkSchema(archive.migrations, force)
 
@@ -322,92 +274,44 @@ export async function importArchive(
 
   // This owner's graph is replaced wholesale, so an id the archive does not
   // define could only resolve to ANOTHER owner's row. Refuse before touching
-  // files or the database.
+  // the database.
   assertReferencesClosed(prepared)
 
-  // Validate every payload, even legacy orphans, before acquiring/mutating files.
-  const checked = validateUploads(archive.uploads)
-  const required = new Set<string>()
-  for (const row of prepared.Contact) {
-    const name = localPhotoName(row.avatarUrl)
-    if (name) required.add(name)
-  }
-  for (const name of required) {
-    if (!checked.has(name))
-      throw new ValidationError(
-        `Archive is missing referenced photo "${name}". Nothing was changed.`,
-      )
-  }
+  const counts = await prisma.$transaction(
+    async (tx) => {
+      await lockOwnerGraph(tx, owner)
+      // Delete only this owner's graph. Root cascades remove all child/join
+      // rows; no import may replace another owner's data.
+      await tx.entityEdge.deleteMany({ where: { owner } })
+      await tx.settings.deleteMany({ where: { owner } })
+      await tx.entry.deleteMany({ where: { owner } })
+      await tx.boardColumn.deleteMany({ where: { owner } })
+      await tx.task.deleteMany({ where: { owner } })
+      await tx.project.deleteMany({ where: { owner } })
+      await tx.contact.deleteMany({ where: { owner } })
+      await tx.tag.deleteMany({ where: { owner } })
 
-  const created = new Set<string>()
-  let result: { counts: Record<string, number>; uploads: number; candidates: Set<string> }
-  try {
-    result = await prisma.$transaction(
-      async (tx) => {
-        await lockOwnerGraph(tx, owner)
-        const previous = await tx.contact.findMany({
-          where: { owner },
-          select: { avatarUrl: true },
-        })
-        const staged = await stageUploads(owner, checked, required, created)
-        rewriteAvatarUrls(prepared, staged)
-        // Delete only this owner's graph. Root cascades remove all child/join
-        // rows; no import may replace another owner's data.
-        await tx.entityEdge.deleteMany({ where: { owner } })
-        await tx.settings.deleteMany({ where: { owner } })
-        await tx.entry.deleteMany({ where: { owner } })
-        await tx.boardColumn.deleteMany({ where: { owner } })
-        await tx.task.deleteMany({ where: { owner } })
-        await tx.project.deleteMany({ where: { owner } })
-        await tx.contact.deleteMany({ where: { owner } })
-        await tx.tag.deleteMany({ where: { owner } })
-
-        const written: Record<string, number> = {}
-        for (const model of MODEL_ORDER) {
-          const rows = prepared[model]
-          written[model] = rows.length
-          // Chunked so a wide table cannot walk into Postgres's 65 535 bound
-          // parameters per statement: 250 rows x ~30 columns leaves room to spare.
-          for (let i = 0; i < rows.length; i += CHUNK) {
-            await WRITERS[model](tx, rows.slice(i, i + CHUNK))
-          }
+      const written: Record<string, number> = {}
+      for (const model of MODEL_ORDER) {
+        const rows = prepared[model]
+        written[model] = rows.length
+        // Chunked so a wide table cannot walk into Postgres's 65 535 bound
+        // parameters per statement: 250 rows x ~30 columns leaves room to spare.
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          await WRITERS[model](tx, rows.slice(i, i + CHUNK))
         }
-        await recomputeLastContact(
-          tx,
-          owner,
-          (prepared.Contact ?? []).map((r) => r.id as string),
-        )
-
-        await protectReferencedPhotos(tx, owner)
-        const retained = new Set(staged.values())
-        const candidates = new Set<string>()
-        for (const row of previous) {
-          try {
-            const name = localPhotoName(row.avatarUrl)
-            if (name && !retained.has(name)) candidates.add(name)
-          } catch {
-            /* Invalid legacy references are never cleanup candidates. */
-          }
-        }
-        await recordRemovedPhotos(owner, candidates, Date.now(), 'restore')
-        return { counts: written, uploads: staged.size, candidates }
-      },
-      { timeout: 120_000, maxWait: 20_000, isolationLevel: 'ReadCommitted' },
-    )
-  } catch (err) {
-    // Rollback releases the transaction lock. Reacquire before removing attempt
-    // files: another import could have reused one while this attempt rolled back.
-    if (created.size) {
-      await removeAttemptPhotos(owner, created).catch((cleanupError) =>
-        console.warn('Could not coordinate restore rollback cleanup', cleanupError),
+      }
+      await recomputeLastContact(
+        tx,
+        owner,
+        (prepared.Contact ?? []).map((r) => r.id as string),
       )
-    }
-    throw err
-  }
+      return written
+    },
+    { timeout: 120_000, maxWait: 20_000, isolationLevel: 'ReadCommitted' },
+  )
 
-  await collectPhotosAfterCommit(owner)
-  // Count referenced archive names resolved, including reuse, not physical writes.
-  return { counts: result.counts, uploads: result.uploads, schemaDrift }
+  return { counts, schemaDrift }
 }
 
 /** Database-enforced foreign keys, per model, and the model each one targets. */
@@ -522,104 +426,4 @@ async function checkSchema(
     )
   }
   return { missing, extra }
-}
-
-type CheckedUpload = { bytes: Buffer; extension: string }
-
-/** Validate ALL payloads before mutation, including older archives' orphan bytes. */
-function validateUploads(uploads: ArchiveUpload[]): Map<string, CheckedUpload> {
-  const checked = new Map<string, CheckedUpload>()
-  let decodedTotal = 0
-  for (const file of uploads) {
-    const bytes = Buffer.from(file.data, 'base64')
-    decodedTotal += bytes.byteLength
-    if (bytes.byteLength > MAX_ARCHIVE_UPLOAD_BYTES)
-      throw new ValidationError(
-        `Archive upload "${file.name}" exceeds the maximum for one image. Nothing was written.`,
-      )
-    if (decodedTotal > MAX_ARCHIVE_UPLOAD_TOTAL_BYTES)
-      throw new ValidationError(
-        `Archive uploads decode to more than ${MAX_ARCHIVE_UPLOAD_TOTAL_BYTES / (1024 * 1024)} MB in total. Nothing was written.`,
-      )
-    const mime = sniffImageType(bytes)
-    if (!mime)
-      throw new ValidationError(
-        `Archive upload "${file.name}" is not an image this app accepts. Uploads must be one of: ${allowedImageLabel()}. Nothing was written.`,
-      )
-    const previous = checked.get(file.name)
-    if (previous && !previous.bytes.equals(bytes))
-      throw new ValidationError(
-        `Archive has conflicting payloads for photo "${file.name}". Nothing was written.`,
-      )
-    checked.set(file.name, { bytes, extension: extensionFor(mime) })
-  }
-  return checked
-}
-
-/** Caller holds the owner transaction lock through staging and replacement commit. */
-async function stageUploads(
-  owner: string,
-  checked: Map<string, CheckedUpload>,
-  required: Set<string>,
-  created: Set<string>,
-): Promise<Map<string, string>> {
-  const staged = new Map<string, string>()
-  if (!required.size) return staged
-  // Hashes index candidates only; every reuse also compares the complete bytes.
-  // Do not retain an entire legacy directory's image bytes in memory.
-  const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
-  const existing = new Map<string, string[]>()
-  const index = (name: string, bytes: Buffer) => {
-    const key = digest(bytes)
-    existing.set(key, [...(existing.get(key) ?? []), name])
-  }
-  for (const name of await listPhotos(owner)) {
-    try {
-      index(name, await readPhoto(owner, name, MAX_ARCHIVE_UPLOAD_BYTES))
-    } catch {
-      /* Unsafe/non-image/oversized legacy entries cannot be reused. */
-    }
-  }
-  for (const from of [...required].sort()) {
-    const item = checked.get(from)!
-    let matching: string | undefined
-    const candidates = [...(existing.get(digest(item.bytes)) ?? [])]
-    candidates.sort((a, b) => (a === from ? -1 : b === from ? 1 : a.localeCompare(b)))
-    for (const name of candidates) {
-      if ((await readPhoto(owner, name, MAX_ARCHIVE_UPLOAD_BYTES)).equals(item.bytes)) {
-        matching = name
-        break
-      }
-    }
-    if (matching) {
-      staged.set(from, matching)
-      continue
-    }
-    const to = `${randomUUID()}.${item.extension}`
-    await writePhoto(owner, to, item.bytes)
-    created.add(to)
-    index(to, item.bytes)
-    staged.set(from, to)
-  }
-  return staged
-}
-
-/**
- * Repoint the incoming rows at the staged filenames. `Contact.avatarUrl` is the
- * only column in the schema that holds an upload reference; a value the archive
- * did not ship a file for is left exactly as it is, because it may well be an
- * external URL.
- */
-function rewriteAvatarUrls(
-  prepared: Record<ModelName, Record<string, unknown>[]>,
-  staged: Map<string, string>,
-) {
-  if (!staged.size) return
-  for (const row of prepared.Contact ?? []) {
-    const current = row.avatarUrl
-    if (typeof current !== 'string') continue
-    const name = current.startsWith('/uploads/') ? current.slice('/uploads/'.length) : null
-    const replacement = name ? staged.get(name) : undefined
-    if (replacement) row.avatarUrl = uploadUrl(replacement)
-  }
 }

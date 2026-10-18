@@ -10,7 +10,6 @@ import type { MentionSuggestion } from '@/lib/services/search'
 export interface ContactRef {
   id: string
   displayName: string
-  avatarUrl?: string | null
 }
 
 /**
@@ -82,8 +81,7 @@ export function ContactPicker({
 
   const add = (r: MentionSuggestion) => {
     if (selected.has(r.id)) return
-    // Suggestions carry no avatar; the chip shows initials until the record reloads.
-    onChange([...value, { id: r.id, displayName: r.label, avatarUrl: null }])
+    onChange([...value, { id: r.id, displayName: r.label }])
     setQuery('')
     setDebounced('')
     inputRef.current?.focus()
@@ -129,7 +127,7 @@ export function ContactPicker({
             key={c.id}
             className="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent)] py-0.5 pl-0.5 pr-1.5 text-xs text-[var(--accent-foreground)]"
           >
-            <Avatar src={c.avatarUrl} name={c.displayName} size={18} />
+            <Avatar name={c.displayName} size={18} />
             {c.displayName}
             <button
               type="button"
@@ -188,7 +186,7 @@ export function ContactPicker({
                 i === active ? 'bg-[var(--muted)]' : 'hover:bg-[var(--muted)]',
               )}
             >
-              <Avatar src={null} name={r.label} size={22} />
+              <Avatar name={r.label} size={22} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{r.label}</span>
                 {r.sublabel && (

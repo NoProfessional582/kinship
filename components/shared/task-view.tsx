@@ -272,7 +272,7 @@ export function TaskView({
                   href={`/contacts/${a.contact.slug}`}
                   className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--muted)]"
                 >
-                  <Avatar src={a.contact.avatarUrl} name={a.contact.displayName} size={26} />
+                  <Avatar name={a.contact.displayName} size={26} />
                   <span className="min-w-0 flex-1 truncate text-sm">{a.contact.displayName}</span>
                   {a.role && (
                     <span className="shrink-0 text-[11px] text-[var(--muted-foreground)]">

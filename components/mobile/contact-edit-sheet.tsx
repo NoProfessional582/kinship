@@ -22,7 +22,7 @@ import type { ContactRecord } from '@/lib/api-types'
 
 /**
  * Editing a person on a phone. The form itself is the shared `ContactForm` —
- * channels, positions, attributes and the avatar upload all behave identically
+ * channels, positions and attributes all behave identically
  * on both GUIs, and re-describing those fields here is exactly the divergence
  * the split is meant to avoid. Only the container is different.
  */

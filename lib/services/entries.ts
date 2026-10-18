@@ -225,7 +225,7 @@ async function withFollowUps<T extends { id: string }>(owner: string, rows: T[])
 export const entryInclude = {
   project: { select: { id: true, slug: true, name: true, color: true } },
   mentions: {
-    include: { contact: { select: { id: true, slug: true, displayName: true, avatarUrl: true } } },
+    include: { contact: { select: { id: true, slug: true, displayName: true } } },
   },
   refs: {
     include: {

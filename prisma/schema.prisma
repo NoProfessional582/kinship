@@ -90,7 +90,6 @@ model Contact {
   lastName    String?
   nickname    String?
   pronouns    String?
-  avatarUrl   String?
 
   /// Short tagline shown under the name, e.g. "Infra lead, ex-Stripe".
   headline String?

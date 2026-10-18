@@ -1,8 +1,6 @@
 'use client'
 import * as React from 'react'
-import { toast } from 'sonner'
 import {
-  Upload,
   Star,
   Plus,
   X,
@@ -18,7 +16,6 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { ChipsInput } from '@/components/ui/chips'
 import { Avatar } from '@/components/ui/misc'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { CADENCE_LABEL, TIER_LABEL } from '@/lib/cadence'
 import type { ContactRecord } from '@/lib/api-types'
@@ -74,7 +71,6 @@ export interface ContactFormValue {
   bio: string
   personalContext: string
   notes: string
-  avatarUrl: string
   tier: string
   cadence: string
   interests: string[]
@@ -110,7 +106,6 @@ export function blankContact(displayName = ''): ContactFormValue {
     bio: '',
     personalContext: '',
     notes: '',
-    avatarUrl: '',
     tier: 'TIER_3',
     cadence: 'NONE',
     interests: [],
@@ -137,7 +132,6 @@ export function contactFromRecord(c: ContactRecord): ContactFormValue {
     bio: c.bio ?? '',
     personalContext: c.personalContext ?? '',
     notes: c.notes ?? '',
-    avatarUrl: c.avatarUrl ?? '',
     tier: c.tier ?? 'TIER_3',
     cadence: c.cadence ?? 'NONE',
     interests: c.interests ?? [],
@@ -185,7 +179,6 @@ export function contactToPayload(v: ContactFormValue, isDraft = false) {
     bio: v.bio || null,
     personalContext: v.personalContext || null,
     notes: v.notes || null,
-    avatarUrl: v.avatarUrl || null,
     tier: v.tier,
     cadence: v.cadence,
     interests: v.interests,
@@ -228,52 +221,12 @@ export function ContactForm({
   onChange: (v: ContactFormValue) => void
 }) {
   const set = (patch: Partial<ContactFormValue>) => onChange({ ...value, ...patch })
-  const [uploading, setUploading] = React.useState(false)
-  const fileRef = React.useRef<HTMLInputElement>(null)
-
-  const upload = async (file: File) => {
-    setUploading(true)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: fd })
-      const body = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        toast.error(body.error || 'Could not upload that image')
-        return
-      }
-      set({ avatarUrl: body.url })
-    } catch {
-      toast.error('Could not upload that image')
-    } finally {
-      setUploading(false)
-    }
-  }
 
   return (
     <div className="flex flex-col gap-5">
       {/* ------------------------------------------------------ identity */}
       <div className="flex items-start gap-4">
-        <div className="flex flex-col items-center gap-1.5">
-          <Avatar src={value.avatarUrl} name={value.displayName || '?'} size={64} />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-6 px-1.5 text-[11px]"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-          >
-            <Upload className="h-3 w-3" /> {uploading ? '…' : 'Photo'}
-          </Button>
-        </div>
+        <Avatar name={value.displayName || '?'} size={64} />
 
         <div className="grid flex-1 grid-cols-2 gap-3">
           <Field label="First name">
