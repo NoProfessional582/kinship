@@ -1,4 +1,11 @@
+import type { Metadata } from 'next'
 import { AppShell } from '@/components/shared/app-shell'
+
+/**
+ * Replaces the root's manifest link, so that installing Kinship from a desktop
+ * page opens the desktop GUI rather than `/m` (app/desktop.webmanifest).
+ */
+export const metadata: Metadata = { manifest: '/desktop.webmanifest' }
 
 /**
  * The desktop GUI's frame. This used to live in the root layout; it moved down

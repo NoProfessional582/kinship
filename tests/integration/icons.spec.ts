@@ -30,6 +30,16 @@ test('every icon the manifest lists is a PNG of its stated size', async ({ reque
   }
 })
 
+test('the desktop manifest starts at / and shares the icons', async ({ request }) => {
+  const [mobile, desktop] = await Promise.all([
+    request.get('/manifest.webmanifest').then((r) => r.json()),
+    request.get('/desktop.webmanifest').then((r) => r.json()),
+  ])
+  expect(desktop).toMatchObject({ id: '/', start_url: '/', scope: '/', display: 'standalone' })
+  expect(desktop.orientation).toBeUndefined()
+  expect(desktop.icons).toEqual(mobile.icons)
+})
+
 // The route answers images, so its refusal is plain text rather than JSON.
 test('a size that is not a number from 1 to 1024 is refused', async ({ request }) => {
   for (const size of ['abc', '0', '1025']) {
