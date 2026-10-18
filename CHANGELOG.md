@@ -20,6 +20,7 @@ All notable changes to Kinship are recorded here. The format follows
 - Removing a board column can no longer permanently delete a card moved into it at the same moment: the "is it empty?" check and the removal now run as one step, and moving a card waits for it.
 - Opening the board for the first time from two places at once (the app and an agent, say) no longer creates the default columns twice.
 - Making the same link twice at once, or two projects with the same name at once, no longer fails one of them with a 500: both now wait their turn, so the link is made once and each project gets its own address.
+- `POST /api/mcp` answers a database outage (or a missing `KINSHIP_OWNER`) with the API's usual `{ "error": … }` JSON, instead of a bare server error page.
 - `PATCH /api/tasks/{id}/move` (and the `move_task` agent tool) no longer move a task that is in the trash (404) or a subtask (400; a subtask moves with its parent card).
 
 ## [0.5.1] - 2026-10-18

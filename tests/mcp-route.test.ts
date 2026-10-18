@@ -1,12 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Nothing here reaches a tool's service call: the database answers only the owner's
-// agent access, as `access` says.
+// agent access, as `access` says (`down` makes it fail as an unreachable database would).
 let access = 'write'
 vi.mock('@/lib/db', () => ({
-  prisma: { settings: { findUnique: async () => ({ agentAccess: access }) } },
+  prisma: {
+    settings: {
+      findUnique: async () => {
+        if (access === 'down') throw new Error('connect ECONNREFUSED 127.0.0.1:5433')
+        return { agentAccess: access }
+      },
+    },
+  },
 }))
 const route = await import('@/app/api/mcp/route')
+const { OWNER_MISSING_MESSAGE } = await import('@/lib/identity')
 
 const URL_ = 'http://127.0.0.1:3000/api/mcp'
 const HEADERS = {
@@ -87,6 +95,25 @@ describe('/api/mcp', () => {
         error: 'The agent endpoint is turned off (KINSHIP_AGENT_ACCESS=off).',
       })
     }
+  })
+
+  it('answers a database outage while connecting in the usual JSON error shape', async () => {
+    access = 'down'
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const response = await rpc('initialize')
+      expect(response.status).toBe(500)
+      expect(await response.json()).toEqual({ error: 'connect ECONNREFUSED 127.0.0.1:5433' })
+    } finally {
+      quiet.mockRestore()
+    }
+  })
+
+  it('answers a missing KINSHIP_OWNER with its message, as every route does', async () => {
+    delete process.env.KINSHIP_OWNER
+    const response = await rpc('initialize')
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: OWNER_MISSING_MESSAGE })
   })
 
   it('answers 405 to GET and DELETE: it is stateless', async () => {
