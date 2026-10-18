@@ -1,5 +1,6 @@
-import { prisma } from '../db'
+import { prisma, type Tx } from '../db'
 import { NotFoundError, ValidationError } from '../errors'
+import { ownerTransaction } from '../owner-lock'
 import { FOLLOWS_UP } from '../relations'
 
 export { FOLLOWS_UP }
@@ -28,37 +29,42 @@ interface OwnedLookup {
   }): Promise<{ id: string } | null>
 }
 
-async function requireOwnedEntity(owner: string, type: EntityType, id: string) {
-  const delegate: OwnedLookup = prisma[type]
+async function requireOwnedEntity(db: Tx, owner: string, type: EntityType, id: string) {
+  const delegate: OwnedLookup = db[type]
   const row = await delegate.findFirst({ where: { id, owner }, select: { id: true } })
   if (!row) throw new NotFoundError()
 }
 
+/**
+ * Under the owner lock, like every other edge writer: the find-then-create is
+ * otherwise a race on EntityEdge's unique key, and the loser of two identical
+ * links at once got a 500 instead of the edge the winner made.
+ */
 export async function upsertEdge(owner: string, input: EdgeInput) {
   if (input.sourceType === input.targetType && input.sourceId === input.targetId) {
     throw new ValidationError('An entity cannot relate to itself')
   }
-  await Promise.all([
-    requireOwnedEntity(owner, input.sourceType, input.sourceId),
-    requireOwnedEntity(owner, input.targetType, input.targetId),
-  ])
-  const where = {
-    owner,
-    sourceType: input.sourceType,
-    sourceId: input.sourceId,
-    targetType: input.targetType,
-    targetId: input.targetId,
-    relation: input.relation,
-  }
-  const existing = await prisma.entityEdge.findFirst({ where, select: { id: true } })
-  return existing
-    ? prisma.entityEdge.update({
-        where: { id: existing.id },
-        data: { note: input.note ?? null, weight: input.weight ?? 1 },
-      })
-    : prisma.entityEdge.create({
-        data: { ...input, owner, note: input.note ?? null, weight: input.weight ?? 1 },
-      })
+  return ownerTransaction(owner, async (tx) => {
+    await requireOwnedEntity(tx, owner, input.sourceType, input.sourceId)
+    await requireOwnedEntity(tx, owner, input.targetType, input.targetId)
+    const where = {
+      owner,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      relation: input.relation,
+    }
+    const existing = await tx.entityEdge.findFirst({ where, select: { id: true } })
+    return existing
+      ? tx.entityEdge.update({
+          where: { id: existing.id },
+          data: { note: input.note ?? null, weight: input.weight ?? 1 },
+        })
+      : tx.entityEdge.create({
+          data: { ...input, owner, note: input.note ?? null, weight: input.weight ?? 1 },
+        })
+  })
 }
 
 export async function deleteEdge(owner: string, id: string) {
@@ -68,7 +74,7 @@ export async function deleteEdge(owner: string, id: string) {
 
 /** Every edge touching an entity, in either direction, with the far side resolved. */
 export async function edgesFor(owner: string, type: EntityType, id: string) {
-  await requireOwnedEntity(owner, type, id)
+  await requireOwnedEntity(prisma, owner, type, id)
   const rows = await prisma.entityEdge.findMany({
     where: {
       owner,

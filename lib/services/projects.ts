@@ -2,6 +2,7 @@ import { prisma } from '../db'
 import { uniqueSlug } from '../slug'
 import type { UpsertProjectInput } from '../validation'
 import { softDelete } from './trash'
+import { ownerTransaction } from '../owner-lock'
 
 const EMPTY_COUNTS = { TODO: 0, IN_PROGRESS: 0, BLOCKED: 0, DONE: 0, ARCHIVED: 0 }
 
@@ -69,8 +70,13 @@ export async function getProject(owner: string, idOrSlug: string) {
   })
 }
 
+/**
+ * Under the owner lock, as contacts and tasks are: `uniqueSlug` reads before it
+ * writes, so two projects of one name at once could both pick the same slug, and
+ * the second hit `@@unique([owner, slug])` as a 500.
+ */
 export async function createProject(owner: string, input: UpsertProjectInput) {
-  return prisma.$transaction(async (tx) => {
+  return ownerTransaction(owner, async (tx) => {
     const slug = await uniqueSlug('project', owner, input.name, tx)
     return tx.project.create({
       data: {

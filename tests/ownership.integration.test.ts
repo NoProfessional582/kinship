@@ -252,6 +252,27 @@ describe('writes to another owner are refused and change nothing', () => {
   })
 })
 
+describe('check-then-write races settle without a fault', () => {
+  it('makes one edge from identical links sent at once', async () => {
+    const link = () =>
+      upsertEdge(A, {
+        sourceType: 'contact',
+        sourceId: a.contact.id,
+        targetType: 'task',
+        targetId: a.task.id,
+        relation: `${MARK}races`,
+      })
+    const edges = await Promise.all([link(), link(), link()])
+    expect(new Set(edges.map((e) => e.id)).size).toBe(1)
+  })
+
+  it('gives projects of one name made at once their own slugs', async () => {
+    const make = () => createProject(A, upsertProjectSchema.parse({ name: `${MARK} Raced` }))
+    const projects = await Promise.all([make(), make(), make()])
+    expect(new Set(projects.map((p) => p.slug)).size).toBe(3)
+  })
+})
+
 describe('trash is per owner', () => {
   it("lists and empties only the caller's trash", async () => {
     const doomed = await createContact(
