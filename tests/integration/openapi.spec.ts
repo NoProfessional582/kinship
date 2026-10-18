@@ -19,6 +19,7 @@ import {
   text,
   unique,
   type Cleanup,
+  FROM_THE_APP,
 } from '../support/api'
 import { conforms, operations, seen, spec, SPEC_FILE, type Method } from '../support/contract'
 import { BASE_URL } from '../support/stack'
@@ -404,19 +405,28 @@ test('Agents: read-only access hides the write tools, and switching back restore
   const settings = await ok<{ agentAccess: string }>(request, 'get', '/api/settings')
   expect(settings.agentAccess).toBe('write')
   cleanup.add('restore agent access', async () =>
-    json(await request.patch('/api/settings', { data: { agentAccess: settings.agentAccess } })),
+    json(
+      await request.patch('/api/settings', {
+        data: { agentAccess: settings.agentAccess },
+        headers: FROM_THE_APP,
+      }),
+    ),
   )
   expect(await toolNames()).toEqual(expect.arrayContaining(['search', 'log_entry']))
 
   const read = await ok<{ agentAccess: string }>(request, 'patch', '/api/settings', {
     data: { agentAccess: 'read' },
+    headers: FROM_THE_APP,
   })
   expect(read.agentAccess).toBe('read')
   const readOnly = await toolNames()
   expect(readOnly).toContain('search')
   expect(readOnly).not.toContain('log_entry')
 
-  await ok(request, 'patch', '/api/settings', { data: { agentAccess: 'write' } })
+  await ok(request, 'patch', '/api/settings', {
+    data: { agentAccess: 'write' },
+    headers: FROM_THE_APP,
+  })
   expect(await toolNames()).toContain('log_entry')
 })
 

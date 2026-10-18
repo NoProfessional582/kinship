@@ -20,6 +20,20 @@ export class ConflictError extends Error {
 }
 
 /**
+ * A request this caller may not make here, however it is phrased — changing
+ * agent access from outside the Kinship app, for one. `handle` renders it as a
+ * 403 with the message intact.
+ */
+export class ForbiddenError extends Error {
+  readonly status = 403
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'ForbiddenError'
+  }
+}
+
+/**
  * The record the caller named does not exist, or belongs to someone else.
  * `handle` renders it as a 404, the same answer Prisma's own "record not
  * found" (P2025) gets, so a missing record reads the same however it was looked up.

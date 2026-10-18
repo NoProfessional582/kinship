@@ -70,6 +70,28 @@ function sourceMatches(value: string, target: string, isReferer = false): boolea
 }
 
 /**
+ * Whether a request carries a browser's provenance from a Kinship page: an
+ * `Origin` naming this app and `Sec-Fetch-Site: same-origin`. `requestRefusal`
+ * checks both only when present, so curl and scripts work; a route that should
+ * change only from the app's own pages asks for them to be present as well.
+ *
+ * A program on this computer can still send both headers on purpose. This keeps
+ * an agent from flipping a setting with an ordinary API call; it is not a wall
+ * against local code (which can reach the database directly anyway).
+ */
+export function hasBrowserProvenance(req: Request): boolean {
+  const target = targetOrigin(req)
+  const origin = req.headers.get('origin')
+  return (
+    target !== null &&
+    origin !== null &&
+    allowedOrigins().has(target) &&
+    sourceMatches(origin, target) &&
+    req.headers.get('sec-fetch-site') === 'same-origin'
+  )
+}
+
+/**
  * Local-only request gate. Browser provenance is validated before media types
  * or route handlers; a static import confirmation is not an origin check.
  * Originless, provenance-free CLI requests still work on an allowed Host.

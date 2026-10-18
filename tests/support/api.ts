@@ -11,6 +11,13 @@
  * Imports nothing from the app (support/stack.ts says why).
  */
 import { test as base, expect, type APIRequestContext, type APIResponse } from '@playwright/test'
+import { BASE_URL } from './stack'
+
+/**
+ * The headers a browser sends with a save from the app's own pages. Changing agent access
+ * needs them (a plain API call is refused with 403), so tests that switch it send these.
+ */
+export const FROM_THE_APP = { Origin: new URL(BASE_URL).origin, 'Sec-Fetch-Site': 'same-origin' }
 
 /** This run's id: names made with it never collide with an earlier run's or the seed's. */
 export const RUN = Date.now().toString(36)

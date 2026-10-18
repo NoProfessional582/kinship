@@ -6,6 +6,10 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Agent access (read only, or read and write) can only be changed from Kinship's own pages. `PATCH /api/settings` from a script or `curl` that would change `agentAccess` is refused with 403 ("Agent access can only be changed in the Kinship app.") and saves nothing; sending its current value, and every other setting, still works. `docs/api/agents.md` now says plainly that read only limits the MCP tools only: an agent that can also run shell commands or HTTP requests on this computer can still use the HTTP API, including archive import.
+
 ### Removed
 
 - Contact photos. `POST /api/upload`, `GET /uploads/{name}`, the photo button on the contact form, `npm run photos:check` and the `avatarUrl` field are gone; contacts show their initials. A migration drops `Contact.avatarUrl`, and Docker no longer mounts `data/uploads` (any files left there are no longer used and can be deleted). Archives no longer carry an `uploads` list, and an import's answer no longer counts uploads. Older archives that carry photos still import, without them.

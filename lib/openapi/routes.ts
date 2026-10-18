@@ -631,7 +631,11 @@ export const routes: ApiRoute[] = [
     operationId: 'updateSettings',
     tag: 'Settings',
     summary: 'Change some settings',
-    description: 'Only the fields sent change.',
+    description:
+      'Only the fields sent change. Changing `agentAccess` needs the headers a browser sends ' +
+      'from the app’s own pages (a same-origin `Origin` and `Sec-Fetch-Site: same-origin`); ' +
+      'without them it is refused with 403, and nothing is saved. Sending its current value ' +
+      'is not a change.',
     body: settingsSchema,
     response: R.Settings,
     errors: { 400: BAD_BODY },
