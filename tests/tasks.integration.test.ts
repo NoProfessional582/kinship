@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { prisma } from '@/lib/db'
-import { ensureColumns } from '@/lib/services/board'
+import { DEFAULT_COLUMNS, ensureColumns } from '@/lib/services/board'
+import { ValidationError } from '@/lib/errors'
 import { getBoard, getTask, moveTask } from '@/lib/services/tasks'
 import { restore, softDelete, deleteEdgesFor } from '@/lib/services/trash'
 
@@ -259,5 +260,41 @@ describe('board order — equal positions', () => {
 
     const columns = await ensureColumns(prisma, owner)
     expect(columns.map((c) => c.id)).toEqual([`${MARK}tie-col-a`, `${MARK}tie-col-b`])
+  })
+})
+
+describe('moveTask — only live, top-level cards', () => {
+  beforeEach(() => {
+    columnId = ''
+  })
+
+  it('treats a trashed card as not found', async () => {
+    const gone = await task('mv-trashed', 1000)
+    await softDelete(OWNER, 'task', gone.id)
+
+    await expect(moveTask(OWNER, gone.id, await column(), 0)).rejects.toMatchObject({
+      code: 'P2025',
+    })
+  })
+
+  it('refuses a subtask: it moves with its parent', async () => {
+    const parent = await task('mv-parent', 1000)
+    const child = await task('mv-child', 2000, undefined, { parentTaskId: parent.id })
+
+    await expect(moveTask(OWNER, child.id, await column(), 0)).rejects.toBeInstanceOf(
+      ValidationError,
+    )
+  })
+})
+
+describe('ensureColumns — first loads at once', () => {
+  it('writes one default set however many callers race', async () => {
+    const owner = `${MARK}fresh-board`
+    try {
+      await Promise.all(Array.from({ length: 4 }, () => ensureColumns(prisma, owner)))
+      expect(await prisma.boardColumn.count({ where: { owner } })).toBe(DEFAULT_COLUMNS.length)
+    } finally {
+      await prisma.boardColumn.deleteMany({ where: { owner } })
+    }
   })
 })

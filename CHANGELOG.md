@@ -13,6 +13,9 @@ All notable changes to Kinship are recorded here. The format follows
 ### Fixed
 
 - The API route table lists `GET /desktop.webmanifest`, so the route-table checks pass again.
+- Removing a board column can no longer permanently delete a card moved into it at the same moment: the "is it empty?" check and the removal now run as one step, and moving a card waits for it.
+- Opening the board for the first time from two places at once (the app and an agent, say) no longer creates the default columns twice.
+- `PATCH /api/tasks/{id}/move` (and the `move_task` agent tool) no longer move a task that is in the trash (404) or a subtask (400; a subtask moves with its parent card).
 
 ## [0.5.1] - 2026-10-18
 

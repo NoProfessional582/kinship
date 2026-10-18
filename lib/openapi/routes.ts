@@ -378,7 +378,10 @@ export const routes: ApiRoute[] = [
     params: { id: ID },
     body: moveTaskSchema,
     response: R.TaskDetail,
-    errors: { 400: BAD_BODY, 404: 'The task, column or project does not exist.' },
+    errors: {
+      400: 'The body failed validation, or the task is a subtask (it moves with its parent).',
+      404: 'The task, column or project does not exist, or the task is in the trash.',
+    },
   },
   {
     method: 'get',

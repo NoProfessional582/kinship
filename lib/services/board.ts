@@ -1,7 +1,8 @@
 import { prisma } from '../db'
-import type { TaskStatus } from '@prisma/client'
+import type { Prisma, TaskStatus } from '@prisma/client'
 import { ConflictError } from '../errors'
 import { STEP, needsRenormalize, renormalizedPositions } from '../fractional-index'
+import { lockOwnerGraph, ownerTransaction } from '../owner-lock'
 
 type Tx = Omit<
   typeof prisma,
@@ -26,12 +27,30 @@ export const DEFAULT_COLUMNS = [
  * tasks in this project yet" about cards the board was showing at the time.
  * (`BoardColumn.projectId` survives in the schema, unused, so this needs no
  * migration; every column is written with it null.)
+ *
+ * The defaults are written under the owner lock, and the check is repeated once
+ * it is held: two first loads at once (the board and the MCP column list, say)
+ * would otherwise both find no columns and both write a set. Given `prisma`,
+ * this opens its own owner transaction; given a transaction, that must be an
+ * `ownerTransaction` (the lock is re-entrant, so taking it again is harmless).
  */
-export async function ensureColumns(tx: Tx, owner: string) {
-  const existing = await tx.boardColumn.findMany({
+export async function ensureColumns(db: Tx, owner: string) {
+  const existing = await listColumns(db, owner)
+  if (existing.length > 0) return existing
+  if (db === prisma) return ownerTransaction(owner, (tx) => createDefaultColumns(tx, owner))
+  await lockOwnerGraph(db as Prisma.TransactionClient, owner)
+  return createDefaultColumns(db, owner)
+}
+
+const listColumns = (db: Tx, owner: string) =>
+  db.boardColumn.findMany({
     where: { owner, projectId: null },
     orderBy: [{ position: 'asc' }, { id: 'asc' }],
   })
+
+/** Call with the owner lock held: the re-check under it is what makes this once-only. */
+async function createDefaultColumns(tx: Tx, owner: string) {
+  const existing = await listColumns(tx, owner)
   if (existing.length > 0) return existing
 
   await tx.boardColumn.createMany({
@@ -42,10 +61,7 @@ export async function ensureColumns(tx: Tx, owner: string) {
       position: (i + 1) * STEP,
     })),
   })
-  return tx.boardColumn.findMany({
-    where: { owner, projectId: null },
-    orderBy: [{ position: 'asc' }, { id: 'asc' }],
-  })
+  return listColumns(tx, owner)
 }
 
 /** The column an inline-created task lands in: the first one on the board. */
@@ -132,25 +148,32 @@ export async function updateColumn(
  *
  * Cards already in the trash count: they are recoverable until the trash is
  * emptied, and a cascade would quietly end that.
+ *
+ * The count and the delete share one owner transaction. Every path that puts a
+ * card into a column (create, edit, move, a note's inline task, restore, import)
+ * holds the same lock, so none can land a card here between the count finding
+ * the column empty and the cascade running.
  */
 export async function deleteColumn(owner: string, id: string) {
-  await prisma.boardColumn.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
-  const [live, trashed] = await Promise.all([
-    prisma.task.count({ where: { owner, columnId: id, deletedAt: null } }),
-    prisma.task.count({ where: { owner, columnId: id, NOT: { deletedAt: null } } }),
-  ])
+  return ownerTransaction(owner, async (tx) => {
+    await tx.boardColumn.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
+    const [live, trashed] = await Promise.all([
+      tx.task.count({ where: { owner, columnId: id, deletedAt: null } }),
+      tx.task.count({ where: { owner, columnId: id, NOT: { deletedAt: null } } }),
+    ])
 
-  if (live > 0) {
-    throw new ConflictError(
-      `Move the ${live} card${live === 1 ? '' : 's'} out of this column before removing it.`,
-    )
-  }
-  if (trashed > 0) {
-    throw new ConflictError(
-      `This column still holds ${trashed} deleted card${trashed === 1 ? '' : 's'}. ` +
-        'Restore them or empty the trash first — removing the column would delete them for good.',
-    )
-  }
+    if (live > 0) {
+      throw new ConflictError(
+        `Move the ${live} card${live === 1 ? '' : 's'} out of this column before removing it.`,
+      )
+    }
+    if (trashed > 0) {
+      throw new ConflictError(
+        `This column still holds ${trashed} deleted card${trashed === 1 ? '' : 's'}. ` +
+          'Restore them or empty the trash first — removing the column would delete them for good.',
+      )
+    }
 
-  return prisma.boardColumn.delete({ where: { id } })
+    return tx.boardColumn.delete({ where: { id } })
+  })
 }
