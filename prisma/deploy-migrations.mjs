@@ -7,6 +7,10 @@ if (!process.env.DATABASE_URL) {
   process.exit(1)
 }
 
-const result = spawnSync('npx', ['prisma', 'migrate', 'deploy'], { stdio: 'inherit' })
+const result = spawnSync('npx', ['prisma', 'migrate', 'deploy'], {
+  stdio: 'inherit',
+  // On Windows npx is npx.cmd, which Node only runs through a shell. The arguments are fixed.
+  shell: process.platform === 'win32',
+})
 if (result.error) throw result.error
 process.exit(result.status ?? 1)
