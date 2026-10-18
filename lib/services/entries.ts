@@ -609,22 +609,3 @@ export async function deleteEntry(owner: string, id: string) {
     return withBody(row)
   })
 }
-
-/**
- * Restore a trashed entry, and give back the recency it was carrying.
- *
- * ⚠️ THE TRASH ROUTER DISPATCHES ENTRY RESTORES HERE rather than to the generic
- * `restore()` in `trash.ts`, and that is the whole point. Recomputing on delete
- * without recomputing on restore would be worse than the bug it fixes: the
- * contact would be stuck at the earlier date permanently, with no way back
- * short of editing the entry. A derived column has to be recomputed on every
- * event that changes its inputs, or it is not derived — it is just stale.
- */
-export async function restoreEntry(owner: string, id: string) {
-  return ownerTransaction(owner, async (tx) => {
-    await tx.entry.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
-    const row = await tx.entry.update({ where: { id }, data: { deletedAt: null } })
-    await recomputeLastContact(tx, owner, await contactsMentionedBy(tx, owner, id))
-    return withBody(row)
-  })
-}

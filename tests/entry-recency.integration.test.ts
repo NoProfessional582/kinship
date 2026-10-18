@@ -3,13 +3,13 @@ import { prisma } from '@/lib/db'
 import {
   createEntry as createEntryOwned,
   deleteEntry as deleteEntryOwned,
-  restoreEntry as restoreEntryOwned,
   updateEntry as updateEntryOwned,
 } from '@/lib/services/entries'
 import { createEntrySchema, type CreateEntryInput } from '@/lib/validation'
 import { CONTACT_MENTION } from '@/lib/tiptap/nodes'
 import { rescheduleEvent } from '@/lib/services/calendar'
 import { exportArchive, importArchive } from '@/lib/services/archive'
+import { restore } from '@/lib/services/trash'
 import { contend } from './support/owner-contention'
 
 /**
@@ -25,7 +25,8 @@ const createEntry = (input: CreateEntryInput) => createEntryOwned(OWNER, input)
 const updateEntry = (id: string, input: Partial<CreateEntryInput>) =>
   updateEntryOwned(OWNER, id, input)
 const deleteEntry = (id: string) => deleteEntryOwned(OWNER, id)
-const restoreEntry = (id: string) => restoreEntryOwned(OWNER, id)
+// The trash's own restore, which is what POST /api/trash calls for an entry.
+const restoreEntry = (id: string) => restore(OWNER, 'entry', id)
 const days = (n: number) => new Date(Date.now() + n * 86_400_000)
 const at = (d: Date) => d.toISOString().slice(0, 10)
 
@@ -175,7 +176,7 @@ describe('updateEntry — recency follows the edit (K14)', () => {
  * quiet about someone the app had no record of you meeting. Reverting
  * `deleteEntry` to `softDelete('entry', id)` turns all four of these red.
  */
-describe('deleteEntry / restoreEntry — recency follows the trash', () => {
+describe('deleteEntry / restore — recency follows the trash', () => {
   it('trashing the only entry returns recency to null', async () => {
     const a = await contact('del-only')
     const { entry } = await make({
