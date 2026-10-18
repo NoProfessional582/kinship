@@ -1,5 +1,5 @@
 # Test-only overlay: layered on compose.yaml by scripts/test-stack.sh, never used to run a
-# real stack. It keeps the database and the uploads in the run's private folder
+# real stack. It keeps the database in the run's private folder
 # (STACK_RUNTIME), uses the image the script built once instead of building or pulling,
 # publishes no port, and puts everything on an internal network: nothing reaches out or
 # in. The `suite` service runs the database tests and `browser` runs Playwright against the
@@ -22,8 +22,6 @@ services:
   migrate:
     image: ${KINSHIP_IMAGE:-test-kinship:app}
     build: !reset null
-    volumes: !override
-      - ${STACK_RUNTIME:?}/data/uploads:/app/public/uploads
 
   web:
     environment:
@@ -32,8 +30,6 @@ services:
     build: !reset null
     restart: 'no'
     ports: !reset []
-    volumes: !override
-      - ${STACK_RUNTIME:?}/data/uploads:/app/public/uploads
     healthcheck:
       start_interval: 2s
 
@@ -47,8 +43,6 @@ services:
       DATABASE_URL: postgresql://kinship:${POSTGRES_PASSWORD:?}@db:5432/kinship
       KINSHIP_OWNER: ${KINSHIP_OWNER:?}
       npm_config_update_notifier: 'false'
-    volumes:
-      - ${STACK_RUNTIME:?}/data/uploads:/app/public/uploads
     command: [npm, run, --silent, test:integration]
 
   # Runs the Playwright tests (playwright.config.ts) from the repo mounted at /w, as the

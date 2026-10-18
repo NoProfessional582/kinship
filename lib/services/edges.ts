@@ -96,7 +96,7 @@ export async function edgesFor(owner: string, type: EntityType, id: string) {
   const [contacts, projects, tasks, entries] = await Promise.all([
     prisma.contact.findMany({
       where: { owner, id: { in: [...wanted.contact] } },
-      select: { id: true, slug: true, displayName: true, avatarUrl: true },
+      select: { id: true, slug: true, displayName: true },
     }),
     prisma.project.findMany({
       where: { owner, id: { in: [...wanted.project] } },
@@ -143,10 +143,6 @@ export async function edgesFor(owner: string, type: EntityType, id: string) {
       otherId,
       label: label(otherType, otherId) ?? 'Unknown',
       href: href(otherType, otherId),
-      avatarUrl:
-        otherType === 'contact'
-          ? (contacts.find((x) => x.id === otherId)?.avatarUrl ?? null)
-          : null,
     }
   })
 }

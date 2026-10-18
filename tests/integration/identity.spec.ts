@@ -5,7 +5,6 @@
  */
 import { test, expect, json, newContact, newEntry, type Contact } from '../support/api'
 import { SEEDED, seededIds } from '../support/stack'
-import { PNG_1PX } from '../support/files'
 import type { APIRequestContext } from '@playwright/test'
 
 const IDENTITY_HEADERS = {
@@ -22,11 +21,6 @@ const ownerOf = async (request: APIRequestContext, contactId: string) =>
 test('every GET answers the same with or without identity headers', async ({ request }) => {
   const ids = await seededIds(request)
   const board = await json<{ tasks: { id: string }[] }>(await request.get('/api/tasks'))
-  const { url: upload } = await json<{ url: string }>(
-    await request.post('/api/upload', {
-      multipart: { file: { name: 'me.png', mimeType: 'image/png', buffer: PNG_1PX } },
-    }),
-  )
   const now = Date.now()
   const window = `start=${new Date(now - 30 * 86_400_000).toISOString()}&end=${new Date(now + 30 * 86_400_000).toISOString()}`
 
@@ -53,7 +47,6 @@ test('every GET answers the same with or without identity headers', async ({ req
     '/api/search/mentions?type=entity&q=site',
     '/api/trash',
     '/api/export',
-    upload,
     '/icons/192',
   ]
   for (const path of paths) {

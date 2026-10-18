@@ -59,7 +59,7 @@ async function runExport() {
 
   const total = Object.values(archive.counts).reduce((a, b) => a + b, 0)
   say(
-    `Exported ${total} rows and ${archive.uploads.length} upload(s), ` +
+    `Exported ${total} rows, ` +
       `${(Buffer.byteLength(body) / 1024 / 1024).toFixed(2)} MB. ` +
       `Suggested name: ${archiveFilename(new Date(archive.exportedAt))}`,
   )
@@ -104,14 +104,13 @@ async function runImport({ replace, force }: { replace: boolean; force: boolean 
     )
     say('\nIt would REPLACE this database:\n')
     say(compare(here, archive.counts ?? {}))
-    say(`\nUploads in the archive: ${archive.uploads?.length ?? 0}`)
     say('\nNothing was changed. Re-run with `-- --replace` to restore it.')
     return
   }
 
   const result = await importArchive(owner, archive, { force })
   const total = Object.values(result.counts).reduce((a, b) => a + b, 0)
-  say(`Restored ${total} rows and ${result.uploads} upload(s).`)
+  say(`Restored ${total} rows.`)
   if (result.schemaDrift) {
     say(
       `Schema differed and --force was given. Not applied here: ` +

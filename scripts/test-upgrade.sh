@@ -4,13 +4,13 @@
 #   1. Builds the previous version (from `git archive`) and this one: the image of each, and
 #      the previous version's builder stage, which ran its migrate before 0.1.0.
 #   2. Starts the previous version on a fresh database: migrate, the seed, and one avatar
-#      uploaded as a new contact's photo.
-#   3. Records the rows in every table and the avatar's sha256.
+#      uploaded as a new contact's photo (this version removed photos).
+#   3. Records the rows in every table.
 #   4. Stops the previous web, runs this version's migrate (it must exit 0, and it says
 #      what it applied), and starts this version's web.
-#   5. Checks that every table holds as many rows as before, that /uploads serves the same
-#      avatar bytes, that its contact still points at it, and that every desktop page loads
-#      clean (tests/e2e/pages.spec.ts). The db and web logs must show no errors.
+#   5. Checks that every table holds as many rows as before, that the photo's contact
+#      remains without its avatarUrl column, that an archive round trips, and that every
+#      desktop page loads clean (tests/e2e/pages.spec.ts). The db and web logs must show no errors.
 #
 #   scripts/test-upgrade.sh          from the previous version (below) to this checkout
 #   scripts/test-upgrade.sh REF      from REF instead (a tag, branch or commit)
@@ -61,7 +61,7 @@ previous_commit=$(git rev-parse --short "$previous^{commit}")
 password=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
 printf 'POSTGRES_PASSWORD=%s\nKINSHIP_OWNER=tester\n' "$password" >"$STACK_RUNTIME/settings.env"
 chmod 600 "$STACK_RUNTIME/settings.env"
-mkdir -p "$STACK_RUNTIME/data/postgres" "$STACK_RUNTIME/data/uploads" "$STACK_RUNTIME/previous"
+mkdir -p "$STACK_RUNTIME/data/postgres" "$STACK_RUNTIME/previous"
 
 # Never claim an existing stack or its data: one upgrade check at a time.
 if [ -n "$(docker ps -aq --filter "label=com.docker.compose.project=$project")" ]; then
@@ -81,7 +81,7 @@ cleanup() {
   fi
   step "Removing the upgrade stack"
   "${compose[@]}" down --volumes --remove-orphans
-  # The database and uploads belong to the containers' users, so a container removes them.
+  # The database belongs to the containers' users, so a container removes them.
   if ! rm -rf "$STACK_RUNTIME/data" 2>/dev/null; then
     docker run --rm -v "$STACK_RUNTIME:/runtime" --entrypoint rm "$NODE_IMAGE" -rf /runtime/data
   fi
@@ -157,45 +157,7 @@ avatar=$(in_web '
     console.log(url)
   })().catch((e) => { console.error(e); process.exit(1) })
 ' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' "$avatar_contact")
-echo "$avatar_contact's photo is $avatar"
-
-# avatar_sha256: the avatar as /uploads serves it.
-avatar_sha256() {
-  in_web '
-    fetch("http://web:3000" + process.argv[1]).then(async (r) => {
-      if (!r.ok) throw new Error(`${r.url}: ${r.status}`)
-      const bytes = Buffer.from(await r.arrayBuffer())
-      console.log(require("node:crypto").createHash("sha256").update(bytes).digest("hex"))
-    }).catch((e) => { console.error(e); process.exit(1) })
-  ' "$avatar"
-}
-
-step "Previous version: shared/trashed photo references and a legacy orphan"
-in_web '
-  const fs = require("node:fs"), path = require("node:path"), crypto = require("node:crypto")
-  ;(async () => {
-    const base = "http://web:3000"
-    const response = await fetch(base + "/api/contacts", { method: "POST", headers: { origin: base, "content-type": "application/json" }, body: JSON.stringify({ displayName: "Upgrade Shared Photo", avatarUrl: process.argv[1] }) })
-    if (!response.ok) throw new Error(await response.text())
-    const directory = path.join("/app/public/uploads", crypto.createHash("sha256").update("tester").digest("hex"))
-    fs.copyFileSync(path.join(directory, process.argv[1].split("/").pop()), path.join(directory, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.png"), fs.constants.COPYFILE_EXCL)
-  })().catch(e => { console.error(e); process.exit(1) })
-' "$avatar"
-sql "UPDATE \"Contact\" SET \"deletedAt\" = timestamp '2000-01-01' WHERE \"displayName\" = 'Upgrade Shared Photo'" >/dev/null
-photo_files() {
-  in_web '
-    const fs = require("node:fs"), path = require("node:path"), crypto = require("node:crypto")
-    const dir = path.join("/app/public/uploads", crypto.createHash("sha256").update("tester").digest("hex"))
-    console.log(JSON.stringify(fs.readdirSync(dir).filter(n => /^[0-9a-f-]{36}\.png$/i.test(n)).sort().map(n => [n, crypto.createHash("sha256").update(fs.readFileSync(path.join(dir,n))).digest("hex")])))
-  '
-}
-photos_before=$(photo_files)
-in_web 'if (JSON.parse(process.argv[1]).length !== 2) throw new Error("Expected exactly two physical fixture photos")' "$photos_before"
-echo "physical photo names/hashes $photos_before"
-photo_sources() {
-  sql "SELECT md5(string_agg(to_jsonb(c)::text, '' ORDER BY id)) FROM \"Contact\" c WHERE \"displayName\" IN ('Upgrade Photo', 'Upgrade Shared Photo')"
-}
-photo_sources_before=$(photo_sources)
+echo "$avatar_contact's photo was $avatar"
 
 step "Previous version: deliberately stale recency, with source rows to preserve"
 sql "$(cat tests/fixtures/recency-upgrade.sql)" >/dev/null
@@ -213,10 +175,8 @@ else
   test "$(sql "SELECT count(*) FROM \"Contact\" WHERE id LIKE '__recency_upgrade_%' AND \"lastContactAt\" = timestamp '2002-01-01'")" = 7
 fi
 recency_sources_before=$(recency_sources)
-step "Previous version: what the database and the uploads hold"
+step "Previous version: what the database holds"
 row_counts | tee "$STACK_RUNTIME/rows-before"
-avatar_before=$(avatar_sha256)
-echo "avatar sha256 $avatar_before"
 if ! grep -qv ' 0$' "$STACK_RUNTIME/rows-before"; then
   echo "Every table is empty: the seed made nothing to keep." >&2
   exit 1
@@ -241,10 +201,10 @@ if ! diff "$STACK_RUNTIME/rows-before" "$STACK_RUNTIME/rows-after"; then
 fi
 echo "$(wc -l <"$STACK_RUNTIME/rows-after") tables, the same counts"
 
-step "The avatar is still served, byte for byte, and still $avatar_contact's photo"
-test "$(avatar_sha256)" = "$avatar_before"
-test "$(sql "SELECT \"avatarUrl\" FROM \"Contact\" WHERE \"displayName\" = '$avatar_contact'")" = "$avatar"
-echo "same sha256, same photo"
+step "$avatar_contact is still there; the photo column is gone"
+test "$(sql "SELECT count(*) FROM \"Contact\" WHERE \"displayName\" = '$avatar_contact'")" = 1
+test "$(sql "SELECT count(*) FROM information_schema.columns WHERE table_name = 'Contact' AND column_name = 'avatarUrl'")" = 0
+echo "contact kept, avatarUrl dropped"
 
 step "Derived recency corrected; source records unchanged; migrate again is a no-op"
 recency_expected() {
@@ -262,40 +222,19 @@ test "$(recency_expected)" = 8
 test "$(recency_sources)" = "$recency_sources_before"
 echo "8 exact recency values; unchanged source fingerprint; repeat migration no-op"
 
-step "Photo upgrade and repeated HTTP/archive restore preserve rows and physical bytes"
-test "$(photo_files)" = "$photos_before"
-test "$(photo_sources)" = "$photo_sources_before"
+step "An HTTP archive round trip carries no photos and keeps every row"
 in_web '
   ;(async () => {
     const base = "http://web:3000"
     const ok = async r => { if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`); return r.json() }
-    let original = await ok(await fetch(base + "/api/export"))
-    if (original.uploads.length !== 1 || original.uploads[0].name !== process.argv[1].split("/").pop()) throw new Error("Referenced-only export failed")
-    for (let i = 0; i < 3; i++) {
-      await ok(await fetch(base + "/api/import?confirm=replace", { method: "POST", headers: { origin: base, "content-type": "application/json" }, body: JSON.stringify(original) }))
-      const next = await ok(await fetch(base + "/api/export"))
-      if (JSON.stringify(next.uploads) !== JSON.stringify(original.uploads)) throw new Error("Repeated restore changed photos")
-      original = next
-    }
-    console.log("Three restores: one shared referenced photo; legacy orphan excluded")
+    const original = await ok(await fetch(base + "/api/export"))
+    if ("uploads" in original) throw new Error("Export still carries uploads")
+    await ok(await fetch(base + "/api/import?confirm=replace", { method: "POST", headers: { origin: base, "content-type": "application/json" }, body: JSON.stringify(original) }))
+    const next = await ok(await fetch(base + "/api/export"))
+    if (JSON.stringify(next.counts) !== JSON.stringify(original.counts)) throw new Error("Restore changed row counts")
+    console.log("Export and restore: same row counts, no uploads")
   })().catch(e => { console.error(e); process.exit(1) })
-' "$avatar"
-test "$(photo_files)" = "$photos_before"
-test "$(photo_sources)" = "$photo_sources_before"
-test "$(avatar_sha256)" = "$avatar_before"
-step "Packaged CLI: referenced-photo round trip and read-only inventory"
-"${compose[@]}" run --rm -T --no-deps migrate npm run --silent export >"$STACK_RUNTIME/photo-archive.json"
-"${compose[@]}" run --rm -T --no-deps migrate npm run --silent import -- --replace <"$STACK_RUNTIME/photo-archive.json"
-"${compose[@]}" run --rm -T --no-deps migrate npm run --silent photos:check >"$STACK_RUNTIME/photo-inventory.json"
-scripts/node.sh node -e '
-  const report = JSON.parse(process.argv[1])
-  if (report.totals.files !== 2 || report.totals.orphans !== 1) throw new Error("Unexpected upgrade inventory totals")
-  console.log("Read-only inventory: two physical photos, one legacy orphan")
-' "$(cat "$STACK_RUNTIME/photo-inventory.json")"
-test "$(photo_files)" = "$photos_before"
-test "$(photo_sources)" = "$photo_sources_before"
-test "$(avatar_sha256)" = "$avatar_before"
-echo "Source row fingerprint and physical photo names/hashes unchanged; legacy orphan retained"
+'
 
 step "Playwright: every desktop page, on the upgraded data"
 "${compose[@]}" run --rm --no-deps browser npm run --silent test:e2e -- pages.spec.ts --project=desktop

@@ -79,7 +79,7 @@ describe('entry', () => {
           id: 'm1',
           entryId: 'e1',
           contactId: 'c1',
-          contact: { id: 'c1', slug: 'jane', displayName: 'Jane', avatarUrl: null },
+          contact: { id: 'c1', slug: 'jane', displayName: 'Jane' },
         },
       ],
       refs: [

@@ -40,7 +40,6 @@ export const ContactRow = z
     lastName: text,
     nickname: text,
     pronouns: text,
-    avatarUrl: text,
     headline: text,
     company: text,
     jobTitle: text,
@@ -170,7 +169,6 @@ export const ContactRef = z.object({
   id: z.string(),
   slug: z.string(),
   displayName: z.string(),
-  avatarUrl: text,
 })
 
 export const ProjectRef = z.object({
@@ -190,7 +188,6 @@ export const ContactSummary = z.object({
   id: z.string(),
   slug: z.string(),
   displayName: z.string(),
-  avatarUrl: text,
   company: text,
   jobTitle: text,
   headline: text,
@@ -277,7 +274,6 @@ export const CadenceContact = z.object({
   id: z.string(),
   slug: z.string(),
   displayName: z.string(),
-  avatarUrl: text,
   cadence: cadenceSchema,
   tier: tierSchema,
   lastContactAt: maybeInstant,
@@ -413,7 +409,7 @@ export const ProjectDetail = ProjectRow.extend({
           taskId: z.string(),
           contactId: z.string(),
           role: text,
-          contact: z.object({ id: z.string(), displayName: z.string(), avatarUrl: text }),
+          contact: z.object({ id: z.string(), displayName: z.string() }),
         }),
       ),
       column: BoardColumn,
@@ -450,7 +446,6 @@ export const EdgeView = z.object({
   otherId: z.string(),
   label: z.string(),
   href: z.string().meta({ description: 'The app page for the other record.' }),
-  avatarUrl: text,
 })
 
 // ---------------------------------------------------------------- Search
@@ -477,9 +472,7 @@ export const MentionSuggestion = z.object({
 // ----------------------------------------------------------------- Trash
 
 export const Trash = z.object({
-  contacts: z.array(
-    z.object({ id: z.string(), displayName: z.string(), avatarUrl: text, deletedAt: instant }),
-  ),
+  contacts: z.array(z.object({ id: z.string(), displayName: z.string(), deletedAt: instant })),
   entries: z.array(
     z.object({
       id: z.string(),
@@ -543,10 +536,6 @@ export const Weather = z.union([
 
 export const Health = z.object({ ok: z.boolean() })
 
-export const Uploaded = z.object({
-  url: z.string().meta({ description: '`/uploads/<name>`; store it as a contact `avatarUrl`.' }),
-})
-
 export const Archive = z
   .object({
     format: z.literal('kb-archive'),
@@ -557,15 +546,11 @@ export const Archive = z
     data: z
       .record(z.string(), z.array(z.record(z.string(), z.unknown())))
       .meta({ description: 'Every row of each table, by Prisma model name.' }),
-    uploads: z
-      .array(z.object({ name: z.string(), data: z.string().meta({ description: 'Base64.' }) }))
-      .meta({ description: 'The avatar files the contacts point at.' }),
   })
-  .meta({ description: 'The whole database plus avatar files, as one JSON file.' })
+  .meta({ description: 'The whole database, as one JSON file.' })
 
 export const ImportSummary = z.object({
   counts: z.record(z.string(), z.number().int()),
-  uploads: z.number().int(),
   schemaDrift: z.object({ missing: z.array(z.string()), extra: z.array(z.string()) }).nullable(),
 })
 

@@ -220,7 +220,6 @@ export const upsertContactSchema = z.object({
   lastName: trimmed(80).nullish(),
   nickname: trimmed(80).nullish(),
   pronouns: trimmed(40).nullish(),
-  avatarUrl: trimmed(500).nullish(),
 
   /** Short tagline under the name. */
   headline: trimmed(200).nullish(),

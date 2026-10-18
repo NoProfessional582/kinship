@@ -3,7 +3,7 @@
  * tests/compose.test.yaml, against the app at BASE_URL (http://web:3000 on the stack's
  * network). It starts no server.
  *
- *   api      tests/integration  every API route, /uploads and /icons, over HTTP
+ *   api      tests/integration  every API route and /icons, over HTTP
  *   desktop  tests/e2e          tests tagged @desktop, in Desktop Chrome: the desktop pages
  *   phone    tests/e2e          tests tagged @phone, on a Pixel 7: the pages under /m, and /
  *   archive  tests/archive      importing archives, which replaces the owner's data, so it

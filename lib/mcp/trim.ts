@@ -4,7 +4,7 @@ import type * as R from '../openapi/responses'
 
 /**
  * What the read tools answer: each service answer (after JSON) cut down to what an agent
- * needs: ids to follow up with, names, dates, text. Owners, slugs, avatars, colours,
+ * needs: ids to follow up with, names, dates, text. Owners, slugs, colours,
  * positions, TipTap JSON and search text stay behind; fields with no value are left out.
  */
 

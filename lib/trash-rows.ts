@@ -8,7 +8,6 @@ export interface TrashRow {
   name: string
   /** Sent back with a purge so the server can catch a stale view. */
   deletedAt?: string
-  avatarUrl?: string | null
 }
 
 export interface TrashGroup {
@@ -29,7 +28,6 @@ export function trashGroups(data: Trash | undefined): TrashGroup[] {
         id: r.id,
         name: r.displayName,
         deletedAt: at(r.deletedAt),
-        avatarUrl: r.avatarUrl,
       })),
     },
     {

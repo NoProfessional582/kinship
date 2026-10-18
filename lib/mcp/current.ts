@@ -20,7 +20,6 @@ export function contactInput(c: Found<typeof getContact>): UpsertContactInput {
     lastName: c.lastName,
     nickname: c.nickname,
     pronouns: c.pronouns,
-    avatarUrl: c.avatarUrl,
     headline: c.headline,
     company: c.company,
     jobTitle: c.jobTitle,

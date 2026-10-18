@@ -164,13 +164,9 @@ describe('/api/mcp', () => {
     })
   })
 
-  it('has no tool for settings, emptying the trash, import or photos', async () => {
+  it('has no tool for settings, emptying the trash or import', async () => {
     const names = (await listTools()).map((t) => t.name).join(' ')
-    expect(names).not.toMatch(
-      /setting|access|purge|empty|restore|import|export|upload|photo|avatar/,
-    )
-    const contact = (await listTools()).find((t) => t.name === 'update_contact')
-    expect(JSON.stringify(contact?.inputSchema)).not.toContain('avatarUrl')
+    expect(names).not.toMatch(/setting|access|purge|empty|restore|import|export/)
   })
 
   it('read only: lists the read tools alone and refuses a write tool by name', async () => {

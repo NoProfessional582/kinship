@@ -82,7 +82,6 @@ export function PeopleOrbit() {
           {faces.map((c) => (
             <Link key={c.id} href={`/contacts/${c.slug}`} title={c.displayName}>
               <Avatar
-                src={c.avatarUrl}
                 name={c.displayName}
                 size={32}
                 className="ring-2 ring-[var(--card)] transition-transform hover:-translate-y-0.5"
@@ -116,7 +115,7 @@ export function PeopleOrbit() {
                 href={`/contacts/${c.slug}`}
                 className="flex items-center gap-2 text-[13px] transition-opacity hover:opacity-70"
               >
-                <Avatar src={c.avatarUrl} name={c.displayName} size={20} />
+                <Avatar name={c.displayName} size={20} />
                 <span className="min-w-0 flex-1 truncate">{c.displayName}</span>
                 <span className="shrink-0 text-[11px] font-medium text-[var(--destructive)]">
                   {c.health.state === 'never'

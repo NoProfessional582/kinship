@@ -1,34 +1,30 @@
 'use client'
 import * as React from 'react'
-import * as AvatarPrimitive from '@radix-ui/react-avatar'
 import { cn, initials } from '@/lib/utils'
 
 // ------------------------------------------------------------------ Avatar
 
 export function Avatar({
-  src,
   name,
   size = 32,
   className,
 }: {
-  src?: string | null
   name: string
   size?: number
   className?: string
 }) {
   return (
-    <AvatarPrimitive.Root
-      className={cn('relative inline-flex shrink-0 overflow-hidden rounded-full', className)}
-      style={{ width: size, height: size }}
+    <span
+      role="img"
+      aria-label={name}
+      className={cn(
+        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--accent)] font-medium text-[var(--accent-foreground)]',
+        className,
+      )}
+      style={{ width: size, height: size, fontSize: Math.max(9, size * 0.38) }}
     >
-      {src && <AvatarPrimitive.Image src={src} alt={name} className="h-full w-full object-cover" />}
-      <AvatarPrimitive.Fallback
-        className="flex h-full w-full items-center justify-center bg-[var(--accent)] font-medium text-[var(--accent-foreground)]"
-        style={{ fontSize: Math.max(9, size * 0.38) }}
-      >
-        {initials(name)}
-      </AvatarPrimitive.Fallback>
-    </AvatarPrimitive.Root>
+      {initials(name)}
+    </span>
   )
 }
 

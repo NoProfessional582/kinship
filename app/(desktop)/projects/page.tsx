@@ -180,7 +180,6 @@ export default function ProjectsPage() {
                   {(p.people ?? []).slice(0, 5).map((c) => (
                     <Avatar
                       key={c.id}
-                      src={c.avatarUrl}
                       name={c.displayName}
                       size={24}
                       className="ring-2 ring-[var(--card)]"

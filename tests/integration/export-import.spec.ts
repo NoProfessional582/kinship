@@ -13,7 +13,6 @@ interface Archive {
   migrations: string[]
   counts: Record<string, number>
   data: Record<string, { id?: string }[]>
-  uploads: { name: string; data: string }[]
 }
 
 // Every table, in the order an import writes them (lib/archive-rows.ts, MODEL_ORDER).
@@ -160,27 +159,20 @@ test.describe('refusals, which change nothing', () => {
     )
   })
 
-  test('uploads must be bare names holding images', async ({ request }) => {
-    await refused(
-      await importing(request, archive({ uploads: [{ name: '../evil.png', data: 'AAAA' }] })),
-      400,
-      'That file is not a valid archive: Upload names must be bare filenames',
-    )
-    await refused(
-      await importing(request, archive({ uploads: [{ name: 'x.png', data: 'not base64!' }] })),
-      400,
-      'That file is not a valid archive: Upload data must be base64',
-    )
+  test('the photos an older archive carries are ignored, not refused', async ({ request }) => {
+    // Bad names and non-image bytes once failed the import; photos are gone now, so
+    // the archive is judged on its rows alone and fails only on those.
     await refused(
       await importing(
         request,
         archive({
-          uploads: [{ name: 'page.png', data: Buffer.from('<html></html>').toString('base64') }],
+          uploads: [{ name: '../evil.png', data: 'not base64!' }],
+          data: { Mention: [{ entryId: 'e1', contactId: 'c1' }] },
         }),
       ),
       400,
-      'Archive upload "page.png" is not an image this app accepts. Uploads must be one of: ' +
-        'image/png, image/jpeg, image/gif, image/webp. Nothing was written.',
+      'Mention.entryId refers to "e1", which this archive does not contain. ' +
+        'An import may only link rows it carries itself. Nothing was changed.',
     )
   })
 

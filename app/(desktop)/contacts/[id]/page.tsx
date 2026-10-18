@@ -178,7 +178,7 @@ export default function ContactPage() {
           style={{ background: 'linear-gradient(90deg, var(--hue-1), var(--hue-6))' }}
         />
         <div className="flex flex-wrap items-start gap-4 p-5">
-          <Avatar src={contact.avatarUrl} name={contact.displayName} size={84} />
+          <Avatar name={contact.displayName} size={84} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight">{contact.displayName}</h1>
@@ -1006,7 +1006,7 @@ function EdgesBlock({ contactId }: { contactId: string }) {
         {(edges ?? []).map((e) => (
           <div key={e.id} className="group flex items-center gap-2 text-sm">
             {e.otherType === 'contact' ? (
-              <Avatar src={e.avatarUrl} name={e.label} size={22} />
+              <Avatar name={e.label} size={22} />
             ) : (
               <FolderKanban className="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
             )}

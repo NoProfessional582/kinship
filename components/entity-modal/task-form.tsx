@@ -57,7 +57,6 @@ export function taskFromRecord(t: TaskRecord): TaskFormValue {
     assignees: t.assignees.map(({ contact: c }) => ({
       id: c.id,
       displayName: c.displayName,
-      avatarUrl: c.avatarUrl,
     })),
     tags: t.tags.map((x) => x.tag.name),
   }

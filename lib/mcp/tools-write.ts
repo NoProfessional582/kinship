@@ -29,7 +29,7 @@ import * as T from './trim'
  * Each parses with its REST route's schema and calls that route's service, so a change
  * made here is the change the app would make. None of them deletes anything for good:
  * `trash_record` moves a record to the Trash, where the owner can restore it. Settings,
- * emptying the Trash, archive import and photo upload have no tool, on purpose.
+ * emptying the Trash and archive import have no tool, on purpose.
  */
 
 type Out<S extends z.ZodType> = z.output<S>
@@ -144,7 +144,7 @@ export function registerWriteTools(server: McpServer, owner: string) {
         'Search first: the person may already be there, perhaps as a draft.' +
         ' ' +
         USER_CONTENT,
-      inputSchema: agentShape(upsertContactSchema.shape, { omit: ['avatarUrl'] }),
+      inputSchema: agentShape(upsertContactSchema.shape),
       annotations: CHANGES,
     },
     (args) => runTool(() => createContact(owner, upsertContactSchema.parse(args)), T.contact),
@@ -162,7 +162,7 @@ export function registerWriteTools(server: McpServer, owner: string) {
         USER_CONTENT,
       inputSchema: {
         id: id('The contact’s id (or slug).'),
-        ...agentShape(upsertContactSchema.shape, { omit: ['avatarUrl'], partial: true }),
+        ...agentShape(upsertContactSchema.shape, { partial: true }),
       },
       annotations: EDITS,
     },

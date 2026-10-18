@@ -33,8 +33,7 @@ services:
 
   # One-shot job: applies database migrations, then exits; `web` waits for it.
   # Same image as `web`, from the command-line folder that holds the Prisma CLI,
-  # which is also where the seed and archive commands run (README.md). Running as
-  # root lets it hand data/uploads to the web server's user below.
+  # which is also where the seed and archive commands run (README.md).
   migrate:
     image: &image ghcr.io/noprofessional582/kinship:0.5.1
     # `docker compose up` downloads the image, or builds it from this checkout if
@@ -43,18 +42,12 @@ services:
       context: .
     user: '0:0'
     working_dir: /app/cli
-    # Docker creates a missing ./data/uploads owned by root, and the web server
-    # runs as uid 1001 (Dockerfile), so it could not save avatars there. The guard
-    # (prisma/check-migrations.mjs) runs before any migration is applied.
+    # The guard (prisma/check-migrations.mjs) runs before any migration is applied.
     command: >-
-      sh -c "chown -R 1001:1001 /app/public/uploads
-      || echo 'migrate: could not give data/uploads to uid 1001; avatar uploads may fail' >&2;
-      node prisma/check-migrations.mjs && node prisma/deploy-migrations.mjs"
+      sh -c "node prisma/check-migrations.mjs && node prisma/deploy-migrations.mjs"
     environment:
       DATABASE_URL: *database-url
       KINSHIP_OWNER: ${KINSHIP_OWNER:?set KINSHIP_OWNER in .env}
-    volumes:
-      - ./data/uploads:/app/public/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -72,8 +65,6 @@ services:
       # ⚠️ 127.0.0.1 only. Kinship has no sign-in: anyone who can reach this port
       # can read and change everything in it.
       - "127.0.0.1:${KINSHIP_PORT:-3000}:3000"
-    volumes:
-      - ./data/uploads:/app/public/uploads
     healthcheck:
       test:
         - CMD

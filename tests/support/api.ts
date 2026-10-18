@@ -153,7 +153,6 @@ export interface Contact {
   owner: string
   displayName: string
   headline: string | null
-  avatarUrl: string | null
   isDraft: boolean
   cadence: string
   lastContactAt: string | null

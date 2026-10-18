@@ -31,11 +31,11 @@ service-account*.json
 *.secret
 
 # ---- Personal / exported data ----
-# This is a personal CRM: uploads and exports contain real contact data.
-# compose.yaml keeps the database and the avatars in data/.
+# This is a personal CRM: exports contain real contact data.
+# compose.yaml keeps the database in data/.
 /data/
-public/uploads/*
-!public/uploads/.gitkeep
+# Contact photos lived here before they were removed; never commit leftovers.
+public/uploads/
 .linkedin-export/
 /backups/
 *.dump

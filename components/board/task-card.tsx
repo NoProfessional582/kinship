@@ -193,7 +193,7 @@ export function TaskCardFace({
                   title={a.contact.displayName}
                   className="rounded-full ring-2 ring-[var(--card)]"
                 >
-                  <Avatar src={a.contact.avatarUrl} name={a.contact.displayName} size={22} />
+                  <Avatar name={a.contact.displayName} size={22} />
                 </span>
               ))}
               {task.assignees.length > 3 && (

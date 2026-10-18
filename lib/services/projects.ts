@@ -22,7 +22,7 @@ export async function listProjects(owner: string) {
           status: true,
           assignees: {
             select: {
-              contact: { select: { id: true, slug: true, displayName: true, avatarUrl: true } },
+              contact: { select: { id: true, slug: true, displayName: true } },
             },
           },
         },
@@ -58,7 +58,7 @@ export async function getProject(owner: string, idOrSlug: string) {
         where: { deletedAt: null },
         include: {
           assignees: {
-            include: { contact: { select: { id: true, displayName: true, avatarUrl: true } } },
+            include: { contact: { select: { id: true, displayName: true } } },
           },
           column: true,
         },

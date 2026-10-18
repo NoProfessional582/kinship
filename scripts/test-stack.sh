@@ -17,7 +17,7 @@
 #   scripts/test-stack.sh
 #
 # Settings are throwaway: a fresh database password and the owner `tester`, made per run
-# in a private temporary folder that also holds the database and the uploads. Leaves no
+# in a private temporary folder that also holds the database. Leaves no
 # containers, networks, volumes, images or files behind, pass or fail; prints the stack's
 # logs when anything fails. Needs Docker with Compose and Buildx; Node runs in the pinned
 # image (scripts/node.sh).
@@ -42,7 +42,7 @@ step() { printf '\n==> %s\n' "$*"; }
 password=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
 printf 'POSTGRES_PASSWORD=%s\nKINSHIP_OWNER=tester\n' "$password" >"$STACK_RUNTIME/settings.env"
 chmod 600 "$STACK_RUNTIME/settings.env"
-mkdir -p "$STACK_RUNTIME/data/postgres" "$STACK_RUNTIME/data/uploads"
+mkdir -p "$STACK_RUNTIME/data/postgres"
 
 # Never claim an existing stack or its data: one test stack at a time. Any container of the
 # project counts, whichever checkout or compose files started it.
@@ -63,7 +63,7 @@ cleanup() {
   fi
   step "Removing the test stack"
   "${compose[@]}" down --volumes --remove-orphans
-  # The database and uploads belong to the containers' users (postgres, root, uid 1001),
+  # The database belongs to the containers' users,
   # so a container removes them.
   if ! rm -rf "$STACK_RUNTIME/data" 2>/dev/null; then
     docker run --rm -v "$STACK_RUNTIME:/runtime" --entrypoint rm "$builder_image" -rf /runtime/data
@@ -202,18 +202,6 @@ test "$(sql "SELECT string_agg(\"displayName\", ', ' ORDER BY \"displayName\") F
 test "$(sql "SELECT a.value FROM \"ContactAttribute\" a JOIN \"Contact\" c ON c.id = a.\"contactId\"
   WHERE c.\"displayName\" = 'Otto Pemberly' AND a.key = 'Credentials'")" = PMP
 echo "both contacts are in, once each, with Otto's credentials split off"
-
-step "Packaged CLI: read-only photo inventory (disposable seed data only)"
-cli npm run --silent export >"$STACK_RUNTIME/photo-inventory-before.json"
-cli npm run --silent photos:check >"$STACK_RUNTIME/photo-inventory.json"
-scripts/node.sh node -e '
-  const report = JSON.parse(process.argv[1])
-  if (!report.scannedAt || !Array.isArray(report.files) || !Array.isArray(report.unsafe) ||
-      !Number.isInteger(report.totals.files)) throw new Error("Invalid photo inventory")
-  console.log(`Photo inventory: ${report.totals.files} files, ${report.totals.orphans} orphans`)
-' "$(cat "$STACK_RUNTIME/photo-inventory.json")"
-cli npm run --silent export >"$STACK_RUNTIME/photo-inventory-after.json"
-same_data "$STACK_RUNTIME/photo-inventory-before.json" "$STACK_RUNTIME/photo-inventory-after.json"
 
 step "Read-only task hierarchy inventory"
 "${compose[@]}" run --rm -T --no-deps migrate npm run --silent tasks:check >"$STACK_RUNTIME/task-hierarchy.json"

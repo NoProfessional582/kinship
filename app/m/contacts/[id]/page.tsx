@@ -116,7 +116,7 @@ export default function MobileDossier() {
 
       <header className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
-          <Avatar name={c.displayName} src={c.avatarUrl} size={56} />
+          <Avatar name={c.displayName} size={56} />
           <div className="min-w-0 flex-1">
             <h1 className="text-[1.4rem] leading-tight">{c.displayName}</h1>
             {(c.jobTitle || c.company) && (

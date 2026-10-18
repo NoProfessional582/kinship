@@ -1,19 +1,9 @@
 import { test, expect } from '../support/fixtures'
 import { json, unique, newContact, type Contact } from '../support/api'
 
-// A one-pixel PNG, made-up test asset shared by both forms.
-const avatar = {
-  name: 'avatar.png',
-  mimeType: 'image/png',
-  buffer: Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6YxkAAAAASUVORK5CYII=',
-    'base64',
-  ),
-}
-
 for (const phone of [false, true]) {
   test(
-    `contact dossier saves details and avatar (${phone ? 'phone' : 'desktop'})`,
+    `contact dossier saves details (${phone ? 'phone' : 'desktop'})`,
     { tag: phone ? '@phone' : '@desktop' },
     async ({ page, request, cleanup }) => {
       const name = unique('Dossier')
@@ -43,7 +33,6 @@ for (const phone of [false, true]) {
       await form.getByPlaceholder('Category', { exact: true }).fill('Preferences')
       await form.getByPlaceholder('Label', { exact: true }).fill('Tea')
       await form.getByPlaceholder('Value', { exact: true }).fill('Mint')
-      await form.locator('input[type=file]').setInputFiles(avatar)
       const saved = page.waitForResponse(
         (r) => r.url().endsWith(`/api/contacts/${contact.id}`) && r.request().method() === 'PATCH',
       )
@@ -69,10 +58,6 @@ for (const phone of [false, true]) {
       expect(result.contact.attributes).toEqual(
         expect.arrayContaining([expect.objectContaining({ key: 'Tea', value: 'Mint' })]),
       )
-      expect(result.contact.avatarUrl).toMatch(/^\/uploads\//)
-      const image = await request.get(result.contact.avatarUrl!)
-      expect(image.status()).toBe(200)
-      expect(await image.body()).toEqual(avatar.buffer)
     },
   )
 }

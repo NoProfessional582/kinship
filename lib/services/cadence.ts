@@ -11,7 +11,6 @@ export async function contactsNeedingAttention(owner: string, limit = 8) {
       id: true,
       slug: true,
       displayName: true,
-      avatarUrl: true,
       cadence: true,
       tier: true,
       lastContactAt: true,

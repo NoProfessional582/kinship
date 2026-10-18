@@ -58,7 +58,6 @@ ENV PORT=3000
 # The CLI runs through npm; keep its "new version available" notice out of the logs.
 ENV npm_config_update_notifier=false
 
-# uid 1001: compose.yaml's migrate job hands data/uploads to this user.
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
 COPY --from=builder /app/public ./public
@@ -70,12 +69,7 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # The command-line jobs, run by compose.yaml's `migrate` service from /app/cli.
-# lib/uploads.ts uses the physical /app/public/uploads root for both entry
-# points. Keep the public alias for the existing command-line folder layout.
 COPY --from=cli /app/cli ./cli
-RUN ln -s ../public ./cli/public
-
-RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
 
 USER nextjs
 EXPOSE 3000

@@ -207,8 +207,8 @@ Every tool runs the same checks as the matching API route, as the one owner.
 | `link_records`, `unlink_records` | link two records, or remove the link |
 | `trash_record` | move a person, note, task or project to the trash |
 
-**Never, over MCP:** delete anything for good, empty the trash, import an archive, upload
-a photo or change Kinship's settings, including what agents may do. Anything an agent puts
+**Never, over MCP:** delete anything for good, empty the trash, import an archive or
+change Kinship's settings, including what agents may do. Anything an agent puts
 in the trash can be brought back from Trash in the app, so a mistake can be undone.
 
 Notes are written and read as plain text with mentions, such as
@@ -296,8 +296,7 @@ header changes that. Anyone who can reach the port can do anything, so never pub
 origin). A foreign origin or an unexpected `Host` is refused with **403**.
 
 **Send JSON as JSON.** Every body is JSON with `Content-Type: application/json` (**415**
-otherwise), except photo uploads, which are `multipart/form-data`. A body that is not
-valid JSON is refused with **400**.
+otherwise). A body that is not valid JSON is refused with **400**.
 
 **Ids.** Every record has an `id` (a string such as `cmg2x…`). Contacts, tasks and
 projects also have a `slug` (from the name); their `GET /api/…/{id}` accepts either.

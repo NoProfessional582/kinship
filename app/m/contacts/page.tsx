@@ -56,7 +56,7 @@ export default function MobileContacts() {
               <MRow
                 key={c.id}
                 href={m(`/contacts/${c.slug}`)}
-                lead={<Avatar name={c.displayName} src={c.avatarUrl} size={36} />}
+                lead={<Avatar name={c.displayName} size={36} />}
                 title={c.displayName}
                 sub={[c.jobTitle, c.company].filter(Boolean).join(' · ') || undefined}
                 meta={

@@ -583,9 +583,7 @@ function ColumnsPanel() {
 /**
  * Moving the app to another machine.
  *
- * An archive is one JSON file holding every row and every avatar — the photos
- * matter, because they live in a Docker volume rather than the database, and a
- * database-only move leaves every dossier picture behind.
+ * An archive is one JSON file holding every row.
  *
  * Import replaces this database with the archive's contents. There is no merge:
  * ids are preserved so that every mention, ref and edge still points at what it
@@ -613,8 +611,7 @@ function DataPanel() {
     setDone(null)
     try {
       // The File goes to fetch as the body rather than being read into a string
-      // first. An archive carrying a few hundred avatars is large, and there is
-      // no reason for the tab to hold a second copy of it in memory.
+      // first: there is no reason for the tab to hold a second copy of it.
       const res = await fetch(`/api/import?confirm=replace${force ? '&force=1' : ''}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -642,7 +639,7 @@ function DataPanel() {
       icon={DatabaseBackup}
       title="Data"
       hue="var(--hue-6)"
-      hint="One file holds everything: every contact, entry, task and tag, plus the avatar images. Use it to move this app to another machine, or to keep a backup."
+      hint="One file holds everything: every contact, entry, task and tag. Use it to move this app to another machine, or to keep a backup."
     >
       <div className="flex flex-col gap-1.5">
         <Label>Export</Label>
@@ -733,9 +730,7 @@ function DataPanel() {
           <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--muted)] p-3 text-sm">
             <p className="flex items-center gap-2">
               <Check className="h-4 w-4 text-[var(--primary)]" />
-              Restored {Object.values(done.counts).reduce((a, b) => a + b, 0)} rows
-              {done.uploads > 0 && ` and ${done.uploads} image${done.uploads === 1 ? '' : 's'}`}.
-              Reloading…
+              Restored {Object.values(done.counts).reduce((a, b) => a + b, 0)} rows. Reloading…
             </p>
           </div>
         )}

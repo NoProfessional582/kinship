@@ -132,7 +132,7 @@ export default function ContactsPage() {
             className="relative h-full p-3.5 transition-colors hover:bg-[var(--muted)]"
           >
             <div className="flex items-start gap-3">
-              <Avatar src={c.avatarUrl} name={c.displayName} size={40} />
+              <Avatar name={c.displayName} size={40} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   {/* Stretched so the whole tile opens the dossier, while the

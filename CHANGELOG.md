@@ -6,6 +6,14 @@ All notable changes to Kinship are recorded here. The format follows
 
 ## [Unreleased]
 
+### Removed
+
+- Contact photos. `POST /api/upload`, `GET /uploads/{name}`, the photo button on the contact form, `npm run photos:check` and the `avatarUrl` field are gone; contacts show their initials. A migration drops `Contact.avatarUrl`, and Docker no longer mounts `data/uploads` (any files left there are no longer used and can be deleted). Archives no longer carry an `uploads` list, and an import's answer no longer counts uploads. Older archives that carry photos still import, without them.
+
+### Fixed
+
+- The API route table lists `GET /desktop.webmanifest`, so the route-table checks pass again.
+
 ## [0.5.1] - 2026-10-18
 
 ### Fixed

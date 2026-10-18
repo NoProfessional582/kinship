@@ -8,7 +8,6 @@ interface Archive {
   version: number
   counts: Record<string, number>
   data: Record<string, unknown[]>
-  uploads: { name: string; data: string }[]
 }
 
 test('download and restore an archive without changing its records', async ({
@@ -16,16 +15,7 @@ test('download and restore an archive without changing its records', async ({
   request,
   cleanup,
 }) => {
-  const photo = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-    'base64',
-  )
-  const uploaded = await json<{ url: string }>(
-    await request.post('/api/upload', {
-      multipart: { file: { name: 'photo.png', mimeType: 'image/png', buffer: photo } },
-    }),
-  )
-  const contact = await newContact(request, cleanup, { avatarUrl: uploaded.url })
+  await newContact(request, cleanup)
   await page.goto('/settings')
   await page.waitForLoadState('networkidle')
   const before = await json<Archive>(await request.get('/api/export'))
@@ -61,15 +51,6 @@ test('download and restore an archive without changing its records', async ({
   // Settings is recreated with a new internal id on import; nothing references that id.
   const records = (archive: Archive) => ({
     ...archive.data,
-    Contact: archive.data.Contact.map((row) => {
-      const contact = { ...(row as Record<string, unknown>) }
-      if (typeof contact.avatarUrl === 'string' && contact.avatarUrl.startsWith('/uploads/')) {
-        const upload = archive.uploads.find((u) => `/uploads/${u.name}` === contact.avatarUrl)
-        expect(upload, 'every archived local reference has matching bytes').toBeDefined()
-        contact.avatarUrl = upload!.data
-      }
-      return contact
-    }),
     Settings: archive.data.Settings.map((row) => {
       const settings = { ...(row as Record<string, unknown>) }
       delete settings.id
@@ -77,24 +58,12 @@ test('download and restore an archive without changing its records', async ({
     }),
   })
   expect(records(after)).toEqual(records(before))
-  const restored = await json<{ contact: { avatarUrl: string } }>(
-    await request.get(`/api/contacts/${contact.id}`),
-  )
-  const served = await request.get(restored.contact.avatarUrl)
-  expect(served.status()).toBe(200)
-  expect(await served.body()).toEqual(photo)
-  expect(restored.contact.avatarUrl).toBe(uploaded.url)
   for (let n = 0; n < 2; n++) {
     const repeated = await request.post('/api/import?confirm=replace', { data: archive })
     expect(repeated.status()).toBe(200)
     const repeatedExport = await json<Archive>(await request.get('/api/export'))
-    expect(repeatedExport.uploads).toEqual(after.uploads)
     expect(records(repeatedExport)).toEqual(records(after))
   }
-  // Export carries only the restored rows' references, excluding superseded files.
-  expect(after.uploads).toHaveLength(before.uploads.length)
-  expect(after.uploads.map((u) => u.data).sort()).toEqual(before.uploads.map((u) => u.data).sort())
-  expect(new Set(after.uploads.map((u) => u.name)).size).toBe(after.uploads.length)
   await expect(page.getByText(/Restored \d+ rows/)).toBeVisible()
   await reloaded
   await page.waitForLoadState('networkidle')
@@ -127,7 +96,6 @@ test('the legacy kb-archive v1 seed imports through settings with an explicit sc
   const rejected = await json<Archive>(await request.get('/api/export'))
   expect(rejected.counts).toEqual(before.counts)
   expect(rejected.data).toEqual(before.data)
-  expect(rejected.uploads).toEqual(before.uploads)
   await expect(page.getByRole('button', { name: 'Import anyway', exact: true })).toBeVisible()
   const reloaded = page.waitForEvent('framenavigated', {
     predicate: (frame) => frame === page.mainFrame(),
@@ -139,9 +107,17 @@ test('the legacy kb-archive v1 seed imports through settings with an explicit sc
   expect((await forcing).status()).toBe(200)
   const after = await json<Archive>(await request.get('/api/export'))
   expect(after.counts).toEqual(fixture.counts)
-  expect(after.data).toEqual(fixture.data)
-  // This fixture references no local photos, so old files are excluded from export.
-  expect(after.uploads).toEqual([])
+  // The fixture predates the removal of photos: its contacts carry an avatarUrl
+  // column, and it an uploads list, that this version drops on import.
+  expect(after.data).toEqual({
+    ...fixture.data,
+    Contact: fixture.data.Contact.map((row) => {
+      const contact = { ...(row as Record<string, unknown>) }
+      delete contact.avatarUrl
+      return contact
+    }),
+  })
+  expect(after).not.toHaveProperty('uploads')
   await expect(page.getByText(/Restored 58 rows/)).toBeVisible()
   await reloaded
   await page.waitForLoadState('networkidle')
