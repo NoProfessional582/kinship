@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CheckInCadence } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { ValidationError } from '@/lib/errors'
+import { NotFoundError, ValidationError } from '@/lib/errors'
 import { deleteColumn } from '@/lib/services/board'
 import { contactsNeedingAttention } from '@/lib/services/cadence'
 import { getCalendarEvents } from '@/lib/services/calendar'
@@ -270,6 +270,68 @@ describe('check-then-write races settle without a fault', () => {
     const make = () => createProject(A, upsertProjectSchema.parse({ name: `${MARK} Raced` }))
     const projects = await Promise.all([make(), make(), make()])
     expect(new Set(projects.map((p) => p.slug)).size).toBe(3)
+  })
+})
+
+describe('a record in the trash is not found until it is restored', () => {
+  it('refuses edits and links, and allows both again after a restore', async () => {
+    const contact = await createContact(
+      A,
+      upsertContactSchema.parse({ displayName: `${MARK} Binned` }),
+    )
+    const project = await createProject(A, upsertProjectSchema.parse({ name: `${MARK} Binned` }))
+    const task = await createTask(A, upsertTaskSchema.parse({ title: `${MARK} Binned` }))
+    const { entry } = await createEntry(
+      A,
+      createEntrySchema.parse({ kind: 'NOTE', bodyJson: noteWithMention('binned ', contact.id) }),
+    )
+    const trashed = [
+      ['contact', contact.id],
+      ['project', project.id],
+      ['task', task.id],
+      ['entry', entry.id],
+    ] as const
+    for (const [kind, id] of trashed) await softDelete(A, kind, id)
+
+    const notFound = { code: 'P2025' }
+    await expect(
+      updateContact(A, contact.id, upsertContactSchema.parse({ displayName: 'edited' })),
+    ).rejects.toMatchObject(notFound)
+    await expect(
+      updateProject(A, project.id, upsertProjectSchema.parse({ name: 'edited' })),
+    ).rejects.toMatchObject(notFound)
+    await expect(
+      updateTask(A, task.id, upsertTaskSchema.parse({ title: 'edited' })),
+    ).rejects.toMatchObject(notFound)
+    await expect(updateEntry(A, entry.id, { title: 'edited' })).rejects.toMatchObject(notFound)
+    for (const [kind, id] of trashed) {
+      await expect(
+        upsertEdge(A, {
+          sourceType: 'contact',
+          sourceId: a.contact.id,
+          targetType: kind,
+          targetId: id,
+          relation: `${MARK}binned`,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundError)
+      await expect(edgesFor(A, kind, id)).rejects.toBeInstanceOf(NotFoundError)
+    }
+
+    // Restore goes its own way, not through the edits above, and undoes all of it.
+    for (const [kind, id] of trashed) await restore(A, kind, id)
+    expect(
+      (await updateProject(A, project.id, upsertProjectSchema.parse({ name: `${MARK} Back` })))
+        .name,
+    ).toBe(`${MARK} Back`)
+    await expect(
+      upsertEdge(A, {
+        sourceType: 'contact',
+        sourceId: a.contact.id,
+        targetType: 'task',
+        targetId: task.id,
+        relation: `${MARK}binned`,
+      }),
+    ).resolves.toBeTruthy()
   })
 })
 

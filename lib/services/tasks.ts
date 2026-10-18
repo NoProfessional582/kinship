@@ -164,8 +164,9 @@ export async function createTask(owner: string, input: UpsertTaskInput) {
 
 export async function updateTask(owner: string, id: string, input: UpsertTaskInput) {
   return ownerTransaction(owner, async (tx) => {
+    // A task in the trash is not found, as `getTask` says; restore it to edit it.
+    await tx.task.findFirstOrThrow({ where: { id, owner, deletedAt: null }, select: { id: true } })
     await validateParent(tx, owner, id, input.parentTaskId)
-    await tx.task.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
     await validateLinks(tx, owner, input)
     const tagIds = await resolveTagIds(tx, owner, input.tags)
     await tx.taskAssignee.deleteMany({ where: { taskId: id } })

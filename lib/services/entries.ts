@@ -437,8 +437,9 @@ export async function updateEntry(owner: string, id: string, input: Partial<Crea
     // Captured before anything is rewritten: K14 needs both the entry's date as
     // it stands and the people it currently names, so it can tell who this edit
     // adds and who it drops.
+    // A note in the trash is not found, as `getEntry` says; restore it to edit it.
     const before = await tx.entry.findUniqueOrThrow({
-      where: { id, owner },
+      where: { id, owner, deletedAt: null },
       select: { occurredAt: true, mentions: { select: { contactId: true } } },
     })
     const contactsBefore = before.mentions.map((m: { contactId: string }) => m.contactId)

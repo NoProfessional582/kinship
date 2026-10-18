@@ -209,7 +209,11 @@ export async function createContact(owner: string, input: UpsertContactInput) {
 /** Saving from the enrichment modal or the dossier editor clears `isDraft`. */
 export async function updateContact(owner: string, id: string, input: UpsertContactInput) {
   return ownerTransaction(owner, async (tx) => {
-    await tx.contact.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
+    // A contact in the trash is not found, as `getContact` says; restore it to edit it.
+    await tx.contact.findFirstOrThrow({
+      where: { id, owner, deletedAt: null },
+      select: { id: true },
+    })
     const tagIds = await resolveTagIds(tx, owner, input.tags)
 
     // Repeatable sections are replaced wholesale; the form always posts the

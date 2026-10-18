@@ -24,14 +24,18 @@ export interface EdgeInput {
  */
 interface OwnedLookup {
   findFirst(args: {
-    where: { id: string; owner: string }
+    where: { id: string; owner: string; deletedAt: null }
     select: { id: true }
   }): Promise<{ id: string } | null>
 }
 
+/** A record in the trash counts as missing: it can be neither linked nor listed from. */
 async function requireOwnedEntity(db: Tx, owner: string, type: EntityType, id: string) {
   const delegate: OwnedLookup = db[type]
-  const row = await delegate.findFirst({ where: { id, owner }, select: { id: true } })
+  const row = await delegate.findFirst({
+    where: { id, owner, deletedAt: null },
+    select: { id: true },
+  })
   if (!row) throw new NotFoundError()
 }
 

@@ -96,7 +96,11 @@ export async function createProject(owner: string, input: UpsertProjectInput) {
 }
 
 export async function updateProject(owner: string, id: string, input: UpsertProjectInput) {
-  await prisma.project.findFirstOrThrow({ where: { id, owner }, select: { id: true } })
+  // A project in the trash is not found, as `getProject` says; restore it to edit it.
+  await prisma.project.findFirstOrThrow({
+    where: { id, owner, deletedAt: null },
+    select: { id: true },
+  })
   return prisma.project.update({
     where: { id },
     data: {
