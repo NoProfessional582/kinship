@@ -4,7 +4,6 @@ import { subscribeBrowser, useBrowserReady } from '@/lib/hooks/platform'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  SlidersHorizontal,
   Globe,
   CloudSun,
   Type,
@@ -21,6 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Card } from '@/components/ui/misc'
+import { PageHeader } from '@/components/shared/page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -54,15 +54,11 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-[var(--page-max)] px-6 py-8 lg:px-8">
-      <header className="mb-6">
-        <h1 className="flex items-center gap-2.5 text-2xl">
-          <SlidersHorizontal className="h-5 w-5 text-[var(--primary)]" /> Settings
-        </h1>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Everything here is stored locally with your data. Nothing is sent anywhere except the
-          weather lookup, which is off unless you turn it on.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Preferences"
+        title="Settings"
+        description="Everything here is stored locally with your data. Nothing is sent anywhere except the weather lookup, which is off unless you turn it on."
+      />
 
       <div className="flex flex-col gap-5">
         <IdentityPanel

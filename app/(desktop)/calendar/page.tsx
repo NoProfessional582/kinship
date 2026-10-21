@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NewEventDialog } from '@/components/calendar/new-event-dialog'
 import { Card } from '@/components/ui/misc'
+import { PageHeader } from '@/components/shared/page-header'
 import { TodayPanel, useToday } from '@/components/dashboard/today-panel'
 import { useZonedToday } from '@/lib/hooks/settings'
 import type { CalendarControls, CalendarViewName } from '@/components/calendar/calendar-view'
@@ -126,65 +127,54 @@ export default function CalendarPage() {
           than at the top of the column, so the two cards start level.
           Row gap is 0 — the vertical rhythm comes from the margins. */}
       <div className="grid items-start gap-x-6 lg:grid-cols-[minmax(0,1fr)_19.5rem]">
-        {/* Deliberately not flex-wrap. A wrapping flex line moves the whole
-            controls group onto its own row the moment the header runs out of
-            width; shrinking the prose instead keeps them on the subtitle's
-            line, where the only thing that gives is the hint text. */}
-        <header className="mb-6 flex items-end justify-between gap-4 lg:col-start-1 lg:row-start-1">
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--primary)]">
-              Your time
-            </p>
-            <h1 className="mt-1 min-h-[1.1em] text-[2.6rem] leading-[1.08]">{title}</h1>
-            <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
-              Click a day to read it in the rail; drag anything to reschedule it. New events land on
-              the selected day.
-            </p>
-          </div>
+        <PageHeader
+          className="lg:col-start-1 lg:row-start-1"
+          eyebrow="Your time"
+          title={title}
+          description="Click a day to read it in the rail; drag anything to reschedule it. New events land on the selected day."
+          actions={
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="flex items-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] p-0.5">
+                {VIEWS.map((v) => (
+                  <button
+                    key={v.value}
+                    onClick={() => setView(v.value)}
+                    className={cn(
+                      'rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs font-medium transition-colors',
+                      view === v.value
+                        ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+                        : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]',
+                    )}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
 
-          {/* items-end on the header sits these on the subtitle's line, and
-              nothing the filter chips do below can push them off it. */}
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="flex items-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] p-0.5">
-              {VIEWS.map((v) => (
+              <Button size="sm" onClick={() => setCreating(true)}>
+                <Plus className="h-3.5 w-3.5" /> New event
+              </Button>
+
+              <div className="flex items-center gap-1">
+                <NavButton label="Previous" onClick={() => controls.current?.prev()}>
+                  <ChevronLeft className="h-4 w-4" />
+                </NavButton>
                 <button
-                  key={v.value}
-                  onClick={() => setView(v.value)}
-                  className={cn(
-                    'rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs font-medium transition-colors',
-                    view === v.value
-                      ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-                      : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]',
-                  )}
+                  onClick={() => {
+                    controls.current?.today()
+                    setDay(null)
+                  }}
+                  className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] px-3.5 py-2 text-xs font-medium transition-colors hover:bg-[var(--muted)]"
                 >
-                  {v.label}
+                  Today
                 </button>
-              ))}
+                <NavButton label="Next" onClick={() => controls.current?.next()}>
+                  <ChevronRight className="h-4 w-4" />
+                </NavButton>
+              </div>
             </div>
-
-            <Button size="sm" onClick={() => setCreating(true)}>
-              <Plus className="h-3.5 w-3.5" /> New event
-            </Button>
-
-            <div className="flex items-center gap-1">
-              <NavButton label="Previous" onClick={() => controls.current?.prev()}>
-                <ChevronLeft className="h-4 w-4" />
-              </NavButton>
-              <button
-                onClick={() => {
-                  controls.current?.today()
-                  setDay(null)
-                }}
-                className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--card)] px-3.5 py-2 text-xs font-medium transition-colors hover:bg-[var(--muted)]"
-              >
-                Today
-              </button>
-              <NavButton label="Next" onClick={() => controls.current?.next()}>
-                <ChevronRight className="h-4 w-4" />
-              </NavButton>
-            </div>
-          </div>
-        </header>
+          }
+        />
 
         <div className="mb-4 flex flex-wrap items-center gap-1.5 lg:col-start-1 lg:row-start-2">
           <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.13em] text-[var(--muted-foreground)]">

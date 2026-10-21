@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Card, Avatar, EmptyState } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/shared/page-header'
 import { api } from '@/lib/hooks/api'
 import { useTimezone } from '@/lib/hooks/settings'
 import type { Trash } from '@/lib/api-types'
@@ -65,18 +66,14 @@ export default function TrashPage() {
 
   return (
     <div className="mx-auto max-w-[var(--page-max)] px-6 py-8 lg:px-8">
-      <header className="mb-5 flex flex-wrap items-end gap-3">
-        <div className="mr-auto">
-          <h1 className="flex items-center gap-2.5 text-2xl">
-            <Trash2 className="h-5 w-5 text-[var(--muted-foreground)]" /> Trash
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            Deleted items are kept here until you empty it. Nothing is removed on a timer.
-          </p>
-        </div>
-        {(data?.total ?? 0) > 0 &&
+      <PageHeader
+        eyebrow="Deleted items"
+        title="Trash"
+        description="Deleted items are kept here until you empty it. Nothing is removed on a timer."
+        actions={
+          (data?.total ?? 0) > 0 &&
           (confirming ? (
-            <div className="flex items-center gap-2">
+            <>
               <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
                 Cancel
               </Button>
@@ -90,13 +87,14 @@ export default function TrashPage() {
               >
                 <AlertTriangle className="h-3.5 w-3.5" /> Permanently delete {data?.total}
               </Button>
-            </div>
+            </>
           ) : (
             <Button variant="outline" size="sm" onClick={() => setConfirming(true)}>
               Empty trash
             </Button>
-          ))}
-      </header>
+          ))
+        }
+      />
 
       {(data?.total ?? 0) === 0 && (
         <EmptyState

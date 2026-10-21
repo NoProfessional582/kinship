@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { FolderKanban, Plus, Loader2, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, Avatar, EmptyState } from '@/components/ui/misc'
+import { PageHeader } from '@/components/shared/page-header'
 import {
   Dialog,
   DialogContent,
@@ -62,26 +63,26 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-auto max-w-[var(--page-max)] px-6 py-8 lg:px-8">
-      <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--primary)]">
-            Active work
-          </p>
-          <h1 className="mt-1 text-[2.6rem] leading-[1.08]">Projects</h1>
-          <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
+      <PageHeader
+        eyebrow="Active work"
+        title="Projects"
+        description={
+          <>
             {list.length} project{list.length === 1 ? '' : 's'} connected to {totalTasks} task
             {totalTasks === 1 ? '' : 's'}.
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setForm(blankProject())
-            setEditing({ id: null })
-          }}
-        >
-          <Plus className="h-3.5 w-3.5" /> Add project
-        </Button>
-      </header>
+          </>
+        }
+        actions={
+          <Button
+            onClick={() => {
+              setForm(blankProject())
+              setEditing({ id: null })
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" /> Add project
+          </Button>
+        }
+      />
 
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--muted-foreground)]">

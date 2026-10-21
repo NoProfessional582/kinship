@@ -50,7 +50,7 @@ export default function EntryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[var(--page-max)] px-6 py-6 lg:px-8">
+    <div className="mx-auto max-w-[var(--page-max)] px-6 py-8 lg:px-8">
       <div className="mb-4 flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-3.5 w-3.5" /> Back

@@ -5,6 +5,7 @@ import { NotebookPen, Loader2, CalendarClock } from 'lucide-react'
 import { UnifiedComposer } from '@/components/composer/unified-composer'
 import { EntryCard } from '@/components/shared/entry-card'
 import { EmptyState } from '@/components/ui/misc'
+import { PageHeader } from '@/components/shared/page-header'
 import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/hooks/api'
@@ -33,35 +34,36 @@ export default function NotesPage() {
   })
 
   return (
-    <div className="mx-auto max-w-[var(--page-max)] px-6 py-6 lg:px-8">
-      <header className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="mr-auto">
-          <h1 className="flex items-center gap-2 text-lg font-semibold">
-            <NotebookPen className="h-4 w-4" /> Notes & communications
-          </h1>
-          <p className="text-xs text-[var(--muted-foreground)]">
+    <div className="mx-auto max-w-[var(--page-max)] px-6 py-8 lg:px-8">
+      <PageHeader
+        eyebrow="Capture"
+        title="Notes & communications"
+        description={
+          <>
             Type <strong>@</strong> to tag a person and <strong>[[</strong> for a task or project —
             anything new gets created as you write.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label>Filter</Label>
-          <Select
-            value={kind}
-            onChange={(e) => setKind(e.target.value)}
-            className="h-8 w-36 text-xs"
-          >
-            <option value="">All kinds</option>
-            {['NOTE', 'CALL', 'EMAIL', 'TEXT', 'MEETING', 'IN_PERSON', 'SOCIAL', 'EVENT'].map(
-              (k) => (
-                <option key={k} value={k}>
-                  {k.replace('_', ' ').toLowerCase()}
-                </option>
-              ),
-            )}
-          </Select>
-        </div>
-      </header>
+          </>
+        }
+        actions={
+          <div className="flex flex-col gap-1">
+            <Label>Filter</Label>
+            <Select
+              value={kind}
+              onChange={(e) => setKind(e.target.value)}
+              className="h-8 w-36 text-xs"
+            >
+              <option value="">All kinds</option>
+              {['NOTE', 'CALL', 'EMAIL', 'TEXT', 'MEETING', 'IN_PERSON', 'SOCIAL', 'EVENT'].map(
+                (k) => (
+                  <option key={k} value={k}>
+                    {k.replace('_', ' ').toLowerCase()}
+                  </option>
+                ),
+              )}
+            </Select>
+          </div>
+        }
+      />
 
       <UnifiedComposer />
 

@@ -7,6 +7,7 @@ import { Users, Plus, Search, Loader2, Pencil } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, Avatar, Badge, EmptyState } from '@/components/ui/misc'
+import { PageHeader } from '@/components/shared/page-header'
 import {
   Dialog,
   DialogContent,
@@ -82,34 +83,33 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[var(--page-max)] px-6 py-6 lg:px-8">
-      <header className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="mr-auto">
-          <h1 className="flex items-center gap-2 text-lg font-semibold">
-            <Users className="h-4 w-4" /> Contacts
-          </h1>
-          <p className="text-xs text-[var(--muted-foreground)]">
-            {contacts?.length ?? 0} people in your network
-          </p>
-        </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted-foreground)]" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search people…"
-            className="w-56 pl-8"
-          />
-        </div>
-        <Button
-          onClick={() => {
-            setForm(blankContact())
-            setEditing({ id: null })
-          }}
-        >
-          <Plus className="h-3.5 w-3.5" /> New contact
-        </Button>
-      </header>
+    <div className="mx-auto max-w-[var(--page-max)] px-6 py-8 lg:px-8">
+      <PageHeader
+        eyebrow="Your people"
+        title="Contacts"
+        description={`${contacts?.length ?? 0} people in your network.`}
+        actions={
+          <>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted-foreground)]" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search people…"
+                className="w-56 pl-8"
+              />
+            </div>
+            <Button
+              onClick={() => {
+                setForm(blankContact())
+                setEditing({ id: null })
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" /> New contact
+            </Button>
+          </>
+        }
+      />
 
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--muted-foreground)]">
