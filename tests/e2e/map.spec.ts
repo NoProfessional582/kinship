@@ -1036,12 +1036,15 @@ test('the map follows the app theme, keeping its view', { tag: '@desktop' }, asy
   await expect.poll(() => brightness(page, canvas), { message: 'deep space' }).toBeLessThan(60)
   expect(await colouredShare(page, canvas), 'coloured orbs on the dark sky').toBeGreaterThan(0.001)
   await expect
-    .poll(() => textLightness(overlay), { message: 'light text on the dark glass' })
+    .poll(() => textLightness(overlay), { message: 'light text on the warm dark glass' })
     .toBeGreaterThan(80)
 
   // A selection and its panel stay through a change of theme.
   await pick(page, SEEDED.contact)
   await expect(mapOf(page)).toHaveAttribute('data-highlight', 'selected')
+  // The panel is the app's own warm brown after dark, not a cold slate.
+  const panel = await inspectorOf(page).evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(panel, 'the warm dark panel').toMatch(/^oklab\(0\.2\d+ [\d.-]+ 0\.0\d+ \/ 0\.95\)$/)
   await page.getByRole('button', { name: 'Theme' }).click()
   await expect(page.locator('html')).not.toHaveClass(/dark/)
   await expect.poll(() => brightness(page, canvas), { message: 'paper again' }).toBeGreaterThan(200)

@@ -16,6 +16,7 @@ All notable changes to Kinship are recorded here. The format follows
 
 ### Fixed
 
+- The map's details panel, controls, legend, Records list and status line now use Kinship's own warm dark theme after dark (browns and terracotta), instead of a cold slate and indigo that clashed with the rest of the app.
 - The API route table lists `GET /desktop.webmanifest`, so the route-table checks pass again.
 - Removing a board column can no longer permanently delete a card moved into it at the same moment: the "is it empty?" check and the removal now run as one step, and moving a card waits for it.
 - Opening the board for the first time from two places at once (the app and an agent, say) no longer creates the default columns twice.

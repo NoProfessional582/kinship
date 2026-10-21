@@ -13,8 +13,8 @@
  * finger. The "Records" picker (graph-record-picker.tsx) sits beside that button at every
  * width.
  *
- * Like the rest of the map, it follows the app's theme: Kinship's paper, ink and terracotta by
- * day, the approved dark glass after dark (each class's `dark:` partner).
+ * Like the rest of the map, it follows the app's theme: its classes use Kinship's colour
+ * tokens, so the glass is paper, ink and terracotta by day and the warm browns after dark.
  */
 import * as React from 'react'
 import { Crosshair, RotateCw, Settings2, Sparkles } from 'lucide-react'
@@ -87,11 +87,11 @@ const NONE_HIDDEN: ReadonlySet<GraphNodeType> = new Set()
 const STAR_NAMES: Record<StarDensity, string> = { dense: 'Dense', sparse: 'Sparse', off: 'Off' }
 
 const GLASS =
-  'rounded-lg border border-(--line) dark:border-white/10 bg-(--panel)/85 dark:bg-slate-900/60 text-(--ink-raw) dark:text-slate-200 shadow-lg backdrop-blur-md'
+  'rounded-lg border border-(--line) bg-(--panel)/85 text-(--ink-raw) shadow-lg backdrop-blur-md'
 const BUTTON =
-  'inline-flex items-center gap-1.5 rounded-md border border-(--line) dark:border-white/15 px-2.5 py-1.5 text-xs font-medium hover:bg-(--ink-raw)/[0.07] dark:hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none'
+  'inline-flex items-center gap-1.5 rounded-md border border-(--line) px-2.5 py-1.5 text-xs font-medium hover:bg-(--ink-raw)/[0.07] focus-visible:ring-2 focus-visible:ring-(--terracotta) focus-visible:outline-none'
 const BUTTON_ON =
-  'border-(--terracotta) bg-(--terracotta) text-(--primary-foreground) shadow-[0_0_14px_rgba(189,91,63,0.35)] hover:bg-(--terracotta) dark:border-indigo-400 dark:bg-indigo-500 dark:text-white dark:shadow-[0_0_14px_rgba(99,102,241,0.5)] dark:hover:bg-indigo-500'
+  'border-(--terracotta) bg-(--terracotta) text-(--primary-foreground) shadow-[0_0_14px_rgba(189,91,63,0.35)] hover:bg-(--terracotta)'
 
 export interface GraphOverlayProps {
   settings: SceneSettings
@@ -236,10 +236,10 @@ function Slider({
 }) {
   return (
     <div className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-1">
-      <label htmlFor={id} className="text-xs text-(--ink-raw)/85 dark:text-slate-300">
+      <label htmlFor={id} className="text-xs text-(--ink-raw)/85">
         {label}
       </label>
-      <output htmlFor={id} className="text-xs text-(--ink-raw) tabular-nums dark:text-slate-100">
+      <output htmlFor={id} className="text-xs text-(--ink-raw) tabular-nums">
         {show(value)}
       </output>
       <input
@@ -251,7 +251,7 @@ function Slider({
         value={value}
         aria-valuetext={show(value)}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="col-span-2 w-full accent-(--terracotta) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--terracotta) dark:accent-indigo-400 dark:focus-visible:outline-sky-400"
+        className="col-span-2 w-full accent-(--terracotta) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--terracotta)"
       />
     </div>
   )
@@ -278,7 +278,7 @@ function Legend({
   }
   return (
     <div className={className} role="group" aria-label="Legend" data-map-chrome>
-      <p className="mb-1.5 text-xs font-semibold text-(--ink-raw) dark:text-white">Legend</p>
+      <p className="mb-1.5 text-xs font-semibold text-(--ink-raw)">Legend</p>
       <ul className="space-y-1">
         {GRAPH_NODE_TYPES.map((type) => {
           const shown = !hiddenTypes.has(type)
@@ -286,7 +286,7 @@ function Legend({
           return (
             <li key={type}>
               <label
-                className={`-mx-1 flex cursor-pointer items-center gap-2 rounded px-1 text-xs select-none hover:bg-(--ink-raw)/[0.07] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-(--terracotta) dark:hover:bg-white/10 dark:has-[:focus-visible]:ring-sky-400 ${shown ? '' : 'opacity-50'}`}
+                className={`-mx-1 flex cursor-pointer items-center gap-2 rounded px-1 text-xs select-none hover:bg-(--ink-raw)/[0.07] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-(--terracotta) ${shown ? '' : 'opacity-50'}`}
               >
                 <input
                   type="checkbox"

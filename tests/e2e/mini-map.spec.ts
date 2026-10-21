@@ -252,10 +252,10 @@ test('the small map follows the app theme', { tag: '@desktop' }, async ({ page }
   await expect(surface).toHaveCSS('background-color', 'rgb(245, 242, 235)')
   await page.getByRole('button', { name: 'Theme' }).click()
   await expect(surface).toHaveCSS('background-color', 'rgb(8, 10, 14)')
-  // Tailwind's slate comes back as lab(): its lightness, first, is what matters here.
+  // The palette's light ink, as on the rest of the app after dark.
   await expect
     .poll(() => captionOf(page).evaluate((el) => getComputedStyle(el).color))
-    .toMatch(/^lab\((8\d|9\d)/)
+    .toBe('rgb(241, 236, 226)')
 })
 
 test('leaving the page frees the small map', { tag: '@desktop' }, async ({ page }) => {

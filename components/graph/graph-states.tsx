@@ -37,7 +37,7 @@ export function GraphLoading() {
     <Centered>
       <div
         role="status"
-        className="flex flex-col items-center gap-3 text-(--ink-raw)/85 dark:text-slate-300"
+        className="flex flex-col items-center gap-3 text-(--ink-raw)/85"
       >
         <Loader2 className="h-7 w-7 animate-spin opacity-70 motion-reduce:animate-none" />
         <p className="text-sm">Mapping your records…</p>
@@ -49,9 +49,9 @@ export function GraphLoading() {
 export function GraphEmpty() {
   return (
     <Centered>
-      <Orbit className="h-8 w-8 text-(--muted-raw) dark:text-slate-400 opacity-70" />
-      <p className="text-sm font-medium text-(--ink-raw) dark:text-slate-200">No records yet</p>
-      <p className="max-w-xs text-xs text-(--muted-raw) dark:text-slate-400">
+      <Orbit className="h-8 w-8 text-(--muted-raw) opacity-70" />
+      <p className="text-sm font-medium text-(--ink-raw)">No records yet</p>
+      <p className="max-w-xs text-xs text-(--muted-raw)">
         People, projects, notes, tasks and tags appear here once you add them.
       </p>
     </Centered>
@@ -62,14 +62,14 @@ export function GraphError({ message, onRetry }: { message: string; onRetry?: ()
   return (
     <Centered>
       <div role="alert" className="flex flex-col items-center gap-3">
-        <AlertTriangle className="h-7 w-7 text-(--ochre) dark:text-amber-400" />
-        <p className="text-sm font-medium text-(--ink-raw) dark:text-slate-200">{message}</p>
+        <AlertTriangle className="h-7 w-7 text-(--ochre)" />
+        <p className="text-sm font-medium text-(--ink-raw)">{message}</p>
       </div>
       {onRetry && (
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-md border border-(--line) dark:border-slate-600 px-3 py-1.5 text-sm text-(--ink-raw) dark:text-slate-100 hover:bg-(--soft) dark:hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none"
+          className="rounded-md border border-(--line) px-3 py-1.5 text-sm text-(--ink-raw) hover:bg-(--soft) focus-visible:ring-2 focus-visible:ring-(--terracotta) focus-visible:outline-none"
         >
           Try again
         </button>
@@ -94,16 +94,16 @@ export function GraphRecordList({ graph }: { graph: GraphData }) {
   const groups = groupRecords(graph.nodes)
 
   return (
-    <div className="absolute inset-0 overflow-y-auto p-6 text-(--ink-raw) dark:text-slate-200">
+    <div className="absolute inset-0 overflow-y-auto p-6 text-(--ink-raw)">
       <div className="mx-auto max-w-2xl">
         <div
           role="note"
-          className="mb-6 rounded-md border border-(--line) dark:border-slate-700 bg-(--panel)/85 dark:bg-slate-900/60 p-3"
+          className="mb-6 rounded-md border border-(--line) bg-(--panel)/85 p-3"
         >
           <p className="text-sm font-medium">
             The 3D map needs WebGL, which this browser has turned off.
           </p>
-          <p className="mt-1 text-xs text-(--muted-raw) dark:text-slate-400">
+          <p className="mt-1 text-xs text-(--muted-raw)">
             Here are your records as a list instead.
           </p>
         </div>
@@ -119,7 +119,7 @@ export function GraphRecordList({ graph }: { graph: GraphData }) {
                 style={{ background: GRAPH_COLORS[type] }}
               />
               {TYPE_HEADINGS[type]}{' '}
-              <span className="text-(--muted-raw) dark:text-slate-500">({nodes.length})</span>
+              <span className="text-(--muted-raw)">({nodes.length})</span>
             </h2>
             <ul className="space-y-1 pl-4.5">
               {nodes.map((node) => (
@@ -127,7 +127,7 @@ export function GraphRecordList({ graph }: { graph: GraphData }) {
                   {node.url ? (
                     <Link
                       href={node.url}
-                      className="text-(--terracotta-dark) dark:text-sky-300 hover:underline"
+                      className="text-(--terracotta-dark) hover:underline"
                     >
                       {node.name}
                     </Link>
@@ -135,7 +135,7 @@ export function GraphRecordList({ graph }: { graph: GraphData }) {
                     <span>{node.name}</span>
                   )}
                   {node.subtitle && (
-                    <span className="ml-2 text-xs text-(--muted-raw) dark:text-slate-500">
+                    <span className="ml-2 text-xs text-(--muted-raw)">
                       {node.subtitle}
                     </span>
                   )}

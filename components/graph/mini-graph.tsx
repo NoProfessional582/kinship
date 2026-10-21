@@ -221,7 +221,7 @@ function MiniGraphBody({
         onUnavailable={unavailable}
       />
       <p
-        className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md bg-(--panel)/85 dark:bg-black/55 px-2 py-1 text-[11px] text-(--ink-raw) dark:text-slate-200"
+        className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md bg-(--panel)/85 px-2 py-1 text-[11px] text-(--ink-raw)"
         data-testid="mini-map-caption"
       >
         {hovered ? hovered.name : `${others} record${others === 1 ? '' : 's'} within two links`}
