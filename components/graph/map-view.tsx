@@ -224,7 +224,7 @@ function MapBody({ recordHref }: MapViewProps) {
       {mapShown && (
         <p
           aria-live="polite"
-          className="pointer-events-none absolute right-3 bottom-3 left-3 truncate rounded-md bg-(--panel)/85 dark:bg-black/55 px-3 py-1.5 text-xs text-(--ink-raw) dark:text-slate-200 backdrop-blur-sm sm:right-auto sm:max-w-md"
+          className="pointer-events-none absolute right-3 bottom-3 left-3 truncate rounded-md bg-(--panel)/85 px-3 py-1.5 text-xs text-(--ink-raw) backdrop-blur-sm sm:right-auto sm:max-w-md"
           data-testid="map-status"
           data-map-chrome
         >
@@ -250,14 +250,14 @@ function FocusNotice({ message, onDismiss }: { message: string; onDismiss: () =>
       role="status"
       data-testid="map-notice"
       data-map-chrome
-      className="absolute top-14 right-3 left-3 z-[5] flex items-start gap-2 rounded-lg border border-(--ochre)/50 dark:border-amber-300/30 bg-(--panel)/95 dark:bg-slate-900/80 p-3 text-sm text-(--ink-raw) dark:text-slate-100 shadow-lg backdrop-blur-md sm:top-3 sm:left-auto sm:max-w-sm"
+      className="absolute top-14 right-3 left-3 z-[5] flex items-start gap-2 rounded-lg border border-(--ochre)/50 bg-(--panel)/95 p-3 text-sm text-(--ink-raw) shadow-lg backdrop-blur-md sm:top-3 sm:left-auto sm:max-w-sm"
     >
       <p className="min-w-0 flex-1">{message}</p>
       <button
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="-m-1 shrink-0 rounded-md p-1 text-(--muted-raw) dark:text-slate-400 hover:bg-(--ink-raw)/[0.07] dark:hover:bg-white/10 hover:text-(--ink-raw) dark:hover:text-white focus-visible:ring-2 focus-visible:ring-(--terracotta) dark:focus-visible:ring-sky-400 focus-visible:outline-none"
+        className="-m-1 shrink-0 rounded-md p-1 text-(--muted-raw) hover:bg-(--ink-raw)/[0.07] hover:text-(--ink-raw) focus-visible:ring-2 focus-visible:ring-(--terracotta) focus-visible:outline-none"
       >
         <X aria-hidden className="h-4 w-4" />
       </button>
