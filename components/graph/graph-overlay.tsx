@@ -2,8 +2,9 @@
 /**
  * The map's glass overlay: the colour legend, auto-orbit, a camera reset, and live controls
  * for node size, link width, glow and stars, and the attraction between linked records
- * (which lays the map out again, so the page applies it once the slider settles). Settings
- * last for the visit; nothing is saved.
+ * (which lays the map out again, so the page applies it once the slider settles). Each
+ * legend entry is also a checkbox that shows or hides that type of record. Settings and
+ * the filter last for the visit; nothing is saved.
  *
  * On a wide screen the controls sit top left and the legend bottom right, clear of the
  * status line (bottom left), stepping left of the inspector while it is open (on a wide
@@ -82,6 +83,7 @@ const NEXT_STARS: Record<StarDensity, StarDensity> = {
   sparse: 'off',
   off: 'dense',
 }
+const NONE_HIDDEN: ReadonlySet<GraphNodeType> = new Set()
 const STAR_NAMES: Record<StarDensity, string> = { dense: 'Dense', sparse: 'Sparse', off: 'Off' }
 
 const GLASS =
@@ -94,6 +96,9 @@ const BUTTON_ON =
 export interface GraphOverlayProps {
   settings: SceneSettings
   onSettingsChange: (settings: SceneSettings) => void
+  /** The record types the legend has turned off. */
+  hiddenTypes?: ReadonlySet<GraphNodeType>
+  onHiddenTypesChange?: (hiddenTypes: ReadonlySet<GraphNodeType>) => void
   attraction: number
   onAttractionChange: (attraction: number) => void
   autoOrbit: boolean
@@ -109,6 +114,8 @@ export interface GraphOverlayProps {
 export function GraphOverlay({
   settings,
   onSettingsChange,
+  hiddenTypes = NONE_HIDDEN,
+  onHiddenTypesChange = () => {},
   attraction,
   onAttractionChange,
   autoOrbit,
@@ -188,11 +195,17 @@ export function GraphOverlay({
             onChange={onAttractionChange}
           />
 
-          <Legend className="sm:hidden" />
+          <Legend
+            className="sm:hidden"
+            hiddenTypes={hiddenTypes}
+            onHiddenTypesChange={onHiddenTypesChange}
+          />
         </section>
       </div>
 
       <Legend
+        hiddenTypes={hiddenTypes}
+        onHiddenTypesChange={onHiddenTypesChange}
         className={`${GLASS} absolute bottom-3 z-10 hidden p-3 ${
           // Beside the drawer only where there is room for it and the status line.
           drawerOpen ? 'right-[calc(350px+1.5rem)] lg:block' : 'right-3 sm:block'
@@ -244,21 +257,57 @@ function Slider({
   )
 }
 
-function Legend({ className }: { className: string }) {
+/**
+ * The colour key, each entry also a checkbox for whether that type shows on the map. A
+ * hidden type's swatch is an empty ring and its name fades.
+ */
+function Legend({
+  className,
+  hiddenTypes,
+  onHiddenTypesChange,
+}: {
+  className: string
+  hiddenTypes: ReadonlySet<GraphNodeType>
+  onHiddenTypesChange: (hiddenTypes: ReadonlySet<GraphNodeType>) => void
+}) {
+  const toggle = (type: GraphNodeType, shown: boolean) => {
+    const next = new Set(hiddenTypes)
+    if (shown) next.delete(type)
+    else next.add(type)
+    onHiddenTypesChange(next)
+  }
   return (
     <div className={className} role="group" aria-label="Legend" data-map-chrome>
       <p className="mb-1.5 text-xs font-semibold text-(--ink-raw) dark:text-white">Legend</p>
       <ul className="space-y-1">
-        {GRAPH_NODE_TYPES.map((type) => (
-          <li key={type} className="flex items-center gap-2 text-xs">
-            <span
-              aria-hidden
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ background: GRAPH_COLORS[type], boxShadow: `0 0 8px ${GRAPH_COLORS[type]}` }}
-            />
-            {LEGEND_LABELS[type]}
-          </li>
-        ))}
+        {GRAPH_NODE_TYPES.map((type) => {
+          const shown = !hiddenTypes.has(type)
+          const color = GRAPH_COLORS[type]
+          return (
+            <li key={type}>
+              <label
+                className={`-mx-1 flex cursor-pointer items-center gap-2 rounded px-1 text-xs select-none hover:bg-(--ink-raw)/[0.07] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-(--terracotta) dark:hover:bg-white/10 dark:has-[:focus-visible]:ring-sky-400 ${shown ? '' : 'opacity-50'}`}
+              >
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={shown}
+                  onChange={(event) => toggle(type, event.target.checked)}
+                />
+                <span
+                  aria-hidden
+                  className="inline-block h-2.5 w-2.5 rounded-full border"
+                  style={
+                    shown
+                      ? { background: color, borderColor: color, boxShadow: `0 0 8px ${color}` }
+                      : { background: 'transparent', borderColor: color }
+                  }
+                />
+                {LEGEND_LABELS[type]}
+              </label>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

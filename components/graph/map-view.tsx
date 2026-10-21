@@ -4,7 +4,8 @@
  * page (/m/map) both show it. Hovering a record previews its direct connections; clicking
  * selects it and opens the inspector, whose connections select the next record. Escape, a
  * click on empty space or the inspector's close button clears it. The "Records" list
- * reaches any record without a pointer. The overlay's settings last for the visit only.
+ * reaches any record without a pointer. The overlay's settings, and the legend's filter of
+ * which record types show, last for the visit only.
  * Its "Attraction" slider lays the map out again once it has settled for ATTRACTION_SETTLE
  * ms; the map drawn stays until the new arrangement is in, and the selection is kept.
  * The map follows the app's theme (use-map-theme.ts).
@@ -30,6 +31,7 @@ import {
   GraphLoading,
   GraphRecordList,
 } from '@/components/graph/graph-states'
+import type { GraphNodeType } from '@/lib/graph/constants'
 import { readMapFocus, withRecordHref } from '@/lib/graph/deep-link'
 import { highlightState, highlightSummary, neighbourSets } from '@/lib/graph/highlight'
 import { connectionRows } from '@/lib/graph/inspector'
@@ -93,6 +95,8 @@ function MapBody({ recordHref }: MapViewProps) {
   const [hoveredId, setHoveredId] = React.useState<string | null>(null)
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
   const [settings, setSettings] = React.useState<SceneSettings>(SCENE_DEFAULTS)
+  // The legend's filter; every type shows at first.
+  const [hiddenTypes, setHiddenTypes] = React.useState<ReadonlySet<GraphNodeType>>(() => new Set())
   // Off at first, reduced motion or not; only the user turns it on.
   const [autoOrbit, setAutoOrbit] = React.useState(false)
   const canvas = React.useRef<GraphCanvasHandle>(null)
@@ -106,6 +110,13 @@ function MapBody({ recordHref }: MapViewProps) {
     () => new Map((graph?.nodes ?? []).map((node) => [node.id, node])),
     [graph],
   )
+  // A record whose type the legend hides is neither hovered nor selected.
+  const hidden = (id: string | null) => {
+    const type = id === null ? undefined : records.get(id)?.type
+    return type !== undefined && hiddenTypes.has(type)
+  }
+  if (hidden(hoveredId)) setHoveredId(null)
+  if (hidden(selectedId)) setSelectedId(null)
   const highlight = highlightState({ hoveredId, selectedId, neighbours })
   const selected = selectedId === null ? undefined : records.get(selectedId)
   const rows = React.useMemo(
@@ -155,6 +166,7 @@ function MapBody({ recordHref }: MapViewProps) {
         hoveredId={hoveredId}
         selectedId={selectedId}
         settings={settings}
+        hiddenTypes={hiddenTypes}
         frame={data}
         theme={theme}
         autoOrbit={autoOrbit}
@@ -182,6 +194,8 @@ function MapBody({ recordHref }: MapViewProps) {
         <GraphOverlay
           settings={settings}
           onSettingsChange={setSettings}
+          hiddenTypes={hiddenTypes}
+          onHiddenTypesChange={setHiddenTypes}
           attraction={attraction}
           onAttractionChange={setAttraction}
           autoOrbit={autoOrbit}

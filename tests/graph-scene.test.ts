@@ -908,3 +908,53 @@ describe('three stays out of server code', () => {
     expect(importsThree).toEqual([])
   })
 })
+
+describe('applyHidden', () => {
+  /** The sample's scene: links e–c, e–p, t–c and c–g, as built. */
+  function filtered() {
+    const { nodes, links, layout } = sample()
+    const scene = buildGraphScene(layout, links, fakeTextures().textures)
+    const neighbours = neighbourSets(links)
+    const [c, p, e] = nodes.map((n) => scene.nodes.get(n.id)!)
+    const perLink = SCENE_STYLE.conduit.sides * 2
+    /** Each link's opacity, read from its first vertex. */
+    const alphas = () => {
+      const colors = scene.conduits!.geometry.getAttribute('color')
+      return links.map((_, i) => colors.getW(i * perLink))
+    }
+    return { scene, neighbours, c, p, e, alphas }
+  }
+  const resting = SCENE_THEMES.dark.links.resting.opacity
+
+  it('hides a type, its hit proxies and every link touching it, and shows them again', () => {
+    const { scene, c, p, e, alphas } = filtered()
+    expect(scene.applyHidden(new Set(['contact']))).toBe(true)
+    expect(c.group.visible).toBe(false)
+    expect([p.group.visible, e.group.visible]).toEqual([true, true])
+    expect(scene.hitTargets).not.toContain(c.proxy)
+    expect(scene.hitTargets).toHaveLength(5)
+    expect(alphas().map((a) => a === 0)).toEqual([true, false, true, true])
+    expect(scene.applyHidden(new Set(['contact']))).toBe(false)
+
+    expect(scene.applyHidden(new Set())).toBe(true)
+    expect(c.group.visible).toBe(true)
+    expect(scene.hitTargets).toHaveLength(6)
+    expect(alphas()).toEqual(alphas().map(() => Math.fround(resting)))
+  })
+
+  it('keeps hidden links hidden through a highlight and a new link width', () => {
+    const { scene, neighbours, c, alphas } = filtered()
+    scene.applyHidden(new Set(['contact']))
+    scene.applyHighlight(highlightState({ hoveredId: c.node.id, selectedId: null, neighbours }))
+    expect(alphas().map((a) => a === 0)).toEqual([true, false, true, true])
+    scene.applySettings({ ...SCENE_DEFAULTS, linkWidth: 0.2 })
+    expect(alphas().map((a) => a === 0)).toEqual([true, false, true, true])
+  })
+
+  it('puts no beacon on a hidden record', () => {
+    const { scene, c } = filtered()
+    scene.applyHidden(new Set(['contact']))
+    scene.placeBeacon(c.node.id, new PerspectiveCamera(), 0, true)
+    expect(scene.root.getObjectByName('beacon')!.visible).toBe(false)
+  })
+})

@@ -244,6 +244,13 @@ export interface GraphScene {
    * reduced motion it is a still ring.
    */
   placeBeacon(nodeId: string | null, camera: Camera, time: number, reducedMotion: boolean): boolean
+  /**
+   * Hides every record of the given types (the legend's filter), and the links that touch
+   * one: the record's group is hidden, its hit proxy leaves `hitTargets` so it cannot be
+   * picked, and its links' vertices go fully transparent. Nothing is rebuilt; an empty set
+   * shows everything again. True when anything changed.
+   */
+  applyHidden(types: ReadonlySet<GraphNodeType>): boolean
   /** Removes the scene and frees every geometry, material and texture it made. */
   dispose(): void
 }
@@ -429,6 +436,13 @@ export function buildGraphScene(
   const linkColor = new Color()
 
   let lastState: HighlightState | null = null
+  // The legend's filter: the hidden types, and whether each drawn link touches one.
+  let hiddenTypes: ReadonlySet<GraphNodeType> = new Set()
+  const linkHidden: boolean[] = drawn.map(() => false)
+  const allTargets = [...hitTargets]
+  const nodeType = (id: string) => nodes.get(id)!.node.type
+  const touchesHidden = (link: GraphLink) =>
+    hiddenTypes.has(nodeType(link.source)) || hiddenTypes.has(nodeType(link.target))
 
   const free = (thing: { dispose(): void } | null | undefined) => {
     if (thing && owned.delete(thing)) thing.dispose()
@@ -447,6 +461,9 @@ export function buildGraphScene(
 
   let disposed = false
   const position = new Vector3()
+  function nodeIdOf(object: Object3D) {
+    return object.userData.nodeId as string | undefined
+  }
 
   const scene: GraphScene = {
     root,
@@ -454,7 +471,7 @@ export function buildGraphScene(
     theme,
     nodes,
     hitTargets,
-    nodeIdOf: (object) => object.userData.nodeId as string | undefined,
+    nodeIdOf,
     conduits,
     linkVertices,
     bounds: layout.bounds,
@@ -513,7 +530,8 @@ export function buildGraphScene(
           const look = linkLook(state, link)
           if (linkLooks[i] === look) return
           linkLooks[i] = look
-          const { color, opacity } = colours.links[look]
+          const { color } = colours.links[look]
+          const opacity = linkHidden[i] ? 0 : colours.links[look].opacity
           linkColor.set(color)
           const { start, count } = linkVertices.get(link.id)!
           for (let k = start; k < start + count; k++) {
@@ -589,16 +607,20 @@ export function buildGraphScene(
         swapGeometry(conduits, rebuilt.mesh!)
         linkVertices.clear()
         for (const [id, range] of rebuilt.linkVertices) linkVertices.set(id, range)
-        // The new mesh is built at rest; light it as the old one was.
+        // The new mesh is built at rest and unfiltered; light and filter it as the old one was.
         linkLooks.fill('resting')
+        linkHidden.fill(false)
         if (lastState) scene.applyHighlight(lastState)
+        const filter = hiddenTypes
+        hiddenTypes = new Set()
+        scene.applyHidden(filter)
         changed = true
       }
       return changed
     },
     placeBeacon(nodeId, camera, time, reducedMotion) {
       const objects = nodeId === null || disposed ? undefined : nodes.get(nodeId)
-      if (!objects) {
+      if (!objects || !objects.group.visible) {
         beacon.visible = false
         return false
       }
@@ -610,6 +632,46 @@ export function buildGraphScene(
       const side = pulse * group.scale.x
       beacon.scale.set(side, side, 1)
       return !reducedMotion
+    },
+    applyHidden(types) {
+      if (disposed) return false
+      let changed = false
+      hiddenTypes = new Set(types)
+      for (const { node, group } of nodes.values()) {
+        const shown = !hiddenTypes.has(node.type)
+        if (group.visible !== shown) {
+          group.visible = shown
+          changed = true
+        }
+      }
+      if (changed) {
+        hitTargets.length = 0
+        for (const proxy of allTargets) {
+          if (!hiddenTypes.has(nodeType(nodeIdOf(proxy)!))) hitTargets.push(proxy)
+        }
+      }
+      if (conduits) {
+        const colors = conduits.geometry.getAttribute('color') as BufferAttribute
+        let first = Infinity
+        let last = -1
+        drawn.forEach((link, i) => {
+          const hidden = touchesHidden(link)
+          if (linkHidden[i] === hidden) return
+          linkHidden[i] = hidden
+          const opacity = hidden ? 0 : colours.links[linkLooks[i]].opacity
+          const { start, count } = linkVertices.get(link.id)!
+          for (let k = start; k < start + count; k++) colors.setW(k, opacity)
+          first = Math.min(first, start)
+          last = Math.max(last, start + count)
+        })
+        if (last >= 0) {
+          colors.clearUpdateRanges()
+          colors.addUpdateRange(first * 4, (last - first) * 4)
+          colors.needsUpdate = true
+          changed = true
+        }
+      }
+      return changed
     },
     dispose() {
       if (disposed) return

@@ -24,7 +24,7 @@
 import * as React from 'react'
 import { PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import type { GraphLink, MapTheme } from '@/lib/graph/constants'
+import type { GraphLink, GraphNodeType, MapTheme } from '@/lib/graph/constants'
 import { highlightState, neighbourSets } from '@/lib/graph/highlight'
 import type { GraphLayout } from '@/lib/graph/layout3d'
 import {
@@ -53,6 +53,8 @@ export interface GraphCanvasProps {
   selectedId?: string | null
   /** The overlay's settings, applied to the built scene as they change. */
   settings?: SceneSettings
+  /** The record types the legend has turned off: hidden in place, with their links. */
+  hiddenTypes?: ReadonlySet<GraphNodeType>
   /**
    * The camera frames the whole graph again when this changes, and holds its place for a
    * new layout otherwise. The layout itself when left out: every new layout is framed.
@@ -109,6 +111,7 @@ export interface Inset {
   bottom: number
 }
 const NO_INSET: Inset = { right: 0, bottom: 0 }
+const NONE_HIDDEN: ReadonlySet<GraphNodeType> = new Set()
 
 /** The view centre's shift, in CSS pixels: half of what is covered on each side. */
 function shiftFor(inset: Inset) {
@@ -160,6 +163,7 @@ export default function GraphCanvas({
   hoveredId = null,
   selectedId = null,
   settings = SCENE_DEFAULTS,
+  hiddenTypes = NONE_HIDDEN,
   frame,
   theme = 'dark',
   autoOrbit = false,
@@ -430,6 +434,12 @@ export default function GraphCanvas({
     applied.current = settings
     if (current?.graph?.applySettings(settings)) current.invalidate()
   }, [settings, layout])
+
+  // The legend's filter: applied in place, and again to a rebuilt scene (theme, layout).
+  React.useEffect(() => {
+    const current = view.current
+    if (current?.graph?.applyHidden(hiddenTypes)) current.invalidate()
+  }, [hiddenTypes, layout, links, theme, framed])
 
   React.useEffect(() => {
     const current = view.current
